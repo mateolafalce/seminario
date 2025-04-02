@@ -51,13 +51,13 @@ app.MapGet("/", async (HttpContext context) =>
     await context.Response.SendFileAsync("wwwroot/index.html");
 });
 
-// Ruta para devolver el index.html al hacer un GET
+// Ruta para devolver el login.html al hacer un GET
 app.MapGet("/login", async (HttpContext context) =>
 {
     await context.Response.SendFileAsync("wwwroot/login.html");
 });
 
-// Ruta para devolver el index.html al hacer un GET
+// Ruta para devolver el register.html al hacer un GET
 app.MapGet("/register", async (HttpContext context) =>
 {
     await context.Response.SendFileAsync("wwwroot/register.html");
