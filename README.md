@@ -28,3 +28,23 @@ cd backend/FastAPI/
 ```bash
 uvicorn main:app --reload
 ```
+
+## Frontend
+
+Instalar [Node.js](https://nodejs.org/es/download)
+
+```bash
+cd frontend
+```
+
+```bash
+npm install react-router-dom
+```
+
+```bash
+npm install
+```
+
+```bash
+npm run dev
+```
