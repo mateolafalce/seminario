@@ -1,17 +1,30 @@
-## Clonar el proyecto
+# Proyecto Seminario - Grupo 5
+
+Empresa: Boulevard 81
+
+## Backend
 
 ```bash
-git clone https://github.com/mateolafalce/seminario.git
-```
-
-## Ejecutar 
-
-Crea la BD SQlite
-
-```bash
-sqlite3 users.db
+sudo apt update
+sudo apt install python3-pip
 ```
 
 ```bash
-dotnet run
+python3 -m venv .venv && source .venv/bin/activate
+```
+
+Descargar algunas dependencias
+
+```bash
+pip install uvicorn && pip install "fastapi[all]" && pip install python-jose && pip install passlib && pip install pymongo
+```
+
+Ejecutar el servidor
+
+```bash
+cd backend/FastAPI/
+```
+
+```bash
+uvicorn main:app --reload
 ```

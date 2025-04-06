@@ -1,2 +1,5 @@
-/backend/obj
-/backend/bin
+__pycache__/
+*.py[cod]
+/backend/FastAPI/venv/
+/backend/.venv/
+/.venv
