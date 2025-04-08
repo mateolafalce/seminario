@@ -32,3 +32,19 @@ body {
     padding: 20px;
     text-align: center;
 }
+
+table {
+  border-collapse: collapse;
+  width: 100%;
+  background-color: #eafff0;
+}
+
+th, td {
+  border: 1px solid #ddd;
+  text-align: center;
+  padding: 8px;
+}
+
+td:hover {
+  background-color: #d0ffd0;
+}
