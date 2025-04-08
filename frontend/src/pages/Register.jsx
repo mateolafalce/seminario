@@ -1,19 +1,29 @@
 import { useState } from 'react'
 
 function Register() {
-  const [email, setEmail] = useState('ferris@crab.domain')
-  const [password, setPassword] = useState('ferris')
+  const [nombre, setNombre] = useState('')
+  const [apellido, setApellido] = useState('')
+  const [email, setEmail] = useState('')
+  const [password, setPassword] = useState('')
+  const [repeatPassword, setRepeatPassword] = useState('')
 
   const handleSubmit = async (e) => {
     e.preventDefault()
+
+    if (password !== repeatPassword) {
+      alert('Las contraseñas no coinciden')
+      return
+    }
 
     try {
       const response = await fetch('/register', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          username: email,
-          password: password
+          nombre,
+          apellido,
+          email,
+          password
         })
       })
 
@@ -28,6 +38,26 @@ function Register() {
     <div>
       <h2>Crear Usuario</h2>
       <form onSubmit={handleSubmit}>
+        <label>Nombre:</label>
+        <input
+          type="text"
+          name="nombre"
+          value={nombre}
+          onChange={(e) => setNombre(e.target.value)}
+          required
+        />
+        <br />
+
+        <label>Apellido:</label>
+        <input
+          type="text"
+          name="apellido"
+          value={apellido}
+          onChange={(e) => setApellido(e.target.value)}
+          required
+        />
+        <br />
+
         <label>Email:</label>
         <input
           type="email"
@@ -44,6 +74,16 @@ function Register() {
           name="password"
           value={password}
           onChange={(e) => setPassword(e.target.value)}
+          required
+        />
+        <br />
+
+        <label>Repetir Contraseña:</label>
+        <input
+          type="password"
+          name="repeatPassword"
+          value={repeatPassword}
+          onChange={(e) => setRepeatPassword(e.target.value)}
           required
         />
         <br />

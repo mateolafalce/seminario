@@ -10,7 +10,6 @@ function Navbar() {
       <button className="btn" onClick={() => navigate('/sobre-nosotros')}>Sobre Nosotros</button>
       <button className="btn" onClick={() => navigate('/login')}>Iniciar Sesión</button>
       <button className="btn" onClick={() => navigate('/register')}>Registrarse</button>
-      <button className="btn" onClick={() => navigate('/asociarse')}>Asociarse</button>
     </div>
   )
 }
