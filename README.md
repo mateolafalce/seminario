@@ -78,7 +78,7 @@ git switch frontend
 Haces los cambios. Luego:
 
 ```bash
-git push origin frontend
+git add . && git commit -m "Titulo" && git push origin frontend
 ```
 
 Vas a GitHub y hacés clic en "Compare & pull request".
