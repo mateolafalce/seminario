@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import '../styles/Register.css'
 
 function Register() {
   const [nombre, setNombre] = useState('')
@@ -23,6 +24,7 @@ function Register() {
           nombre,
           apellido,
           email,
+          username,
           password
         })
       })
@@ -38,57 +40,57 @@ function Register() {
     <div>
       <h2>Crear Usuario</h2>
       <form onSubmit={handleSubmit}>
-        <label>Nombre:</label>
         <input
           type="text"
           name="nombre"
           value={nombre}
+          placeholder="Nombre"
           onChange={(e) => setNombre(e.target.value)}
           required
         />
         <br />
 
-        <label>Apellido:</label>
         <input
-          type="text"
+          type="apellido"
           name="apellido"
           value={apellido}
+          placeholder="Apellido"
           onChange={(e) => setApellido(e.target.value)}
           required
         />
         <br />
 
-        <label>Email:</label>
         <input
           type="email"
           name="email"
           value={email}
+          placeholder="Email"
           onChange={(e) => setEmail(e.target.value)}
           required
         />
         <br />
 
-        <label>Contraseña:</label>
         <input
           type="password"
           name="password"
           value={password}
+          placeholder="Contraseña"
           onChange={(e) => setPassword(e.target.value)}
           required
         />
         <br />
 
-        <label>Repetir Contraseña:</label>
         <input
           type="password"
           name="repeatPassword"
           value={repeatPassword}
+          placeholder="Repetir Contraseña"
           onChange={(e) => setRepeatPassword(e.target.value)}
           required
         />
         <br />
 
-        <button type="submit">Crear Usuario</button>
+        <button className="submit" type="submit">Crear Usuario</button>
       </form>
     </div>
   )
