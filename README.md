@@ -81,6 +81,4 @@ Haces los cambios. Luego:
 git add . && git commit -m "Actualizar README.md" && git push origin frontend
 ```
 
-Vas a GitHub y hacés clic en "Compare & pull request".
-
-Revisás y creás el PR para fusionarla con main.
+Vas a GitHub y hacés clic en las ramas y le das a Crear pull request (PR) para fusionarla con main.
