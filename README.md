@@ -78,7 +78,7 @@ git switch frontend
 Haces los cambios. Luego:
 
 ```bash
-git add . && git commit -m "Actualizar README.md" && git push origin main
+git add . && git commit -m "Actualizar README.md" && git push origin frontend
 ```
 
 Vas a GitHub y hacés clic en "Compare & pull request".
