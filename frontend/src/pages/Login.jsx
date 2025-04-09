@@ -1,8 +1,8 @@
 import { useState } from 'react'
 
 function Login() {
-  const [email, setEmail] = useState('ferris@crab.domain')
-  const [password, setPassword] = useState('ferris')
+  const [email, setEmail] = useState('')
+  const [password, setPassword] = useState('')
 
   const handleSubmit = async (event) => {
     event.preventDefault()
@@ -33,7 +33,7 @@ function Login() {
           required
           onChange={(e) => setEmail(e.target.value)}
         />
-        <br /><br />
+        <br />
         <input
           type="password"
           value={password}
@@ -41,8 +41,8 @@ function Login() {
           required
           onChange={(e) => setPassword(e.target.value)}
         />
-        <br /><br />
-        <button type="submit">Submit</button>
+        <br />
+        <button className="submit" type="submit">Submit</button>
       </form>
     </div>
   )
