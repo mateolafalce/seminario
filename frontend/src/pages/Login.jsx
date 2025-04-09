@@ -29,7 +29,7 @@ function Login() {
         <input
           type="email"
           value={email}
-          placeholder="Enter your email"
+          placeholder="Email"
           required
           onChange={(e) => setEmail(e.target.value)}
         />
@@ -37,7 +37,7 @@ function Login() {
         <input
           type="password"
           value={password}
-          placeholder="Enter your password"
+          placeholder="Contraseña"
           required
           onChange={(e) => setPassword(e.target.value)}
         />
