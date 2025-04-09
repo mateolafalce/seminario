@@ -84,4 +84,3 @@ git add . && git commit -m "Titulo" && git push origin frontend
 Vas a GitHub y hacés clic en "Compare & pull request".
 
 Revisás y creás el PR para fusionarla con main.
-
