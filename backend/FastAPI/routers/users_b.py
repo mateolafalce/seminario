@@ -39,7 +39,6 @@ async def current_user(token: User = Depends(oauth2)):
     
     return search_user("username",username)
 
-
 @router.post("/register", response_model=User,status_code=status.HTTP_201_CREATED)
 async def register(user: UserDB):
     existing_user = search_user_db("email", user.email)

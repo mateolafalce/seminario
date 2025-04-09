@@ -4,12 +4,14 @@
 
 def user_schema(user) -> dict:
     return {"id": str(user["_id"]),
-            "username": user["username"],
+            "nombre": user["nombre"],
+            "apellido": user["apellido"],
             "email": user["email"]}
 
 def user_schema_db(user) -> dict:
     return {"id": str(user["_id"]),
-            "username": user["username"],
+            "nombre": user["nombre"],
+            "apellido": user["apellido"],
             "email": user["email"],
             "password": user["password"],}
 
