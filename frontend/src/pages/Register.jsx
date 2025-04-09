@@ -2,6 +2,7 @@ import { useState } from 'react'
 import '../styles/Register.css'
 
 function Register() {
+  const [id, setId] = useState('')
   const [nombre, setNombre] = useState('')
   const [apellido, setApellido] = useState('')
   const [email, setEmail] = useState('')
@@ -17,14 +18,14 @@ function Register() {
     }
 
     try {
-      const response = await fetch('/register', {
+      const response = await fetch('http://127.0.0.1:8000/users_b/register', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
+          id,
           nombre,
           apellido,
           email,
-          username,
           password
         })
       })
