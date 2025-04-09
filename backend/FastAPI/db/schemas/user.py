@@ -7,6 +7,12 @@ def user_schema(user) -> dict:
             "username": user["username"],
             "email": user["email"]}
 
+def user_schema_db(user) -> dict:
+    return {"id": str(user["_id"]),
+            "username": user["username"],
+            "email": user["email"],
+            "password": user["password"],}
+
 
 def users_schema(users) -> list:
     return [user_schema(user) for user in users]

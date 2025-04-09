@@ -13,7 +13,7 @@ from pymongo import MongoClient
 # Descomentar el db_client local o remoto correspondiente
 
 # Base de datos local MongoDB
-db_client = MongoClient().local
+db_client = MongoClient("mongodb+srv://ifranmarcosdev:cacadegato1@midatabase.4oxhu5c.mongodb.net/?retryWrites=true&w=majority&appName=midatabase").midatabase
 
 # Clase en vídeo: https://youtu.be/_y9qQZXE24A?t=25470
 
