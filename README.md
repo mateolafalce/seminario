@@ -99,7 +99,7 @@ git branch
 
 # Roadmap
 
-* Logueo de usuarios
+* Logueo de usuarios y admin
    * [x] Login
    * [x] Register
 * Reserva de canchas
