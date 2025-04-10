@@ -62,3 +62,37 @@ npm install
 ```bash
 npm run dev
 ```
+
+## Tema de las branch
+
+Antes de hacer un commit a main con todos los cambios y funcionalidades hechas, podemos trabajar en las ramas o branches.
+
+En este repositorio esta la rama develop (backend) y la rama frontend (frontend).
+
+Si quiero trabajar en la rama frontend que tengo que hacer?
+
+```bash
+git switch frontend
+```
+
+Haces los cambios. Luego:
+
+```bash
+git add . && git commit -m "Actualizar README.md" && git push origin frontend
+```
+
+Vas a GitHub y hacés clic en las ramas y le das a Crear pull request (PR) para fusionarla con main.
+
+¿Que pasa si un compañero hizo un commit y por lo tanto, tengo una version "vieja" del codigo?
+
+En ese caso, nos tenemos que traer lo nuevo del repo:
+
+```bash
+git fetch --all && git pull
+```
+
+Para ver las ramas del proyecto pueden ejecutar:
+
+```bash
+git branch
+```

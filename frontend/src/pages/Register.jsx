@@ -22,9 +22,11 @@ function Register() {
 
     try {
       const response = await fetch('http://127.0.0.1:8000/users_b/register', {
+      const response = await fetch('http://127.0.0.1:8000/users_b/register', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
+          id,
           nombre,
           apellido,
           email,          
