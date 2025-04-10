@@ -1,0 +1,19 @@
+.btn{
+    color:white;
+    border:none;
+    padding: 14px 28px;
+    cursor: pointer;
+    border-radius: 5px;
+    background-color: #28a745;
+    transition: box-shadow 0.3s ease-in-out;
+}
+
+.btn:hover{
+    box-shadow: 0px 8px 16px rgba(0,0,0,0.3);
+    background-color: #218838;
+}
+
+.btn-container{
+    display:flex;
+    gap: 10px;
+}

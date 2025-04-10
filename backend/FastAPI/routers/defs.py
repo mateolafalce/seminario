@@ -19,4 +19,22 @@ def search_user_db(field:str,key):
     except:
         return None
     
+def is_admin(field:str, key):
+    try:
+        user = db_client.admins.find_one({field:key})
+        if user is None:
+            return False
+        else:
+            return True
+    except Exception as e:
+        print(f"error al verificar el administrador: {e}")
+        return False
+    
+
+def search_user_db_admin(field:str,key):
+    try:
+        user = db_client.admins.find_one({field:key})
+        return UserDB(**user_schema_db(user))
+    except:
+        return None
 

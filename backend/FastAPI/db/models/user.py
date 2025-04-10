@@ -4,7 +4,9 @@ from typing import Optional #al hacer el post, el campo id no es obligatorio (no
 
 
 class User(BaseModel):
-    id: Optional[str]
+    id: Optional[str] = None
+    nombre: str
+    apellido: str
     username: str
     email: str
 

@@ -1,29 +1,28 @@
 import './index.css'
-import { BrowserRouter as Router, Routes, Route } from 'react-router-dom'
+import { BrowserRouter as Router, Routes, Route} from 'react-router-dom';
 import Login from './pages/Login'
 import Register from './pages/Register'
 import Navbar from './components/Navbar'
 import ReservaTabla from './components/ReservaTabla'
+import HomePage from './pages/HomePage'
+import { AuthProvider } from './components/AuthContext'
 
 function App() {
   return (
-    <Router>
+   <AuthProvider>
+     <Router>
       <Navbar />
-
       <div className="content">
         <Routes>
-          <Route path="/" element={
-            <>
-              <h1>Boulevard 81</h1>
-              <ReservaTabla /> {/* iria aca? nose */}
-            </>
-          } />
+          <Route path="/" element={<HomePage/>}/>
+          <Route path="/HomePage" element={<HomePage />} />
           <Route path="/login" element={<Login />} />
-          <Route path="/sobre-nosotros" element={<div>Sarasa</div>} />
           <Route path="/register" element={<Register />} />
+          <Route path= "/Turnos" element={<ReservaTabla />}/>
         </Routes>
       </div>
     </Router>
+   </AuthProvider>
   )
 }
 
