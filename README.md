@@ -96,3 +96,17 @@ Para ver las ramas del proyecto pueden ejecutar:
 ```bash
 git branch
 ```
+
+# Roadmap
+
+* Logueo de usuarios
+   * [x] Login
+   * [x] Register
+* Reserva de canchas
+	* [ ] Crear la entidad Reserva
+  * [ ] Implementar la logica en el backend
+  * [ ] Implementar el frontend de la reserva
+* Sistema de matcheo de jugadores
+	* [ ] Crear la entidad Matcheo
+  * [ ] Implementar la logica en el backend
+  * [ ] Implementar el frontend de la reserva
