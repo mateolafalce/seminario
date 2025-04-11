@@ -11,14 +11,15 @@ app = FastAPI()
 app.include_router(users_b.router)
 app.include_router(admin_users.router_admin)
 origins = [
-    "http://localhost:8000"
+    "http://localhost:8000",
+    "*"
 ]
 
 app.add_middleware(
-    CORSMiddleware,
+     CORSMiddleware,
     allow_origins=origins,
     allow_credentials=True,
-    allow_methods=["POST", "OPTIONS"],  # Asegúrate de incluir POST y OPTIONS
+    allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
     allow_headers=["*"],  # Permite todos los headers, o especifica los que necesites
 )
 
