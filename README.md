@@ -154,6 +154,21 @@ Para ver las ramas del proyecto pueden ejecutar:
 git branch
 ```
 
+### Volver un commit atras
+
+Si en un commit cometemos algun error o simplemente lo queremos borrar los cambios aplicados, podemos hacer esto:
+
+```bash
+git log
+```
+
+Para obtener el HASH del commit que queremos eliminar, y luego:
+
+```bash
+git reverse HASH
+```
+Una vez hecho esto, los cambios hechos se revertiran.
+
 # Roadmap
 
 * Logueo de usuarios y admin
