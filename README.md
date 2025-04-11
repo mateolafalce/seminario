@@ -88,7 +88,13 @@ Vas a GitHub y hacés clic en las ramas y le das a Crear pull request (PR) para 
 En ese caso, nos tenemos que traer lo nuevo del repo:
 
 ```bash
-git fetch --all && git pull
+git fetch --all
+```
+
+Si quieres sobre escribir los cambios hechos en el remoto a tu rama local, puedes:
+
+```bash
+git pull
 ```
 
 Para ver las ramas del proyecto pueden ejecutar:
