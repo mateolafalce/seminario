@@ -94,7 +94,7 @@ git fetch --all
 Si quieres sobre escribir los cambios hechos en el remoto a tu rama local, puedes:
 
 ```bash
-git pull
+git pull --rebase
 ```
 
 Para ver las ramas del proyecto pueden ejecutar:
