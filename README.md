@@ -85,17 +85,68 @@ Vas a GitHub y hacés clic en las ramas y le das a Crear pull request (PR) para 
 
 ¿Que pasa si un compañero hizo un commit y por lo tanto, tengo una version "vieja" del codigo?
 
-En ese caso, nos tenemos que traer lo nuevo del repo:
+Tu repo local es como una copia del repositorio remoto. Si un compañero sube cambios (`git push`), esos commits **no se reflejan automáticamente** en tu repo local. Entonces:
+
+- Tu copia del código está desactualizada.
+- No ves los nuevos commits hasta que **sincronizás** con el remoto.
+
+---
+
+## ¿Cómo me traigo lo nuevo del repo?
+
+Primero, necesitás traer los últimos cambios del servidor. Para eso se usa:
 
 ```bash
 git fetch --all
 ```
 
-Si quieres sobre escribir los cambios hechos en el remoto a tu rama local, puedes:
+Esto **descarga** toda la información nueva (commits, ramas, etc) **pero no modifica tu código actual ni cambia la rama en la que estás trabajando**.
+
+> Es como preguntar "¿Qué hay de nuevo?" sin tocar nada todavía.
+
+---
+
+## ¿Cómo aplico esos cambios en mi código?
+
+Si querés **actualizar tu rama actual con los nuevos cambios**, podés hacer:
 
 ```bash
 git pull --rebase
 ```
+
+Esto hace dos cosas:
+1. **`fetch`**: Se trae los cambios nuevos desde el repo remoto.
+2. **`rebase`**: Coloca tus cambios *encima* de los nuevos commits del remoto.
+
+---
+
+## ¿Por qué usar `--rebase`?
+
+Porque `--rebase`:
+
+- Mantiene el historial **más limpio** (sin merges innecesarios).
+- Evita commits como `Merge branch 'main' of origin...`.
+
+Ejemplo práctico:
+
+Supongamos:
+- Tu rama local `main` tiene un commit `A`.
+- En el remoto, alguien ya subió `B` y `C`.
+
+Cuando hacés:
+
+```bash
+git pull --rebase
+```
+
+Git va a:
+
+1. Traer `B` y `C`.
+2. "Quitar" temporalmente tu `A`.
+3. Aplicar `B` y `C`.
+4. Luego "volver a poner" tu `A`, pero ahora encima de `C`.
+
+Entonces el orden final será: `B -> C -> A`.
 
 Para ver las ramas del proyecto pueden ejecutar:
 
