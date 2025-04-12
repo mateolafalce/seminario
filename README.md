@@ -8,13 +8,9 @@
 
 + Centralizará el proceso de reserva de canchas (son diferentes y los consumidores son exigentes).
 
-+ Hacer un display de los resultados de los varios torneos realizados allí, en vez de utilizar una hoja de cálculo compartida.
-
 + Login de los clientes.
 
 + Sistema de matcheo de parejas basado en su historial deportivo y preferencias.
-
-+ Registro de Ingresos mediante códigos QR facilitando el ingreso y control de participantes.
 
 ## Backend
 
