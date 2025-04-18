@@ -171,9 +171,10 @@ Una vez hecho esto, los cambios hechos se revertiran.
    * [x] Login
    * [x] Register
 * Reserva de canchas
-	* [ ] Crear la entidad Reserva
+  * [ ] Crear la entidad Reserva
   * [ ] Implementar la logica en el backend
   * [ ] Implementar el frontend de la reserva
+  * [ ] Implementar notificaciones
 * Sistema de matcheo de jugadores
 	* [ ] Crear la entidad Matcheo
   * [ ] Implementar la logica en el backend
