@@ -1,7 +1,7 @@
 body {
     margin: 0;
     font-family: Arial, sans-serif;
-    background-color: #ffc
+    background-color: white;
 }
 
 .navbar {
@@ -41,7 +41,7 @@ body {
   flex-direction: column;
   align-items: center;
   border-radius: 8px;
-  padding: 40px;
+  padding: 80px;
   box-shadow: 8px;
   text-align: center;
 }
@@ -75,3 +75,43 @@ td:hover {
   background-color: #d0ffd0;
 }
 
+.app-container {
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh; 
+}
+
+.content {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  border-radius: 8px;
+  padding: 80px;
+  box-shadow: 8px;
+  text-align: center;
+  flex-grow: 1;
+}
+
+.session-timeout-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background-color: rgba(0, 0, 0, 0.7);
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  z-index: 1001; 
+  color: white;
+  text-align: center;
+}
+
+.session-timeout-overlay h2 {
+  font-size: 2.5em;
+  margin-bottom: 20px;
+}
+
+.session-timeout-overlay p {
+  font-size: 1.5em;
+}

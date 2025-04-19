@@ -12,11 +12,14 @@ def search_user(field:str,key):
     except:
         return {"error":"No se ha podido encontrar el usuario"}
     
-def search_user_db(field:str,key):
+def search_user_db(field: str, key):
     try:
-        user = db_client.users.find_one({field:key})
-        return UserDB(**user_schema_db(user))
-    except:
+        user = db_client.users.find_one({field: key})
+        if user:
+            return UserDB(**user_schema_db(user))
+        return None
+    except Exception as e:
+        print(f"Error al buscar usuario: {e}")
         return None
     
 def is_admin(field:str, key):
