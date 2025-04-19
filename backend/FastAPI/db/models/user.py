@@ -1,12 +1,14 @@
-# Clase en vídeo: https://youtu.be/_y9qQZXE24A?t=20480
-
 ### User model ###
-
-from pydantic import BaseModel
-from typing import Optional
+from pydantic import BaseModel #permite generar el modelo de forma sencilla
+from typing import Optional #al hacer el post, el campo id no es obligatorio (no se rompe el programa)
 
 
 class User(BaseModel):
-    id: Optional[str]
+    id: Optional[str] = None
+    nombre: str
+    apellido: str
     username: str
     email: str
+
+class UserDB(User):
+    password: str

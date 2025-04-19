@@ -1,17 +1,20 @@
 body {
     margin: 0;
     font-family: Arial, sans-serif;
+    background-color: white;
 }
 
 .navbar {
     display: flex;
     justify-content: center;
-    background-color: #333;
-    padding: 10px 0;
+    background-color: #218838;
+    padding: 1px 0;
     position: fixed;
     width: 100%;
     top: 0;
     left: 0;
+    border-bottom-right-radius: 40px;
+    border-bottom-left-radius: 40px;
 }
 
 .navbar button {
@@ -25,13 +28,35 @@ body {
 }
 
 .navbar button:hover {
-    background-color: #555;
+    background-color: #056448;
+    border-radius: 10px;
+}
+
+.navbar button:active{
+  background-color:  #045f44;
 }
 
 .content {
-    margin-top: 50px;
-    padding: 20px;
-    text-align: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  border-radius: 8px;
+  padding: 80px;
+  box-shadow: 8px;
+  text-align: center;
+}
+
+.content h1 {
+  font-size: 2.5em;
+  color: #333;
+  margin-bottom: 40px;
+}
+
+.content p {
+  font-size: 1.1em;
+  color: #666;
+  line-height: 1.6;
+  max-width: 800px;
 }
 
 table {
@@ -48,4 +73,45 @@ th, td {
 
 td:hover {
   background-color: #d0ffd0;
+}
+
+.app-container {
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh; 
+}
+
+.content {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  border-radius: 8px;
+  padding: 80px;
+  box-shadow: 8px;
+  text-align: center;
+  flex-grow: 1;
+}
+
+.session-timeout-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background-color: rgba(0, 0, 0, 0.7);
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  z-index: 1001; 
+  color: white;
+  text-align: center;
+}
+
+.session-timeout-overlay h2 {
+  font-size: 2.5em;
+  margin-bottom: 20px;
+}
+
+.session-timeout-overlay p {
+  font-size: 1.5em;
 }

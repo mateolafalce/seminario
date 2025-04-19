@@ -81,6 +81,13 @@ Vas a GitHub y hacés clic en las ramas y le das a Crear pull request (PR) para 
 
 ¿Que pasa si un compañero hizo un commit y por lo tanto, tengo una version "vieja" del codigo?
 
+En ese caso, nos tenemos que traer lo nuevo del repo:
+
+```bash
+git fetch --all && git pull
+```
+
+=======
 Tu repo local es como una copia del repositorio remoto. Si un compañero sube cambios (`git push`), esos commits **no se reflejan automáticamente** en tu repo local. Entonces:
 
 - Tu copia del código está desactualizada.
@@ -148,6 +155,7 @@ Para ver las ramas del proyecto pueden ejecutar:
 
 ```bash
 git branch
+```
 ```
 
 ### Volver un commit atras
