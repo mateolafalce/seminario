@@ -1,7 +1,3 @@
-# Clase en vídeo (22/12/2022): https://www.twitch.tv/videos/1686104006
-
-### User schema ###
-
 def user_schema(user) -> dict:
     return {"id": str(user["_id"]),
             "nombre": user["nombre"],

@@ -20,6 +20,10 @@ sudo apt install python3-pip
 ```
 
 ```bash
+cd backend/FastAPI/
+```
+
+```bash
 python3 -m venv .venv && source .venv/bin/activate
 ```
 
@@ -30,10 +34,6 @@ pip install uvicorn && pip install "fastapi[all]" && pip install python-jose && 
 ```
 
 Ejecutar el servidor
-
-```bash
-cd backend/FastAPI/
-```
 
 ```bash
 uvicorn main:app --reload
