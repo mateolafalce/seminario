@@ -57,11 +57,6 @@ function Register() {
           console.error("Error al parsear la respuesta de error:", error);
         }
       }
-          username,
-          password
-        })
-      })
-
       const result = await response.text()
       alert(result)
     } catch (error) {
@@ -125,61 +120,6 @@ function Register() {
           </div>
         </div>
       </div>
-    <div>
-      <h2>Crear Usuario</h2>
-      <form onSubmit={handleSubmit}>
-        <input
-          type="text"
-          name="nombre"
-          value={nombre}
-          placeholder="Nombre"
-          onChange={(e) => setNombre(e.target.value)}
-          required
-        />
-        <br />
-
-        <input
-          type="apellido"
-          name="apellido"
-          value={apellido}
-          placeholder="Apellido"
-          onChange={(e) => setApellido(e.target.value)}
-          required
-        />
-        <br />
-
-        <input
-          type="email"
-          name="email"
-          value={email}
-          placeholder="Email"
-          onChange={(e) => setEmail(e.target.value)}
-          required
-        />
-        <br />
-
-        <input
-          type="password"
-          name="password"
-          value={password}
-          placeholder="Contraseña"
-          onChange={(e) => setPassword(e.target.value)}
-          required
-        />
-        <br />
-
-        <input
-          type="password"
-          name="repeatPassword"
-          value={repeatPassword}
-          placeholder="Repetir Contraseña"
-          onChange={(e) => setRepeatPassword(e.target.value)}
-          required
-        />
-        <br />
-
-        <button className="submit" type="submit">Crear Usuario</button>
-      </form>
     </div>
   );
 }

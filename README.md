@@ -52,10 +52,6 @@ npm install react-router-dom
 ```
 
 ```bash
-npm install
-```
-
-```bash
 npm run dev
 ```
 

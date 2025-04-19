@@ -1,5 +1,5 @@
 import React,{useState} from 'react'
-import "../components/styles.css"
+import "../styles/Styles.css"
 import VerUsuarios from '../components/usuarios/VerUsuarios'
 import Card from '../components/Card'
 

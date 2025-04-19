@@ -1,7 +1,7 @@
 import React, { useContext, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { AuthContext } from '../components/AuthContext'
-import "../components/styles.css"
+import "../styles/Styles.css"
 
 function HomePage(){
     const navigate = useNavigate()
