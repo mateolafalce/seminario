@@ -1,4 +1,5 @@
-import { useState } from 'react'
+import { useState, useContext } from 'react'
+import { AuthContext } from '../components/AuthContext'
 
 const canchas = [
   'Blindex A',
@@ -49,21 +50,34 @@ const horarios = generarHorarios()
 
 function ReservaTabla() {
   const [selected, setSelected] = useState(null)
+  const { isAuthenticated } = useContext(AuthContext)
 
   const handleClick = async (cancha, hora) => {
     setSelected({ cancha, hora })
-
+    const token = localStorage.getItem('accessToken');
+    // Enviar token JWT al backend y que valide que sea un usuario legitimo
     try {
-      const response = await fetch('/reservar', {
+      const response = await fetch('http://127.0.0.1:8000/reservas/reservar', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ cancha, hora })
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          cancha,
+          horario: hora.split(' - ')[0]
+        })
       })
 
-      const data = await response.text()
-      alert(`Reserva exitosa: ${data}`)
+      if (!response.ok) {
+        const error = await response.json()
+        throw new Error(error.detail || 'Error al reservar')
+      }
+
+      const data = await response.json()
+      alert(`Reserva exitosa: ${data.msg}`)
     } catch (err) {
-      alert('Error al reservar turno')
+      alert(`Error al reservar turno: ${err.message}`)
     }
   }
 
@@ -85,13 +99,19 @@ function ReservaTabla() {
                 <td
                   key={hora}
                   style={{
-                    cursor: 'pointer',
+                    cursor: isAuthenticated ? 'pointer' : 'not-allowed',
                     backgroundColor: selected?.cancha === cancha && selected?.hora === hora ? '#a0e0a0' : '#f9f9f9',
                     border: '1px solid #ccc',
                     padding: '10px',
                     textAlign: 'center'
                   }}
-                  onClick={() => handleClick(cancha, hora)}
+                  onClick={() => {
+                    if (isAuthenticated) {
+                      handleClick(cancha, hora)
+                    } else {
+                      alert('Debes iniciar sesión para reservar')
+                    }
+                  }}
                 >
                   Reservar
                 </td>

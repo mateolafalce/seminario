@@ -66,7 +66,7 @@ async def login(form: OAuth2PasswordRequestForm = Depends()):
             status_code=status.HTTP_400_BAD_REQUEST,detail="La contraseña no es correcta"
         )
     
-    admin = is_admin("username",user_db["username"])
+    admin = is_admin(user_db["id"])
     
 
     access_token = {"sub":user_db["username"],

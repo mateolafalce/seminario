@@ -34,7 +34,7 @@ function Login() {
         if (data.is_admin === true) {
           navigate('/admin');
         } else {
-          navigate('/HomePage');
+          navigate('/reserva');
         }
       } else {
         const errorData = await response.json();
