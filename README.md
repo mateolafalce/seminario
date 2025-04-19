@@ -8,13 +8,9 @@
 
 + Centralizará el proceso de reserva de canchas (son diferentes y los consumidores son exigentes).
 
-+ Hacer un display de los resultados de los varios torneos realizados allí, en vez de utilizar una hoja de cálculo compartida.
-
 + Login de los clientes.
 
 + Sistema de matcheo de parejas basado en su historial deportivo y preferencias.
-
-+ Registro de Ingresos mediante códigos QR facilitando el ingreso y control de participantes.
 
 ## Backend
 
@@ -91,8 +87,103 @@ En ese caso, nos tenemos que traer lo nuevo del repo:
 git fetch --all && git pull
 ```
 
+=======
+Tu repo local es como una copia del repositorio remoto. Si un compañero sube cambios (`git push`), esos commits **no se reflejan automáticamente** en tu repo local. Entonces:
+
+- Tu copia del código está desactualizada.
+- No ves los nuevos commits hasta que **sincronizás** con el remoto.
+
+---
+
+## ¿Cómo me traigo lo nuevo del repo?
+
+Primero, necesitás traer los últimos cambios del servidor. Para eso se usa:
+
+```bash
+git fetch --all
+```
+
+Esto **descarga** toda la información nueva (commits, ramas, etc) **pero no modifica tu código actual ni cambia la rama en la que estás trabajando**.
+
+> Es como preguntar "¿Qué hay de nuevo?" sin tocar nada todavía.
+
+---
+
+## ¿Cómo aplico esos cambios en mi código?
+
+Si querés **actualizar tu rama actual con los nuevos cambios**, podés hacer:
+
+```bash
+git pull --rebase
+```
+
+Esto hace dos cosas:
+1. **`fetch`**: Se trae los cambios nuevos desde el repo remoto.
+2. **`rebase`**: Coloca tus cambios *encima* de los nuevos commits del remoto.
+
+---
+
+## ¿Por qué usar `--rebase`?
+
+Porque `--rebase`:
+
+- Mantiene el historial **más limpio** (sin merges innecesarios).
+- Evita commits como `Merge branch 'main' of origin...`.
+
+Ejemplo práctico:
+
+Supongamos:
+- Tu rama local `main` tiene un commit `A`.
+- En el remoto, alguien ya subió `B` y `C`.
+
+Cuando hacés:
+
+```bash
+git pull --rebase
+```
+
+Git va a:
+
+1. Traer `B` y `C`.
+2. "Quitar" temporalmente tu `A`.
+3. Aplicar `B` y `C`.
+4. Luego "volver a poner" tu `A`, pero ahora encima de `C`.
+
+Entonces el orden final será: `B -> C -> A`.
+
 Para ver las ramas del proyecto pueden ejecutar:
 
 ```bash
 git branch
 ```
+```
+
+### Volver un commit atras
+
+Si en un commit cometemos algun error o simplemente lo queremos borrar los cambios aplicados, podemos hacer esto:
+
+```bash
+git log
+```
+
+Para obtener el HASH del commit que queremos eliminar, y luego:
+
+```bash
+git reverse HASH
+```
+Una vez hecho esto, los cambios hechos se revertiran.
+
+# Roadmap
+
+* Logueo de usuarios y admin
+   * [x] Login
+   * [x] Register
+* Reserva de canchas
+  * [ ] Crear la entidad Reserva
+  * [ ] Implementar la logica en el backend
+  * [ ] Implementar el frontend de la reserva
+  * [ ] Implementar notificaciones
+* Sistema de matcheo de jugadores
+	* [ ] Crear la entidad Matcheo
+  * [ ] Implementar la logica en el backend
+  * [ ] Implementar el frontend de la reserva
