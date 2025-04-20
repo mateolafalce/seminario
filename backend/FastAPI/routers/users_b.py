@@ -76,8 +76,8 @@ async def login(form: OAuth2PasswordRequestForm = Depends()):
     access_token_expires = timedelta(minutes=ACCESS_TOKEN_DURATION)
     access_token = jwt.encode(
         {
-            "sub": user_db_data["username"],  # Usamos username como subject
-            "id": str(user_db_data["_id"]),   # Pero también incluimos el ID
+            "sub": user_db_data["username"], 
+            "id": str(user_db_data["_id"]),  
             "exp": datetime.utcnow() + access_token_expires
         },
         SECRET,
@@ -230,12 +230,10 @@ async def eliminar_usuario(data: EliminarUsuarioRequest, user: dict = Depends(cu
         if str(current_user_data["_id"]) == data.identificador:
             raise ValueError("No puedes eliminarte a ti mismo")
 
-        # Eliminar el usuario
         result = db_client.users.delete_one({"_id": user_id})
         if result.deleted_count == 0:
             raise ValueError("Usuario no encontrado o ya eliminado")
         
-        # Opcional: Eliminar también de la colección de admins si era admin
         db_client.admins.delete_one({"user": user_id})
         
         return True

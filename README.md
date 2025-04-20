@@ -174,7 +174,7 @@ Una vez hecho esto, los cambios hechos se revertiran.
 * Logueo de usuarios y admin
    * [x] Login
    * [x] Register
-   * [ ] Gestionar Usuarios
+   * [x] Gestionar Usuarios
    * [ ] Gestionar Reservas
 * Reserva de canchas
   * [x] Crear la entidad Reserva
