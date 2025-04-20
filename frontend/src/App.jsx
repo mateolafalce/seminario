@@ -5,6 +5,8 @@ import Register from './pages/Register';
 import Navbar from './components/Navbar';
 import Reserva from './pages/Reserva';
 import HomePage from './pages/HomePage';
+import GestionClientes from './pages/GestionClientes';
+import BuscarCliente from './pages/BuscarCliente';
 import Admin from './pages/Admin';
 import { AuthProvider, AuthContext } from './components/AuthContext';
 import Unauthorized from './pages/Unauthorized';
@@ -100,8 +102,10 @@ function AppWithTimeout() {
           <Route path="/login" element={<Login />} />
           <Route path="/register" element={<Register />} />
           <Route path="/reserva" element={<Reserva />} />
+          <Route path="/gestionar-clientes" element={<GestionClientes />} />
+          <Route path="/clientes/buscar" element={<BuscarCliente />} />
           <Route path="/Admin/*" element={<AdminRoute />}>
-            <Route index element={<Admin />} />
+          <Route index element={<Admin />} />
           </Route>
           <Route path="/unauthorized" element={<Unauthorized />} />
         </Routes>

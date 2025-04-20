@@ -11,7 +11,7 @@ function Register() {
   const [username, setUsername] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [showRepeatPassword, setShowRepeatPassword] = useState(false);
-  const [errorMessage, setErrorMessage] = useState(''); // Estado para el mensaje de error
+  const [errorMessage, setErrorMessage] = useState(''); 
   const navigate = useNavigate();
   const {loginWithToken} = useContext(AuthContext);
 
@@ -25,7 +25,7 @@ function Register() {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    setErrorMessage(''); // Limpiar el mensaje de error al intentar registrar
+    setErrorMessage(''); 
 
     if (password !== repeatPassword) {
       setErrorMessage('Las contraseñas no coinciden');
@@ -47,7 +47,7 @@ function Register() {
       if(response.ok) {
         const data = await response.json();
         loginWithToken(data.accessToken);
-        navigate('/HomePage');
+        navigate('/login');
       } else {
         try {
           const errorData = await response.json();

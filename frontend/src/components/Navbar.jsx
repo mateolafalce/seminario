@@ -35,7 +35,7 @@ function Navbar() {
             {isAuthenticated ? (
               <>
                 <li className="nav-item">
-                  <Link className="nav-link" to="/reserva">Reservas</Link>
+                  <Link className="nav-link" to="/reserva">Turnos</Link>
                 </li>
                 {isAdmin && (
                   <li className="nav-item">
@@ -43,7 +43,7 @@ function Navbar() {
                   </li>
                 )}
                 {isAdmin && (<li className="nav-item">
-                    <Link className="nav-link" to="/gestionar-cliente">Gestionar Cliente</Link>
+                    <Link className="nav-link" to="/gestionar-clientes">Gestionar Cliente</Link>
                   </li>)}
                 <li className="nav-item">
                   <Link className="nav-link" onClick={handleLogout} to="/login">Cerrar Sesión</Link>

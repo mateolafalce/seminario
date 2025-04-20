@@ -7,13 +7,11 @@ function Reserva() {
   const { isAuthenticated } = useContext(AuthContext);
   const navigate = useNavigate();
 
-  useEffect(() => {
-    if (!isAuthenticated) {
-      navigate('/login');
-    }
-  }, [isAuthenticated, navigate]);
+  if (!isAuthenticated) {
+    return <p>No tienes permisos para ver esta página.</p>
+  }
 
-  return isAuthenticated ? <ReservaTabla /> : null;
+  return <ReservaTabla />;
 }
 
 export default Reserva;
