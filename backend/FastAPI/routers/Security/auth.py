@@ -28,10 +28,11 @@ async def current_user(token: str = Depends(oauth2)):
     if user is None:
         raise credentials_exception
     
-    # Devuelve un diccionario con el ID en formato string
     return {
-        "id": str(user["_id"]),  # Asegúrate de incluir esto
+        "id": str(user["_id"]), 
         "username": user.get("username"),
         "nombre": user.get("nombre"),
-        "email": user.get("email")
+        "email": user.get("email"),
+        "habilitado": user.get("habilitado"),
+        "categoria": user.get("categoria")
     }

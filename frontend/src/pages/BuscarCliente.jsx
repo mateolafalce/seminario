@@ -2,6 +2,8 @@ import { useState, useContext } from 'react';
 import { AuthContext } from '../components/AuthContext'
 import "../styles/Buscar.css"
 
+const categoria = ['2da','3ra','4ta', '5ta','6ta', '7ta', '8ta'];
+
 function BuscarCliente() {
   const [nombre, setNombre] = useState('');
   const [resultados, setResultados] = useState([]);
@@ -63,6 +65,8 @@ function BuscarCliente() {
       nombre: cliente.nombre,
       apellido: cliente.apellido,
       email: cliente.email,
+      categoria: cliente.categoria || "2da",
+      habilitado: cliente.habilitado,
     });
   };
 
@@ -80,6 +84,8 @@ function BuscarCliente() {
         nombre: clienteEditar.nombre,
         apellido: clienteEditar.apellido,
         email: clienteEditar.email,
+        categoria: clienteEditar.categoria,
+        habilitado: clienteEditar.habilitado,
       }),
     });
 
@@ -116,6 +122,10 @@ function BuscarCliente() {
             <h3>{cliente.nombre} {cliente.apellido}</h3>
             <p><strong>Username:</strong> {cliente.username}</p>
             <p><strong>Email:</strong> {cliente.email}</p>
+            <p><strong>Habilitado:</strong> {cliente.habilitado ? 'Sí' : 'No'}</p>
+            <p><strong>Categoria:</strong> {cliente.categoria ? cliente.categoria : 'No Registrado'}</p>
+            <p><strong>Se Registro:</strong> {cliente.fecha_registro}</p>
+            <p><strong>Ultima Conexion:</strong> {cliente.ultima_conexion}</p>
 
             <div className="acciones">
               <button onClick={() => handleModificar(cliente)}>Modificar</button>
@@ -147,6 +157,30 @@ function BuscarCliente() {
                     placeholder="Email"
                     required
                   />
+                  <br/>
+                <select
+                  value={clienteEditar.categoria}
+                  onChange={(e) => setClienteEditar({ ...clienteEditar, categoria: e.target.value })}
+                >
+                  <option value="">Seleccionar categoría</option>
+                  {categoria.map((cat) => (
+                    <option key={cat} value={cat}>
+                      {cat}
+                    </option>
+                  ))}
+                </select>
+                <br/>
+                  <input
+                    type="checkbox"
+                    checked={clienteEditar.habilitado}
+                    onChange={(e) =>
+                      setClienteEditar({
+                        ...clienteEditar,
+                        habilitado: e.target.checked,
+                      })
+                    }
+                  />
+                  <label>Usuario habilitado</label>
                   <br/>
                   <button type="submit">Guardar cambios</button>
                   <button type="button" onClick={() => setClienteEditar(null)}>Cancelar</button>

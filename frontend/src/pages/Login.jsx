@@ -11,8 +11,6 @@ function Login() {
   const navigate = useNavigate();
   const { login } = useContext(AuthContext);
 
-  
-
   const togglePasswordVisibility = () => {
     setShowPassword(!showPassword);
   };
@@ -29,7 +27,7 @@ function Login() {
 
       if (response.ok) {
         const data = await response.json();
-        login(data.access_token, data.is_admin);
+        login(data.access_token, data.is_admin, data.habilitado);
 
         if (data.is_admin === true) {
           navigate('/admin');

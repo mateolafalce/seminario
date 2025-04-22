@@ -30,7 +30,7 @@ python3 -m venv .venv && source .venv/bin/activate
 Descargar algunas dependencias
 
 ```bash
-pip install uvicorn && pip install "fastapi[all]" && pip install python-jose && pip install passlib && pip install pymongo
+pip install uvicorn && pip install "fastapi[all]" && pip install python-jose && pip install passlib && pip install pymongo && pip install pytz
 ```
 
 Ejecutar el servidor
@@ -181,6 +181,10 @@ Una vez hecho esto, los cambios hechos se revertiran.
   * [x] Implementar la logica en el backend
   * [x] Implementar el frontend de la reserva
   * [ ] Implementar notificaciones
+* ABML de Preferencias del usuario
+  * [x] Crear la entidad Preferencia
+  * [x] Implementar la logica en el backend
+  * [x] Implementar el frontend de la reserva
 * Sistema de matcheo de jugadores
 	* [ ] Crear la entidad Matcheo
   * [ ] Implementar la logica en el backend

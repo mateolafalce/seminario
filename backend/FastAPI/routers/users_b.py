@@ -10,6 +10,8 @@ from routers.Security.auth import current_user
 from pydantic import BaseModel
 from bson import ObjectId
 import asyncio
+from datetime import datetime
+import pytz
 
 router = APIRouter(prefix="/users_b",
                     tags=["usuarios_b"],
@@ -21,29 +23,43 @@ crypt = CryptContext(schemes=["bcrypt"])
 
 # TODO: validar que un admin no pueda borrarse a si mismo xd
 
-@router.post("/register",status_code=status.HTTP_201_CREATED)
+@router.post("/register", status_code=status.HTTP_201_CREATED)
 async def register(user: UserDB):
     existing_user = search_user_db("username", user.username)
     if existing_user:
         raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST, detail="El nombre de usuario ya existe")
+            status_code=status.HTTP_400_BAD_REQUEST, 
+            detail="El nombre de usuario ya existe"
+        )
 
     user_dict = dict(user)
     del user_dict["id"]
 
-    #hasheo la contraseña
+    # Hashear la contraseña
     hashed_password = crypt.hash(user.password)
     user_dict["password"] = hashed_password
+
+    user_dict["habilitado"] = False
+    argentina_tz = pytz.timezone("America/Argentina/Buenos_Aires")
+    fecha_argentina = datetime.now(argentina_tz).strftime("%Y-%m-%d %H:%M:%S")
+    user_dict["fecha_registro"] = fecha_argentina
+    user_dict["ultima_conexion"] = None
+    user_dict["categoria"] = None
 
     id = db_client.users.insert_one(user_dict).inserted_id
 
     new_user_data = db_client.users.find_one({"_id": id})
     new_user = user_schema_db(new_user_data)
-    access_token = {"sub":new_user["username"],
-                    "exp":datetime.utcnow() + timedelta(minutes=ACCESS_TOKEN_DURATION)}
-    
-    return {"access_token":access_token, "token_type":"bearer"}
-    
+    access_token = {
+        "sub": new_user["username"],
+        "exp": datetime.utcnow() + timedelta(minutes=ACCESS_TOKEN_DURATION)
+    }
+
+    return {
+        "access_token": access_token,
+        "token_type": "bearer"
+    }
+
 def check_admin(user_id: str):
     try:
         admin = db_client.admins.find_one({"user": ObjectId(user_id)})
@@ -54,11 +70,13 @@ def check_admin(user_id: str):
 
 @router.post("/login")
 async def login(form: OAuth2PasswordRequestForm = Depends()):
-    # Buscar usuario por username
     user_db_data = await asyncio.to_thread(
         lambda: db_client.users.find_one({"username": form.username})
     )
-    
+
+    argentina_tz = pytz.timezone("America/Argentina/Buenos_Aires")
+    fecha_argentina = datetime.now(argentina_tz).strftime("%Y-%m-%d %H:%M:%S")
+
     if user_db_data is None:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST, 
@@ -71,6 +89,14 @@ async def login(form: OAuth2PasswordRequestForm = Depends()):
             status_code=status.HTTP_400_BAD_REQUEST, 
             detail="Usuario o contraseña incorrectos"
         )
+
+    # Actualizar el campo ultima_conexion
+    await asyncio.to_thread(
+        lambda: db_client.users.update_one(
+            {"_id": user_db_data["_id"]},
+            {"$set": {"ultima_conexion": fecha_argentina}}
+        )
+    )
     
     # Generar token JWT
     access_token_expires = timedelta(minutes=ACCESS_TOKEN_DURATION)
@@ -93,7 +119,8 @@ async def login(form: OAuth2PasswordRequestForm = Depends()):
         "token_type": "bearer",
         "user_id": str(user_db_data["_id"]),
         "username": user_db_data["username"],
-        "is_admin": is_admin
+        "is_admin": is_admin,
+        "habilitado": user_db_data["habilitado"]
     }
 
 @router.get("/me")
@@ -132,14 +159,26 @@ async def buscar_clientes(request: BuscarClienteRequest, user: dict = Depends(cu
         # Procesar resultados
         clientes_procesados = []
         for cliente in clientes:
+            categoria_nombre = None
+
+            # Si tiene categoría, buscamos su nombre
+            if cliente.get("categoria"):
+                categoria_obj = db_client.categorias.find_one({"_id": cliente["categoria"]})
+                if categoria_obj:
+                    categoria_nombre = categoria_obj.get("nombre")
+
             clientes_procesados.append({
                 "_id": str(cliente.get("_id")),
                 "nombre": cliente.get("nombre"),
                 "apellido": cliente.get("apellido"),
                 "username": cliente.get("username"),
                 "email": cliente.get("email"),
-                "dni": cliente.get("dni"),
+                "habilitado": cliente.get("habilitado"),
+                "fecha_registro": cliente.get("fecha_registro"),
+                "ultima_conexion": cliente.get("ultima_conexion"),
+                "categoria": categoria_nombre if categoria_nombre else None,
             })
+
 
         return {"clientes": clientes_procesados}
 
@@ -151,6 +190,8 @@ class ModificarUsuarioRequest(BaseModel):
     nombre: str
     apellido: str
     email: str
+    habilitado: bool
+    categoria: str
 
 @router.post("/modificar")
 async def modificar_usuario(data: ModificarUsuarioRequest, user: dict = Depends(current_user)):
@@ -172,11 +213,16 @@ async def modificar_usuario(data: ModificarUsuarioRequest, user: dict = Depends(
         if not is_admin:
             raise ValueError("Solo los admin pueden modificar usuarios")
 
-        # Actualizar el usuario objetivo
+        categoria_obj = db_client.categorias.find_one({"nombre": data.categoria})
+        if not categoria_obj:
+            raise ValueError(f"Categoría '{data.categoria}' no encontrada")
+
         update_data = {
             "nombre": data.nombre,
             "apellido": data.apellido,
             "email": data.email,
+            "habilitado": data.habilitado,
+            "categoria": categoria_obj["_id"],
         }
 
         result = db_client.users.update_one(

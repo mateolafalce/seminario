@@ -10,6 +10,7 @@ import BuscarCliente from './pages/BuscarCliente';
 import Admin from './pages/Admin';
 import { AuthProvider, AuthContext } from './components/AuthContext';
 import Unauthorized from './pages/Unauthorized';
+import Preferencias from './pages/Preferencia';
 import AdminRoute from './components/AdminRoute';
 import React, { useState, useEffect, useContext } from 'react';
 
@@ -98,12 +99,13 @@ function AppWithTimeout() {
         )}
         <Routes>
           <Route path="/" element={<HomePage />} />
-          <Route path="/HomePage" element={<HomePage />} />
+          <Route path="/home" element={<HomePage />} />
           <Route path="/login" element={<Login />} />
           <Route path="/register" element={<Register />} />
           <Route path="/reserva" element={<Reserva />} />
           <Route path="/gestionar-clientes" element={<GestionClientes />} />
           <Route path="/clientes/buscar" element={<BuscarCliente />} />
+          <Route path="/preferencias" element={<Preferencias />} />
           <Route path="/Admin/*" element={<AdminRoute />}>
           <Route index element={<Admin />} />
           </Route>
