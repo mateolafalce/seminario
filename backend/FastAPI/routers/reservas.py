@@ -37,14 +37,16 @@ def clean_mongo_doc(doc):
 
 @router.post("/reservar")
 async def reservar(reserva: Reserva, user: dict = Depends(current_user)):
+    argentina_tz = pytz.timezone("America/Argentina/Buenos_Aires")
+    fecha = datetime.now(argentina_tz).strftime("%d-%m-%Y")
     try:
-        # Obtener fecha actual
-        fecha_actual = datetime.now()
-        fecha = fecha_actual.strftime("%d-%m-%Y")
-
         # Verificar que tenemos un ID de usuario válido
         if not user.get("id") or not ObjectId.is_valid(user["id"]):
             raise HTTPException(status_code=400, detail="ID de usuario no válido")
+
+        # Validar si el usuario está habilitado para hacer reservas
+        if user.get("habilitado") is not True:
+            raise HTTPException(status_code=403, detail="Usuario no habilitado para hacer reservas")
 
         def operaciones_sincronas():
             # Validar si el horario existe
@@ -80,20 +82,17 @@ async def reservar(reserva: Reserva, user: dict = Depends(current_user)):
             if conteo >= 4:
                 raise ValueError("No hay cupo disponible para esta cancha en ese horario")
 
-            # Crear nueva reserva
             nueva_reserva = {
                 "cancha": cancha_id, 
                 "fecha": fecha,
                 "hora_inicio": horario_id,
                 "usuario": ObjectId(user["id"]),
-                "created_at": datetime.now()
             }
             
             result = db_client.reservas.insert_one(nueva_reserva)
             nueva_reserva["_id"] = str(result.inserted_id)
             return nueva_reserva
 
-        # Ejecutar operaciones en hilo separado
         resultado = await asyncio.to_thread(operaciones_sincronas)
         return {
             "msg": "Reserva guardada", 

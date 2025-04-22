@@ -9,7 +9,7 @@ const canchas = [
   'Cemento Sin Techar'
 ]
 
-const generarHorarios = () => {
+export const generarHorarios = () => {
   const horarios = []
   let hora = 9
   let minuto = 0

@@ -29,7 +29,7 @@ function Navbar() {
         <div className="collapse navbar-collapse justify-content-center" id="navbarNav">
           <ul className="navbar-nav ">
             <li className="nav-item">
-              <Link className="nav-link" aria-current="page" to="/HomePage">Home</Link>
+              <Link className="nav-link" aria-current="page" to="/home">Home</Link>
             </li>
 
             {isAuthenticated ? (
@@ -37,6 +37,11 @@ function Navbar() {
                 <li className="nav-item">
                   <Link className="nav-link" to="/reserva">Turnos</Link>
                 </li>
+                {!isAdmin && (
+                  <li className="nav-item">
+                    <Link className="nav-link" to="/preferencias">Preferencias</Link>
+                  </li>
+                )}          
                 {isAdmin && (
                   <li className="nav-item">
                     <Link className="nav-link" to="/Admin">Admin</Link>
