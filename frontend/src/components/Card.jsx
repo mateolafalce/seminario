@@ -1,6 +1,6 @@
 import React, {useState} from 'react'
 import VerUsuarios from './usuarios/VerUsuarios'
-import '../components/styles.css'
+import "../styles/Styles.css"
 
 function Card(){
     const [showModal,setShowModal] =useState(false)

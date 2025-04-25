@@ -20,20 +20,20 @@ sudo apt install python3-pip
 ```
 
 ```bash
+cd backend/FastAPI/
+```
+
+```bash
 python3 -m venv .venv && source .venv/bin/activate
 ```
 
 Descargar algunas dependencias
 
 ```bash
-pip install uvicorn && pip install "fastapi[all]" && pip install python-jose && pip install passlib && pip install pymongo
+pip install uvicorn && pip install "fastapi[all]" && pip install python-jose && pip install passlib && pip install pymongo && pip install pytz
 ```
 
 Ejecutar el servidor
-
-```bash
-cd backend/FastAPI/
-```
 
 ```bash
 uvicorn main:app --reload
@@ -49,10 +49,6 @@ cd frontend
 
 ```bash
 npm install react-router-dom
-```
-
-```bash
-npm install
 ```
 
 ```bash
@@ -178,11 +174,17 @@ Una vez hecho esto, los cambios hechos se revertiran.
 * Logueo de usuarios y admin
    * [x] Login
    * [x] Register
+   * [x] Gestionar Usuarios
+   * [ ] Gestionar Reservas
 * Reserva de canchas
-  * [ ] Crear la entidad Reserva
-  * [ ] Implementar la logica en el backend
-  * [ ] Implementar el frontend de la reserva
+  * [x] Crear la entidad Reserva
+  * [x] Implementar la logica en el backend
+  * [x] Implementar el frontend de la reserva
   * [ ] Implementar notificaciones
+* ABML de Preferencias del usuario
+  * [x] Crear la entidad Preferencia
+  * [x] Implementar la logica en el backend
+  * [x] Implementar el frontend de la reserva
 * Sistema de matcheo de jugadores
 	* [ ] Crear la entidad Matcheo
   * [ ] Implementar la logica en el backend

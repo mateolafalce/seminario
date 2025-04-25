@@ -9,8 +9,8 @@ function Navbar() {
 
   const handleLogout = () => {
     logout();
-    navigate('/login');
   };
+
 
   return (
     <nav className="navbar navbar-expand-sm bg-body-tertiary">
@@ -29,24 +29,29 @@ function Navbar() {
         <div className="collapse navbar-collapse justify-content-center" id="navbarNav">
           <ul className="navbar-nav ">
             <li className="nav-item">
-              <Link className="nav-link" aria-current="page" to="/HomePage">Home</Link>
-            </li>
-            <li className="nav-item">
-              <Link className="nav-link" to="/sobre-nosotros">Sobre Nosotros</Link>
+              <Link className="nav-link" aria-current="page" to="/home">Home</Link>
             </li>
 
             {isAuthenticated ? (
               <>
                 <li className="nav-item">
-                  <Link className="nav-link" to="/turnos">Turnos</Link>
+                  <Link className="nav-link" to="/reserva">Turnos</Link>
                 </li>
+                {!isAdmin && (
+                  <li className="nav-item">
+                    <Link className="nav-link" to="/preferencias">Preferencias</Link>
+                  </li>
+                )}          
                 {isAdmin && (
                   <li className="nav-item">
                     <Link className="nav-link" to="/Admin">Admin</Link>
                   </li>
                 )}
+                {isAdmin && (<li className="nav-item">
+                    <Link className="nav-link" to="/gestionar-clientes">Gestionar Cliente</Link>
+                  </li>)}
                 <li className="nav-item">
-                  <Link className="nav-link" onClick={handleLogout}>Cerrar Sesión</Link>
+                  <Link className="nav-link" onClick={handleLogout} to="/login">Cerrar Sesión</Link>
                 </li>
               </>
             ) : (
