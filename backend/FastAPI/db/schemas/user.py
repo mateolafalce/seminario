@@ -1,23 +1,25 @@
-# Clase en vídeo (22/12/2022): https://www.twitch.tv/videos/1686104006
-
-### User schema ###
-
 def user_schema(user) -> dict:
-    return {"id": str(user["_id"]),
-            "nombre": user["nombre"],
-            "apellido": user["apellido"],
-            "username": user["username"],
-            "email": user["email"]}
+    return {
+        "id": str(user["_id"]),
+        "nombre": user["nombre"],
+        "apellido": user["apellido"],
+        "username": user["username"],
+        "habilitado": user["habilitado"],
+        "email": user["email"]
+    }
 
 def user_schema_db(user) -> dict:
     if user is None:
         return None
-    return {"id": str(user["_id"]),
-            "nombre": user["nombre"],
-            "apellido": user["apellido"],
-            "username": user["username"],
-            "email": user["email"],
-            "password": user["password"],}
+    return {
+        "id": str(user["_id"]),
+        "nombre": user["nombre"],
+        "apellido": user["apellido"],
+        "username": user["username"],
+        "email": user["email"],
+        "habilitado": user["habilitado"],
+        "password": user["password"],
+        }
 
 
 def users_schema(users) -> list:

@@ -1,5 +1,5 @@
 import React, { useContext, useState } from 'react';
-import {AuthContext} from '../components/AuthContext';
+import {AuthContext} from '../context/AuthContext';
 import { useNavigate } from 'react-router-dom';
 
 function Register() {
@@ -11,7 +11,7 @@ function Register() {
   const [username, setUsername] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [showRepeatPassword, setShowRepeatPassword] = useState(false);
-  const [errorMessage, setErrorMessage] = useState(''); // Estado para el mensaje de error
+  const [errorMessage, setErrorMessage] = useState(''); 
   const navigate = useNavigate();
   const {loginWithToken} = useContext(AuthContext);
 
@@ -25,7 +25,7 @@ function Register() {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    setErrorMessage(''); // Limpiar el mensaje de error al intentar registrar
+    setErrorMessage(''); 
 
     if (password !== repeatPassword) {
       setErrorMessage('Las contraseñas no coinciden');
@@ -47,7 +47,7 @@ function Register() {
       if(response.ok) {
         const data = await response.json();
         loginWithToken(data.accessToken);
-        navigate('/HomePage');
+        navigate('/login');
       } else {
         try {
           const errorData = await response.json();
@@ -57,11 +57,6 @@ function Register() {
           console.error("Error al parsear la respuesta de error:", error);
         }
       }
-          username,
-          password
-        })
-      })
-
       const result = await response.text()
       alert(result)
     } catch (error) {
@@ -125,61 +120,6 @@ function Register() {
           </div>
         </div>
       </div>
-    <div>
-      <h2>Crear Usuario</h2>
-      <form onSubmit={handleSubmit}>
-        <input
-          type="text"
-          name="nombre"
-          value={nombre}
-          placeholder="Nombre"
-          onChange={(e) => setNombre(e.target.value)}
-          required
-        />
-        <br />
-
-        <input
-          type="apellido"
-          name="apellido"
-          value={apellido}
-          placeholder="Apellido"
-          onChange={(e) => setApellido(e.target.value)}
-          required
-        />
-        <br />
-
-        <input
-          type="email"
-          name="email"
-          value={email}
-          placeholder="Email"
-          onChange={(e) => setEmail(e.target.value)}
-          required
-        />
-        <br />
-
-        <input
-          type="password"
-          name="password"
-          value={password}
-          placeholder="Contraseña"
-          onChange={(e) => setPassword(e.target.value)}
-          required
-        />
-        <br />
-
-        <input
-          type="password"
-          name="repeatPassword"
-          value={repeatPassword}
-          placeholder="Repetir Contraseña"
-          onChange={(e) => setRepeatPassword(e.target.value)}
-          required
-        />
-        <br />
-
-        <button className="submit" type="submit">Crear Usuario</button>
-      </form>
     </div>
   );
 }

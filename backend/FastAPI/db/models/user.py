@@ -1,6 +1,5 @@
-### User model ###
-from pydantic import BaseModel #permite generar el modelo de forma sencilla
-from typing import Optional #al hacer el post, el campo id no es obligatorio (no se rompe el programa)
+from pydantic import BaseModel 
+from typing import Optional
 
 
 class User(BaseModel):

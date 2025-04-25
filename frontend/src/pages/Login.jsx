@@ -1,22 +1,19 @@
 import React, { useState, useContext } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
-import { AuthContext } from '../components/AuthContext';
+import { AuthContext } from '../context/AuthContext';
 
 
 function Login() {
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
+  const [email, setEmail] = useState('')
   const navigate = useNavigate();
   const { login } = useContext(AuthContext);
-
-  
 
   const togglePasswordVisibility = () => {
     setShowPassword(!showPassword);
   };
-  const [email, setEmail] = useState('')
-  const [password, setPassword] = useState('')
 
   const handleSubmit = async (event) => {
     event.preventDefault();
@@ -30,12 +27,12 @@ function Login() {
 
       if (response.ok) {
         const data = await response.json();
-        login(data.access_token, data.is_admin);
+        login(data.access_token, data.is_admin, data.habilitado);
 
         if (data.is_admin === true) {
           navigate('/admin');
         } else {
-          navigate('/HomePage');
+          navigate('/reserva');
         }
       } else {
         const errorData = await response.json();
@@ -103,27 +100,6 @@ function Login() {
           </div>
         </div>
       </div>
-    <div style={{ padding: '2rem' }}>
-      <h1>Index</h1>
-      <form onSubmit={handleSubmit}>
-        <input
-          type="email"
-          value={email}
-          placeholder="Email"
-          required
-          onChange={(e) => setEmail(e.target.value)}
-        />
-        <br />
-        <input
-          type="password"
-          value={password}
-          placeholder="Contraseña"
-          required
-          onChange={(e) => setPassword(e.target.value)}
-        />
-        <br />
-        <button className="submit" type="submit">Submit</button>
-      </form>
     </div>
   );
 }

@@ -1,11 +1,17 @@
-import React,{useState} from 'react'
-import "../components/styles.css"
+import React,{ useContext, useState} from 'react'
+import "../styles/Styles.css"
 import VerUsuarios from '../components/usuarios/VerUsuarios'
-import Card from '../components/Card'
+import Card from '../components/usuarios/Card'
+import { AuthContext } from '../context/AuthContext';
 
 function Admin() {
     const [showModal, setShowModal] = useState(false);
-  
+    const { isAuthenticated, isAdmin } = useContext(AuthContext);
+
+    if (!isAuthenticated || !isAdmin) {
+      return <p>No tienes permisos para ver esta página.</p>
+    }
+
     const handleCardClick = () => {
       setShowModal(true);
     }
