@@ -1,5 +1,5 @@
 import { useState, useContext } from 'react';
-import { AuthContext } from '../components/AuthContext'
+import { AuthContext } from '../context/AuthContext'
 import "../styles/Buscar.css"
 
 const categoria = ['2da','3ra','4ta', '5ta','6ta', '7ta', '8ta'];

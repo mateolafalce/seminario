@@ -1,8 +1,8 @@
 import React,{ useContext, useState} from 'react'
 import "../styles/Styles.css"
 import VerUsuarios from '../components/usuarios/VerUsuarios'
-import Card from '../components/Card'
-import { AuthContext } from '../components/AuthContext';
+import Card from '../components/usuarios/Card'
+import { AuthContext } from '../context/AuthContext';
 
 function Admin() {
     const [showModal, setShowModal] = useState(false);

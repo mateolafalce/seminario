@@ -2,16 +2,16 @@ import './index.css';
 import { BrowserRouter as Router, Routes, Route, useNavigate } from 'react-router-dom';
 import Login from './pages/Login';
 import Register from './pages/Register';
-import Navbar from './components/Navbar';
+import Navbar from './components/common/Navbar/Navbar';
 import Reserva from './pages/Reserva';
 import HomePage from './pages/HomePage';
 import GestionClientes from './pages/GestionClientes';
 import BuscarCliente from './pages/BuscarCliente';
 import Admin from './pages/Admin';
-import { AuthProvider, AuthContext } from './components/AuthContext';
+import { AuthProvider, AuthContext } from './context/AuthContext';
 import Unauthorized from './pages/Unauthorized';
 import Preferencias from './pages/Preferencia';
-import AdminRoute from './components/AdminRoute';
+import AdminRoute from './components/admin/AdminRoute';
 import React, { useState, useEffect, useContext } from 'react';
 
 function App() {
@@ -36,7 +36,7 @@ function AppWithTimeout() {
   };
 
   // Los comentarios estos me distraen
-  // si son para algo descomentenlos.
+  // si son para algo descomentenlos. (bueno, abrazo)
   useEffect(() => {
     //console.log("useEffect para event listeners activado");
     const events = ['mousedown', 'mousemove', 'keypress', 'scroll', 'touchstart'];

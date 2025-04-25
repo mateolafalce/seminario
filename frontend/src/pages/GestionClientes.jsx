@@ -1,6 +1,6 @@
 import { useNavigate } from 'react-router-dom'
 import { useContext, useState } from 'react'
-import { AuthContext } from '../components/AuthContext'
+import { AuthContext } from '../context/AuthContext'
 
 function GestionClientes() {
   const navigate = useNavigate();

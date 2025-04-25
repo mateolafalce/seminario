@@ -1,6 +1,6 @@
 import { useEffect, useState, useContext } from "react";
-import { generarHorarios } from '../components/ReservaTabla';
-import { AuthContext } from '../components/AuthContext'
+import { generarHorarios } from '../components/usuarios/ReservaTabla';
+import { AuthContext } from '../context/AuthContext';
 
 const diasSemana = ["Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado", "Domingo"];
 const canchasDisponibles = ['Blindex A','Blindex B','Blindex C', 'Cemento Techada','Cemento Sin Techar'];
