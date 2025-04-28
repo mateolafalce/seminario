@@ -1,0 +1,348 @@
+.admin-label {
+  display: none;
+}
+
+.custom-navbar {
+  min-height: 48px;
+  transition: background-color 0.3s ease;
+  background-color: transparent;
+}
+
+.navbar-logo-img {
+  height: 28px; /* Más chico */
+  margin-right: 8px;
+  user-select: none;
+}
+
+.navbar-brand-custom {
+  cursor: pointer;
+  font-size: 18px;
+  letter-spacing: 0.5px;
+  user-select: none;
+  -webkit-user-select: none;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.navbar-title {
+  font-size: 1.2rem;
+  font-weight: bold;
+  color: white;
+  margin-left: 8px;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+.navbar-link {
+  color: #fff !important;
+  font-size: 0.95rem;
+  margin: 0 4px;
+  background: none;
+  border: none;
+  font-weight: bold;
+  transition: color 0.2s;
+}
+
+.navbar-link:hover {
+  color: #e5ff00;
+}
+
+.navbar-session-btn,
+.navbar-session-btn-register {
+  border-radius: 2em;
+  font-size: 1rem;
+  padding: 0.35rem 1.7rem;
+  font-weight: bold;
+  border: 2px solid #fff;
+  background: transparent;
+  color: #fff;
+  transition: background 0.2s, color 0.2s, box-shadow 0.2s;
+}
+
+.navbar-session-btn:hover {
+  opacity: 0.92;
+  background: #e5ff00;
+  color: #121212;
+  box-shadow: 0 2px 8px 0 #e5ff00cc;
+}
+
+.navbar-session-btn-register {
+  color: #121212;
+  background: #fff;
+  margin-left: 0.5rem;
+  border: 2px solid #fff;
+  animation: none !important;
+}
+
+.navbar-session-btn-register:hover {
+  opacity: 0.92;
+  background: #e5ff00;
+  color: #121212;
+  box-shadow: 0 2px 8px 0 #e5ff00cc;
+}
+
+.navbar-transparent {
+  background: transparent !important;
+  box-shadow: none !important;
+}
+
+.navbar-solid {
+  background-color: rgba(0, 0, 0, 0.8) !important;
+  box-shadow: 0 2px 12px 0 rgba(0,0,0,0.08);
+  transition: background 0.3s;
+}
+
+.navbar-center {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.2rem;
+  flex-grow: 1;
+  position: absolute;
+  left: 50%;
+  top: 0;
+  height: 100%;
+  transform: translateX(-50%);
+  z-index: 1;
+  max-width: 600px;
+  margin: 0 auto;
+  width: 100%;
+  font-size: 0.95rem;
+}
+
+.simple-navbar-center {
+  flex-wrap: nowrap;
+  white-space: nowrap;
+  overflow: hidden;
+  min-width: 0;
+}
+
+.w-100.align-items-center.d-none.d-md-flex {
+  flex-wrap: nowrap !important; /* Nunca salto de línea */
+  overflow-x: auto;
+  white-space: nowrap;
+  gap: 8px;
+}
+
+/* Desktop (>=1200px): Menú central visible, botones juntos */
+@media (min-width: 1200px) {
+  .navbar-center {
+    display: flex !important;
+    gap: 0.2rem;
+    font-size: 0.95rem;
+  }
+}
+
+/* Tablet (>=768px and <1200px): Menú central visible, botones más pequeños y juntos */
+@media (min-width: 768px) and (max-width: 1199.98px) {
+  .navbar-center {
+    display: flex !important;
+    gap: 0.15rem;
+    font-size: 0.9rem;
+  }
+  .navbar-link {
+    font-size: 0.9rem;
+    margin: 0 2px;
+  }
+}
+
+/* Mobile (<768px): Oculta menú central, muestra solo el toggle */
+@media (max-width: 767.98px) {
+  .navbar-center {
+    display: none !important;
+  }
+  .navbar-toggle {
+    display: flex !important;
+    margin-left: auto;
+  }
+  .navbar-session-desktop {
+    display: none !important;
+  }
+  .navbar-brand-custom .navbar-title {
+    font-size: 1rem;
+    margin-left: 4px;
+  }
+  .navbar-logo-img {
+    height: 32px;
+    margin-right: 6px;
+  }
+}
+
+/* Ajuste fino para mover un poco a la izquierda */
+.navbar-center-adjust {
+  left: 49.5%;
+}
+
+/* Ajuste fino para evitar desplazamiento excesivo */
+.navbar-center.mx-auto {
+  margin-left: auto !important;
+  margin-right: auto !important;
+}
+
+.navbar-main-container {
+  height: 56px;
+  min-width: 0;
+}
+
+.navbar-container {
+  height: 56px;
+  padding: 0 16px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  position: relative;
+}
+
+.navbar-brand-container {
+  display: flex;
+  align-items: center;  
+  gap: 8px;
+}
+
+.navbar-toggle-mobile {
+  position: absolute;
+  right: 0;
+  top: 0;
+  height: 56px;
+  display: flex;
+  align-items: center;
+  padding-right: 12px;
+  z-index: 2;
+}
+
+.navbar-session-desktop {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  position: absolute;
+  right: 0;
+  top: 0;
+  height: 56px;
+}
+
+.navbar-center-absolute {
+  position: absolute;
+  left: 0;
+  top: 0;
+  height: 56px;
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  pointer-events: none;
+  z-index: 1;
+}
+
+.navbar-center-absolute .navbar-center {
+  display: flex;
+  align-items: center;
+  pointer-events: auto;
+}
+
+.offcanvas .navbar-link {
+  font-size: 1.1rem;
+  margin-bottom: 12px;
+}
+
+/* Responsive: apila los bloques y centra todo en mobile */
+@media (max-width: 991.98px) {
+  .navbar-center,
+  .navbar-center-adjust {
+    flex-direction: column;
+    gap: 0.3rem;
+    margin-top: 1rem;
+    width: 100%;
+    position: static;
+    left: auto;
+    top: auto;
+    height: auto;
+    transform: none;
+    background: transparent;
+  }
+  .navbar-center {
+    justify-content: center;
+    gap: 1rem;
+    font-size: 0.85rem;
+  }
+  .navbar-link {
+    font-size: 0.85rem;
+    margin: 0 1px;
+  }
+  .navbar-left,
+  .navbar-right {
+    width: 100%;
+    justify-content: flex-start;
+    margin-bottom: 0.5rem;
+  }
+  .navbar-right {
+    justify-content: flex-end;
+    margin-top: 1rem;
+  }
+}
+
+/* Responsive: oculta el menú central y muestra el toggle cuando no hay espacio suficiente */
+@media (max-width: 900px) {
+  .navbar-center {
+    display: none !important;
+  }
+  .simple-navbar-center {
+    display: none !important;
+  }
+  .navbar-toggle {
+    display: flex !important;
+    margin-left: auto;
+  }
+}
+@media (min-width: 900.01px) {
+  .navbar-toggle {
+    display: none !important;
+  }
+}
+
+/* Botones full width en mobile */
+@media (max-width: 575.98px) {
+  .navbar-session-btn,
+  .navbar-session-btn-register {
+    width: 100%;
+    margin-left: 0 !important;
+    margin-bottom: 0.5rem;
+    padding-left: 0.5rem;
+    padding-right: 0.5rem;
+    font-size: 1rem;
+  }
+  .navbar-session-desktop {
+    display: none;
+  }
+  .navbar-toggle {
+    margin-left: auto;
+  }
+}
+
+.btn-navbar-toggle {
+  background: none;
+  border: none;
+  color: white;
+  padding: 8px;
+}
+
+.btn-navbar-toggle:hover {
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 4px;
+}
+
+.navbar-toggle {
+  background: none;
+  border: none;
+  color: white;
+  font-size: 24px;
+  padding: 8px;
+  display: none;
+  align-items: center;
+  justify-content: center;
+}
+
+.navbar-toggle:hover {
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 4px;
+}

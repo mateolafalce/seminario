@@ -1,5 +1,4 @@
 import React, { useState, useEffect } from 'react';
-import '../../index.css'; // Importa los estilos globales
 
 function VerUsuarios({ show, onHide }) {
   const [users, setUsers] = useState([]);

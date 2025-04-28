@@ -1,40 +1,9 @@
 body {
   margin: 0;
   font-family: 'Segoe UI';
-  background-color: #0D1B2A;            
-  color: white
-}
-
-.navbar {
-    display: flex;
-    justify-content: center;
-    background-color: #218838;
-    padding: 1px 0;
-    position: fixed;
-    width: 100%;
-    top: 0;
-    left: 0;
-    border-bottom-right-radius: 40px;
-    border-bottom-left-radius: 40px;
-}
-
-.navbar button {
-    background: none;
-    border: none;
-    color: white;
-    font-size: 16px;
-    padding: 10px 20px;
-    cursor: pointer;
-    border-radius: 8px;
-}
-
-.navbar button:hover {
-    background-color: #056448;
-    border-radius: 10px;
-}
-
-.navbar button:active{
-  background-color:  #045f44;
+  background-color: #0D1B2A; /* Fondo oscuro */
+  color: white;
+  overflow-x: hidden; /* Evita scroll horizontal no deseado */
 }
 
 .content {
@@ -115,4 +84,8 @@ td:hover {
 
 .session-timeout-overlay p {
   font-size: 1.5em;
+}
+
+.navbar {
+  z-index: 1000; /* Asegura que el navbar esté por encima de otros elementos */
 }

@@ -45,3 +45,17 @@
     padding: 6px 14px;
     border-radius: 4px;
 }
+
+.btn-navbar-toggle {
+    padding: 4px 10px;
+    min-width: 36px;
+    min-height: 36px;
+    box-shadow: none;
+    background: #E5FF00;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    height: 40px;
+    border-radius: 8px;
+    border: none;
+}

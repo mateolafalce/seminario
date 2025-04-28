@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { AuthContext } from '../context/AuthContext'
 import "../styles/Styles.css"
 import "../components/common/Button/Button.css"
+import Button from "../components/common/Button/Button";
 
 function HomePage() {
   const navigate = useNavigate();
@@ -10,7 +11,7 @@ function HomePage() {
 
   return (
     <div className="homepage-container">
-      <h1>Boulevard 81</h1>
+      <h1>Boulvebard81</h1>
       <div id="carouselExample" className="carousel slide">
         <div className="carousel-inner">
           <div className="carousel-item active">
@@ -50,20 +51,16 @@ function HomePage() {
       </p>
       {!isAuthenticated ? (
         <div className="d-grid gap-5 d-md-flex">
-          <button
-            type="button"
-            className="btn"
+          <Button
+            texto="Iniciar Sesión"
             onClick={() => navigate("/login")}
-          >
-            Iniciar Sesión
-          </button>
-          <button
-            type="button"
             className="btn"
+          />
+          <Button
+            texto="Registrarse"
             onClick={() => navigate("/register")}
-          >
-            Registrarse
-          </button>
+            className="btn"
+          />
         </div>
       ) : (
         <></>

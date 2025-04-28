@@ -1,7 +1,7 @@
 import React, { useState, useContext } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { AuthContext } from '../context/AuthContext';
-
+import Button from '../components/common/Button/Button';
 
 function Login() {
   const [username, setUsername] = useState('');
@@ -91,7 +91,11 @@ function Login() {
               </div>
 
               <div className="d-grid">
-                <button type="submit" className="btn btn-primary btn-lg">Iniciar Sesión</button>
+                <Button
+                  texto="Iniciar Sesión"
+                  type="submit"
+                  className="btn btn-primary btn-lg"
+                />
               </div>
             </form>
             <p className="mt-3 text-center login-register-link">

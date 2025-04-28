@@ -1,6 +1,7 @@
 import React, { useContext, useState } from 'react';
 import {AuthContext} from '../context/AuthContext';
 import { useNavigate } from 'react-router-dom';
+import Button from '../components/common/Button/Button';
 
 function Register() {
   const [nombre, setNombre] = useState('');
@@ -114,7 +115,11 @@ function Register() {
                 </div>
               </div>
               <div className="d-grid">
-                <button type="submit" className="btn btn-primary btn-lg">Crear Usuario</button>
+                <Button
+                  texto="Crear Usuario"
+                  type="submit"
+                  className="btn btn-primary btn-lg"
+                />
               </div>
             </form>
           </div>
