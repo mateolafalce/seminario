@@ -2,7 +2,7 @@ import React, { useContext, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { AuthContext } from '../context/AuthContext'
 import "../styles/Styles.css"
-import "../components/common/Button/Button.css"
+
 import Button from "../components/common/Button/Button";
 
 function HomePage() {
