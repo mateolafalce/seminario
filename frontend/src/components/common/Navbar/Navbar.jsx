@@ -96,7 +96,7 @@ function CustomNavbar() {
         }`}
         style={{ minHeight: 48 }}
       >
-        <div className="max-w-7xl mx-auto grid grid-cols-3 items-center px-4 h-14 md:h-14 relative">
+        <div className="max-w-7xl mx-auto grid grid-cols-3 items-center px-4 h-14 lg:h-14 relative">
           {/* logo a la izquierda */}
           <div
             className="flex items-center cursor-pointer select-none"
@@ -105,7 +105,7 @@ function CustomNavbar() {
             <img
               src={logoCompleto}
               alt="Boulevard81 Logo"
-              className="h-7 md:h-7 mr-2 select-none"
+              className="h-7 lg:h-7 mr-2 select-none"
               draggable={false}
               style={{ userSelect: "none" }}
             />
@@ -114,7 +114,7 @@ function CustomNavbar() {
             </span>
           </div>
           {/* redirecciones centrales */}
-          <div className="hidden md:flex justify-center items-center gap-2 whitespace-nowrap overflow-x-auto">
+          <div className="hidden lg:flex justify-center items-center gap-2 whitespace-nowrap overflow-x-auto">
             <NavLinks
               links={centerLinks}
               isAuthenticated={isAuthenticated}
@@ -124,12 +124,12 @@ function CustomNavbar() {
             />
           </div>
           {/* botones sesion derecha */}
-          <div className="hidden md:flex justify-end items-center gap-2 flex-nowrap whitespace-nowrap">
+          <div className="hidden lg:flex justify-end items-center gap-2 flex-nowrap whitespace-nowrap">
             {renderSessionButtons(false)}
           </div>
           {/* boton mobil menu */}
           <button
-            className="md:hidden text-white focus:outline-none ml-auto col-start-3 justify-self-end"
+            className="lg:hidden text-white focus:outline-none ml-auto col-start-3 justify-self-end"
             onClick={() => setShowOffcanvas(true)}
             aria-label="Abrir menú"
           >
@@ -184,7 +184,7 @@ function CustomNavbar() {
         </div>
       )}
       {/* espaciador */}
-      <div className="h-14 md:h-14" />
+      <div className="h-14 lg:h-14" />
     </>
   );
 }
