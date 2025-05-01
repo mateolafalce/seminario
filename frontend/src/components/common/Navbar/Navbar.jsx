@@ -1,10 +1,39 @@
 import React, { useContext, useEffect, useState } from "react";
-import { Navbar, Nav, Container, Offcanvas } from "react-bootstrap";
 import { useNavigate } from "react-router-dom";
 import { AuthContext } from "../../../context/AuthContext";
 import Button from "../Button/Button";
 import logoCompleto from "../../../assets/icons/logoCompletoBlanco.svg";
-import "./Navbar.css";
+
+// las redirecciones centrales
+const centerLinks = [
+  { label: "Home", path: "/home", show: ({ isAuthenticated }) => true },
+  { label: "Turnos", path: "/reserva", show: ({ isAuthenticated }) => isAuthenticated },
+  { label: "Preferencias", path: "/preferencias", show: ({ isAuthenticated, isAdmin }) => isAuthenticated && !isAdmin },
+  { label: "Admin", path: "/Admin", show: ({ isAuthenticated, isAdmin }) => isAuthenticated && isAdmin },
+  { label: "Gestionar Cliente", path: "/gestionar-clientes", show: ({ isAuthenticated, isAdmin }) => isAuthenticated && isAdmin },
+];
+
+// estilo de los botones del medio
+const navButtonClass = "text-white-100 font-semibold text-base px-1 cursor-pointer transition-colors hover:text-[#E5FF00]";
+
+// el componente para los links de navegacion (solo texto, tailwindcss)
+const NavLinks = ({ links, isAuthenticated, isAdmin, onClick, className }) => (
+  <>
+    {links
+      .filter(link => link.show({ isAuthenticated, isAdmin }))
+      .map(link => (
+        <button
+          key={link.label}
+          type="button"
+          onClick={() => onClick(link.path)}
+          className={`${navButtonClass} ${className}`}
+          style={{ fontFamily: "inherit" }}
+        >
+          {link.label}
+        </button>
+      ))}
+  </>
+);
 
 function CustomNavbar() {
   const navigate = useNavigate();
@@ -29,156 +58,133 @@ function CustomNavbar() {
     setShowOffcanvas(false);
   };
 
+  const renderSessionButtons = (isMobile = false) => {
+    if (isAuthenticated) {
+      return (
+        <Button
+          texto="Cerrar Sesión"
+          onClick={handleLogout}
+          variant="session"
+          className={isMobile ? "mb-2" : ""}
+        />
+      );
+    }
+    return (
+      <>
+        <Button
+          texto="Iniciar Sesión"
+          onClick={() => isMobile ? handleNavigate("/login") : navigate("/login")}
+          variant="session"
+          className={isMobile ? "mb-2" : ""}
+        />
+        <Button
+          texto="Registrarse"
+          onClick={() => isMobile ? handleNavigate("/register") : navigate("/register")}
+          variant="session"
+          className={isMobile ? "" : "ml-2"}
+        />
+      </>
+    );
+  };
+
   return (
     <>
-      <Navbar
-        expand="md"
-        className={`py-2 custom-navbar ${scrolled ? "navbar-solid" : "navbar-transparent"}`}
-        data-bs-theme="dark"
-        fixed="top"
+      {/* navbar */}
+      <nav
+        className={`fixed top-0 left-0 w-full z-50 transition-colors duration-300 ${
+          scrolled ? "bg-black/80 shadow-lg" : "bg-transparent"
+        }`}
+        style={{ minHeight: 48 }}
       >
-        <Container fluid className="navbar-container">
-          <Nav className="w-100 align-items-center d-none d-md-flex" style={{ gap: 8 }}>
-            <span
-              className="navbar-brand-custom"
-              style={{ cursor: "pointer", display: "flex", alignItems: "center", marginRight: 16 }}
-              onClick={() => navigate("/home")}
-            >
-              <img
-                src={logoCompleto}
-                alt="Boulevard81 Logo"
-                className="navbar-logo-img"
-                draggable={false}
-              />
-              <span className="navbar-title" tabIndex={-1}>
-                Boulevard81
-              </span>
-            </span>
-            <Nav.Link onClick={() => navigate("/home")} className="navbar-link">
-              Home
-            </Nav.Link>
-            {isAuthenticated && (
-              <Nav.Link onClick={() => navigate("/reserva")} className="navbar-link">
-                Turnos
-              </Nav.Link>
-            )}
-            {isAuthenticated && !isAdmin && (
-              <Nav.Link onClick={() => navigate("/preferencias")} className="navbar-link">
-                Preferencias
-              </Nav.Link>
-            )}
-            {isAuthenticated && isAdmin && (
-              <>
-                <Nav.Link onClick={() => navigate("/Admin")} className="navbar-link">
-                  Admin
-                </Nav.Link>
-                <Nav.Link onClick={() => navigate("/gestionar-clientes")} className="navbar-link">
-                  Gestionar Cliente
-                </Nav.Link>
-              </>
-            )}
-            <div style={{ marginLeft: "auto", display: "flex", gap: 8 }}>
-              {isAuthenticated ? (
-                <Button
-                  texto="Cerrar Sesión"
-                  onClick={handleLogout}
-                  className="btn btn-light btn-small"
-                />
-              ) : (
-                <>
-                  <Button
-                    texto="Iniciar Sesión"
-                    onClick={() => navigate("/login")}
-                    className="btn btn-light btn-small"
-                  />
-                  <Button
-                    texto="Registrarse"
-                    onClick={() => navigate("/register")}
-                    className="btn btn-light btn-small ms-2"
-                  />
-                </>
-              )}
-            </div>
-          </Nav>
-          <Navbar.Toggle
-            aria-controls="navbar-offcanvas"
-            className="d-flex d-md-none navbar-toggle"
-            onClick={() => setShowOffcanvas(true)}
+        <div className="max-w-7xl mx-auto grid grid-cols-3 items-center px-4 h-14 md:h-14 relative">
+          {/* logo a la izquierda */}
+          <div
+            className="flex items-center cursor-pointer select-none"
+            onClick={() => navigate("/home")}
           >
-            <span className="bi bi-list" style={{ fontSize: 24 }}></span>
-          </Navbar.Toggle>
-        </Container>
-      </Navbar>
-      <Offcanvas show={showOffcanvas} onHide={() => setShowOffcanvas(false)} placement="start" className="bg-dark">
-        <Offcanvas.Header closeButton closeVariant="white">
-          <Offcanvas.Title>
-            <span className="navbar-title">Menú</span>
-          </Offcanvas.Title>
-        </Offcanvas.Header>
-        <Offcanvas.Body>
-          <Nav className="flex-column">
-            <span
-              className="navbar-brand-custom mb-3"
-              style={{ cursor: "pointer", display: "flex", alignItems: "center" }}
-              onClick={() => handleNavigate("/home")}
-            >
-              <img
-                src={logoCompleto}
-                alt="Boulevard81 Logo"
-                className="navbar-logo-img"
-                draggable={false}
-              />
-              <span className="navbar-title" tabIndex={-1}>
-                Boulevard81
-              </span>
+            <img
+              src={logoCompleto}
+              alt="Boulevard81 Logo"
+              className="h-7 md:h-7 mr-2 select-none"
+              draggable={false}
+              style={{ userSelect: "none" }}
+            />
+            <span className="text-white font-bold tracking-wide text-[1.2rem] ml-2 select-none">
+              Boulevard81
             </span>
-            <Nav.Link onClick={() => handleNavigate("/home")} className="navbar-link text-white">
-              Home
-            </Nav.Link>
-            {isAuthenticated && (
-              <Nav.Link onClick={() => handleNavigate("/reserva")} className="navbar-link text-white">
-                Turnos
-              </Nav.Link>
-            )}
-            {isAuthenticated && !isAdmin && (
-              <Nav.Link onClick={() => handleNavigate("/preferencias")} className="navbar-link text-white">
-                Preferencias
-              </Nav.Link>
-            )}
-            {isAuthenticated && isAdmin && (
-              <>
-                <Nav.Link onClick={() => handleNavigate("/Admin")} className="navbar-link text-white">
-                  Admin
-                </Nav.Link>
-                <Nav.Link onClick={() => handleNavigate("/gestionar-clientes")} className="navbar-link text-white">
-                  Gestionar Cliente
-                </Nav.Link>
-              </>
-            )}
-            <hr className="bg-secondary"/>
-            {isAuthenticated ? (
-              <Button
-                texto="Cerrar Sesión"
-                onClick={handleLogout}
-                className="btn btn-light btn-small my-2"
+          </div>
+          {/* redirecciones centrales */}
+          <div className="hidden md:flex justify-center items-center gap-2 whitespace-nowrap overflow-x-auto">
+            <NavLinks
+              links={centerLinks}
+              isAuthenticated={isAuthenticated}
+              isAdmin={isAdmin}
+              onClick={navigate}
+              className=""
+            />
+          </div>
+          {/* botones sesion derecha */}
+          <div className="hidden md:flex justify-end items-center gap-2 flex-nowrap whitespace-nowrap">
+            {renderSessionButtons(false)}
+          </div>
+          {/* boton mobil menu */}
+          <button
+            className="md:hidden text-white focus:outline-none ml-auto col-start-3 justify-self-end"
+            onClick={() => setShowOffcanvas(true)}
+            aria-label="Abrir menú"
+          >
+            <svg className="w-8 h-8" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M4 6h16M4 12h16M4 18h16" />
+            </svg>
+          </button>
+        </div>
+      </nav>
+      {/* el menu lateral para celulares */}
+      {showOffcanvas && (
+        <div className="fixed inset-0 z-50 bg-black bg-opacity-60 flex">
+          <div className="w-64 bg-gray-900 h-full p-6 flex flex-col">
+            <div className="flex items-center justify-between mb-6">
+              <div
+                className="flex items-center cursor-pointer select-none"
+                onClick={() => handleNavigate("/home")}
+              >
+                <img
+                  src={logoCompleto}
+                  alt="Boulevard81 Logo"
+                  className="h-8 mr-2 select-none"
+                  draggable={false}
+                  style={{ userSelect: "none" }}
+                />
+                <span className="text-white font-bold tracking-wide text-[1.2rem] ml-2 select-none">
+                  Boulevard81
+                </span>
+              </div>
+              <button
+                className="text-white text-2xl ml-2"
+                onClick={() => setShowOffcanvas(false)}
+                aria-label="Cerrar menú"
+              >
+                &times;
+              </button>
+            </div>
+            <nav className="flex flex-col space-y-2">
+              <NavLinks
+                links={centerLinks}
+                isAuthenticated={isAuthenticated}
+                isAdmin={isAdmin}
+                onClick={handleNavigate}
+                className=""
               />
-            ) : (
-              <>
-                <Button
-                  texto="Iniciar Sesión"
-                  onClick={() => handleNavigate("/login")}
-                  className="btn btn-light btn-small my-2"
-                />
-                <Button
-                  texto="Registrarse"
-                  onClick={() => handleNavigate("/register")}
-                  className="btn btn-light btn-small my-2"
-                />
-              </>
-            )}
-          </Nav>
-        </Offcanvas.Body>
-      </Offcanvas>
+              <hr className="my-4 border-gray-700" />
+              {renderSessionButtons(true)}
+            </nav>
+          </div>
+          {/* ns/nc */}
+          <div className="flex-1" onClick={() => setShowOffcanvas(false)} />
+        </div>
+      )}
+      {/* espaciador */}
+      <div className="h-14 md:h-14" />
     </>
   );
 }

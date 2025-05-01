@@ -5,9 +5,9 @@ module.exports = {
   ],
   theme: {
     extend: {
-      colors: {
-        amarillo: "#E5FF00"
-      }
+      fontFamily: {
+        sans: ["'Segoe UI'"],
+      },
     },
   },
   plugins: [],
