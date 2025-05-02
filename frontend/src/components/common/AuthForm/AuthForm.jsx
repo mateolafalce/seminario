@@ -36,7 +36,7 @@ function AuthForm({
   return (
     <form
       onSubmit={handleSubmit}
-      className="w-full min-w-[33rem] mx-auto py-8 px-12 bg-gray-800 rounded-3xl shadow-xl text-base"
+      className="w-full min-w-[33rem] mx-auto py-[1.8rem] px-12 bg-gray-800 rounded-3xl shadow-xl text-base"
     >
       {/* titulo */}
       {titulo && (
@@ -47,25 +47,30 @@ function AuthForm({
 
       {/* entradas */}
       {campos.map((campo) => (
-        <div key={campo.nombre} className="mb-[1rem]">
-          <label
-            className="block text-white mb-[0.5rem] text-base"
-            htmlFor={campo.nombre}
-          >
-            {campo.etiqueta}
-          </label>
+        <div key={campo.nombre} className="mb-8 relative">
           <input
             id={campo.nombre}
             name={campo.nombre}
             type={campo.tipo}
-            placeholder={campo.placeholder}
+            placeholder=" "
             value={valores[campo.nombre]}
             onChange={handleChange}
-            className="w-full px-[0.9rem] py-[0.7rem] rounded-[0.7rem] bg-gray-700 text-white focus:outline-none text-base"
+            className="w-full px-4 pt-6 pb-3 rounded-2xl bg-gray-700 text-white focus:outline-none text-base peer placeholder-transparent"
             autoComplete={campo.autoComplete || "off"}
             disabled={cargando}
           />
-          {/* error del campo */}
+          <label
+            htmlFor={campo.nombre}
+            className={`
+              absolute left-3
+              pointer-events-none transition-all duration-200
+              bg-transparent px-1
+              ${valores[campo.nombre] ? "top-2 text-xs text-gray-400" : "top-1/2 -translate-y-1/2 text-base text-gray-400"}
+              peer-focus:top-2 peer-focus:text-xs peer-focus:text-gray-400 peer-focus:translate-y-0
+            `}
+          >
+            {campo.etiqueta}
+          </label>
           {errores[campo.nombre] && (
             <p className="text-red-400 text-[0.95rem] mt-[0.18rem]">
               {errores[campo.nombre]}
