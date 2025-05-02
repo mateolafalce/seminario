@@ -14,7 +14,7 @@ const centerLinks = [
 ];
 
 // estilo de los botones del medio
-const navButtonClass = "text-white-100 font-semibold text-base px-1 cursor-pointer transition-colors hover:text-[#E5FF00]";
+const navBotonesCentrales = "text-white font-semibold text-base px-1 cursor-pointer transition-colors hover:text-[#E5FF00]";
 
 // el componente para los links de navegacion (solo texto, tailwindcss)
 const NavLinks = ({ links, isAuthenticated, isAdmin, onClick, className }) => (
@@ -26,7 +26,7 @@ const NavLinks = ({ links, isAuthenticated, isAdmin, onClick, className }) => (
           key={link.label}
           type="button"
           onClick={() => onClick(link.path)}
-          className={`${navButtonClass} ${className}`}
+          className={`${navBotonesCentrales} ${className}`}
           style={{ fontFamily: "inherit" }}
         >
           {link.label}
@@ -91,12 +91,13 @@ function CustomNavbar() {
     <>
       {/* navbar */}
       <nav
-        className={`fixed top-0 left-0 w-full z-50 transition-colors duration-300 ${
-          scrolled ? "bg-black/80 shadow-lg" : "bg-transparent"
+        className={`fixed w-full z-50 backdrop-blur-md transition-colors duration-300 ${
+          scrolled ? "bg-[#0D1B2A]/80 shadow-lg" : "bg-transparent"
         }`}
-        style={{ minHeight: 48 }}
+        style={{ minHeight: "3rem" }}
       >
-        <div className="max-w-7xl mx-auto grid grid-cols-3 items-center px-4 h-14 lg:h-14 relative">
+
+        <div className="w-full grid grid-cols-3 items-center px-[2rem] lg:px-[5rem] xl:px-[12rem] 2xl:px-[12rem] h-14 relative">
           {/* logo a la izquierda */}
           <div
             className="flex items-center cursor-pointer select-none"
@@ -105,7 +106,7 @@ function CustomNavbar() {
             <img
               src={logoCompleto}
               alt="Boulevard81 Logo"
-              className="h-7 lg:h-7 mr-2 select-none"
+              className="h-5 lg:h-5 mr-2 select-none"
               draggable={false}
               style={{ userSelect: "none" }}
             />
@@ -114,7 +115,7 @@ function CustomNavbar() {
             </span>
           </div>
           {/* redirecciones centrales */}
-          <div className="hidden lg:flex justify-center items-center gap-2 whitespace-nowrap overflow-x-auto">
+          <div className="hidden lg:flex justify-center items-center gap-2 whitespace-nowrap">
             <NavLinks
               links={centerLinks}
               isAuthenticated={isAuthenticated}
