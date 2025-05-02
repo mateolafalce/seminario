@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+import IconoAvatar from '../../assets/icons/iconoAvatar';
 
 function VerUsuarios({ show, onHide }) {
   const [users, setUsers] = useState([]);
@@ -50,22 +51,32 @@ function VerUsuarios({ show, onHide }) {
           exit={{ opacity: 0 }}
           transition={{ duration: 0.25 }}
         >
-          {/* fondo borroso y oscuro copiado del mobile :D*/}
+          {/* fondo borroso y oscuro copiado del mobile :D */}
           <motion.div
             className="absolute inset-0 bg-[#0D1B2A]/30 backdrop-blur-[0.375rem]"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            transition={{ duration: 0.25 }}
+            transition={{
+              type: 'spring',
+              stiffness: 120,
+              damping: 20,
+              duration: 0.32
+            }}
             onClick={onHide}
           />
-          {/* Modal */}
+          {/* modal */}
           <motion.div
             className="relative bg-gray-800 rounded-3xl shadow-2xl w-full max-w-2xl mx-4 border border-gray-700"
             initial={{ y: 40, opacity: 0, scale: 0.97 }}
             animate={{ y: 0, opacity: 1, scale: 1 }}
             exit={{ y: 40, opacity: 0, scale: 0.97 }}
-            transition={{ type: 'spring', stiffness: 260, damping: 24 }}
+            transition={{
+              type: 'spring',
+              stiffness: 260,
+              damping: 24,
+              delay: 0.08 
+            }}
           >
             <div className="flex items-center justify-between border-b border-gray-700 px-8 py-6">
               <h5 className="text-2xl font-bold text-white">Lista de Usuarios</h5>
@@ -86,11 +97,7 @@ function VerUsuarios({ show, onHide }) {
                   {users.map(user => (
                     <li key={user.id}>
                       <div className="flex bg-gray-700 rounded-2xl shadow p-4">
-                        <img
-                          src="/user.jpg"
-                          className="h-20 w-20 object-cover rounded-xl mr-4 border-2 border-gray-600"
-                          alt="Usuario"
-                        />
+                        <IconoAvatar/>
                         <div className="flex flex-col justify-center w-full text-center">
                           <h5 className="text-lg font-semibold text-white">{user.nombre} {user.apellido}</h5>
                           <p className="text-gray-400 text-base">Información acerca del jugador</p>

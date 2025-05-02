@@ -36,7 +36,7 @@ function AuthForm({
   return (
     <form
       onSubmit={handleSubmit}
-      className="w-full max-w-lg mx-auto py-[1.8rem] px-[3rem] bg-gray-800 rounded-3xl shadow-xl text-base"
+      className="max-w-lg min-w-[10rem] mx-auto py-[1.8rem] px-[3rem] bg-gray-800 rounded-3xl shadow-xl text-base"
     >
       {titulo && (
         <h2 className="text-[1.4rem] font-bold mb-[1.2rem] text-center text-white">

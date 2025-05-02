@@ -110,7 +110,7 @@ function CustomNavbar() {
               src={logoCompleto}
               alt="Boulevard81 Logo"
               className='mr-[0.5rem] select-none'
-              style={{ userSelect: "none", height: "2.2rem", width: "auto", display: "block" }}
+              style={{ userSelect: "none", height: "1.5rem", width: "auto", display: "block" }}
               draggable={false}
             />
             <span className='text-white font-bold tracking-wide text-[1.2rem] ml-[0.5rem] select-none'>
@@ -172,7 +172,7 @@ function CustomNavbar() {
                       src={logoCompleto}
                       alt="Boulevard81 Logo"
                       className='mr-[0.5rem] select-none'
-                      style={{ userSelect: "none", height: "2.2rem", width: "auto", display: "block" }}
+                      style={{ userSelect: "none", height: "1.5rem", width: "auto", display: "block" }}
                       draggable={false}
                     />
                     <span className='text-white font-bold tracking-wide text-[1.2rem] ml-[0.5rem] select-none'>

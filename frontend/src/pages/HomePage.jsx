@@ -24,12 +24,10 @@ export default function HomePage() {
           <Button
             texto='Iniciar Sesión'
             onClick={() => navigate('/login')}
-            className='min-w-[10rem] bg-[#eaff00] text-gray-900 font-bold py-3 px-8 rounded-full shadow-lg transition text-base'
           />
           <Button
             texto='Registrarse'
             onClick={() => navigate('/register')}
-            className='min-w-[10rem] text-gray-900 font-bold py-3 px-8 rounded-full shadow-lg border-2 border-[#eaff00] transition text-base'
           />
         </div>
       )}

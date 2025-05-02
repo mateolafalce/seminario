@@ -9,7 +9,7 @@ function Register() {
   const [cargando, setCargando] = useState(false);
   const [mensajeExito, setMensajeExito] = useState('');
   const navigate = useNavigate();
-  const { loginWithToken } = useContext(AuthContext);
+  const { loginWithToken, isAdmin } = useContext(AuthContext);
 
   const campos = [
     { nombre: "nombre", etiqueta: "Nombre", tipo: "text", placeholder: "Tu nombre" },
@@ -73,13 +73,17 @@ function Register() {
         textoBoton="Crear Usuario"
         cargando={cargando}
         errores={errores}
+        botonVariant="bold"
+        botonClassName="py-5" // más alto arriba y abajo
       >
-        <p className='mt-4 text-center text-white'>
-          ¿Ya tienes cuenta?{' '}
-          <a href='/login' className='text-[#E5FF00] hover:underline'>
-            Inicia sesión
-          </a>
-        </p>
+        {!isAdmin && (
+          <p className='mt-4 text-center text-white'>
+            ¿Ya tienes cuenta?{' '}
+            <a href='/login' className='text-[#E5FF00] hover:underline'>
+              Inicia sesión
+            </a>
+          </p>
+        )}
       </AuthForm>
     </div>
   );
