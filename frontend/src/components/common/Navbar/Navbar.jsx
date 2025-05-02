@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { AuthContext } from "../../../context/AuthContext";
 import Button from "../Button/Button";
 import logoCompleto from "../../../assets/icons/logoCompletoBlanco.svg";
+import { motion, AnimatePresence } from "framer-motion";
 
 // las redirecciones centrales
 const centerLinks = [
@@ -14,7 +15,7 @@ const centerLinks = [
 ];
 
 // estilo de los botones del medio
-const navBotonesCentrales = "text-white font-semibold text-base px-1 cursor-pointer transition-colors hover:text-[#E5FF00]";
+const navBotonesCentrales = 'text-white font-semibold text-base px-1 cursor-pointer transition-colors hover:text-[#E5FF00]';
 
 // el componente para los links de navegacion (solo texto, tailwindcss)
 const NavLinks = ({ links, isAuthenticated, isAdmin, onClick, className }) => (
@@ -65,7 +66,7 @@ function CustomNavbar() {
           texto="Cerrar Sesión"
           onClick={handleLogout}
           variant="session"
-          className={isMobile ? "mb-2" : ""}
+          className={isMobile ? 'mb-2' : ''}
         />
       );
     }
@@ -75,13 +76,13 @@ function CustomNavbar() {
           texto="Iniciar Sesión"
           onClick={() => isMobile ? handleNavigate("/login") : navigate("/login")}
           variant="session"
-          className={isMobile ? "mb-2" : ""}
+          className={isMobile ? 'mb-2' : ''}
         />
         <Button
           texto="Registrarse"
           onClick={() => isMobile ? handleNavigate("/register") : navigate("/register")}
           variant="session"
-          className={isMobile ? "" : "ml-2"}
+          className={isMobile ? '' : 'ml-2'}
         />
       </>
     );
@@ -91,101 +92,114 @@ function CustomNavbar() {
     <>
       {/* navbar */}
       <nav
-        className={`fixed w-full z-50 backdrop-blur-md transition-colors duration-300 ${
-          scrolled ? "bg-[#0D1B2A]/80 shadow-lg" : "bg-transparent"
-        }`}
+        className={
+          scrolled
+            ? 'fixed w-full z-50 backdrop-blur-md transition-colors duration-300 bg-[#0D1B2A]/80 shadow-lg'
+            : 'fixed w-full z-50 backdrop-blur-md transition-colors duration-300 bg-transparent'
+        }
         style={{ minHeight: "3rem" }}
       >
 
-        <div className="w-full grid grid-cols-3 items-center px-[2rem] lg:px-[5rem] xl:px-[12rem] 2xl:px-[12rem] h-14 relative">
+        <div className='w-full grid grid-cols-3 items-center px-[2rem] lg:px-[5rem] xl:px-[12rem] 2xl:px-[12rem] h-[3.5rem] relative'>
           {/* logo a la izquierda */}
           <div
-            className="flex items-center cursor-pointer select-none"
+            className='flex items-center cursor-pointer select-none'
             onClick={() => navigate("/home")}
           >
             <img
               src={logoCompleto}
               alt="Boulevard81 Logo"
-              className="h-5 lg:h-5 mr-2 select-none"
+              className='mr-[0.5rem] select-none'
+              style={{ userSelect: "none", height: "2.2rem", width: "auto", display: "block" }}
               draggable={false}
-              style={{ userSelect: "none" }}
             />
-            <span className="text-white font-bold tracking-wide text-[1.2rem] ml-2 select-none">
+            <span className='text-white font-bold tracking-wide text-[1.2rem] ml-[0.5rem] select-none'>
               Boulevard81
             </span>
           </div>
           {/* redirecciones centrales */}
-          <div className="hidden lg:flex justify-center items-center gap-2 whitespace-nowrap">
+          <div className='hidden lg:flex justify-center items-center gap-[0.5rem] whitespace-nowrap'>
             <NavLinks
               links={centerLinks}
               isAuthenticated={isAuthenticated}
               isAdmin={isAdmin}
               onClick={navigate}
-              className=""
+              className=''
             />
           </div>
           {/* botones sesion derecha */}
-          <div className="hidden lg:flex justify-end items-center gap-2 flex-nowrap whitespace-nowrap">
+          <div className='hidden lg:flex justify-end items-center gap-[0.5rem] flex-nowrap whitespace-nowrap'>
             {renderSessionButtons(false)}
           </div>
           {/* boton mobil menu */}
           <button
-            className="lg:hidden text-white focus:outline-none ml-auto col-start-3 justify-self-end"
+            className='lg:hidden text-white focus:outline-none ml-auto col-start-3 justify-self-end'
             onClick={() => setShowOffcanvas(true)}
             aria-label="Abrir menú"
           >
-            <svg className="w-8 h-8" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+            <svg className="w-[2rem] h-[2rem]" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" d="M4 6h16M4 12h16M4 18h16" />
             </svg>
           </button>
         </div>
       </nav>
       {/* el menu lateral para celulares */}
-      {showOffcanvas && (
-        <div className="fixed inset-0 z-50 bg-black bg-opacity-60 flex">
-          <div className="w-64 bg-gray-900 h-full p-6 flex flex-col">
-            <div className="flex items-center justify-between mb-6">
-              <div
-                className="flex items-center cursor-pointer select-none"
-                onClick={() => handleNavigate("/home")}
+      <AnimatePresence>
+        {showOffcanvas && (
+          <>
+            {/* fondo borroso */}
+            <motion.div
+              className='fixed inset-0 z-50 flex bg-[#0D1B2A]/30 backdrop-blur-[0.375rem]'
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.25 }}
+            >
+              {/* animacion lateral del desplegable */}
+              <motion.div
+                className='w-[16rem] bg-gray-900 h-full p-[1.5rem] flex flex-col'
+                initial={{ x: '-100%' }}
+                animate={{ x: 0 }}
+                exit={{ x: '-100%' }}
+                transition={{ type: 'spring', stiffness: 300, damping: 30 }}
               >
-                <img
-                  src={logoCompleto}
-                  alt="Boulevard81 Logo"
-                  className="h-8 mr-2 select-none"
-                  draggable={false}
-                  style={{ userSelect: "none" }}
-                />
-                <span className="text-white font-bold tracking-wide text-[1.2rem] ml-2 select-none">
-                  Boulevard81
-                </span>
-              </div>
-              <button
-                className="text-white text-2xl ml-2"
-                onClick={() => setShowOffcanvas(false)}
-                aria-label="Cerrar menú"
-              >
-                &times;
-              </button>
-            </div>
-            <nav className="flex flex-col space-y-2">
-              <NavLinks
-                links={centerLinks}
-                isAuthenticated={isAuthenticated}
-                isAdmin={isAdmin}
-                onClick={handleNavigate}
-                className=""
-              />
-              <hr className="my-4 border-gray-700" />
-              {renderSessionButtons(true)}
-            </nav>
-          </div>
-          {/* ns/nc */}
-          <div className="flex-1" onClick={() => setShowOffcanvas(false)} />
-        </div>
-      )}
+                <div className='flex items-center justify-between mb-[1.5rem]'>
+                  <div
+                    className='flex items-center cursor-pointer select-none'
+                    onClick={() => handleNavigate("/home")}
+                  >
+                    <img
+                      src={logoCompleto}
+                      alt="Boulevard81 Logo"
+                      className='mr-[0.5rem] select-none'
+                      style={{ userSelect: "none", height: "2.2rem", width: "auto", display: "block" }}
+                      draggable={false}
+                    />
+                    <span className='text-white font-bold tracking-wide text-[1.2rem] ml-[0.5rem] select-none'>
+                      Boulevard81
+                    </span>
+                  </div>
+                </div>
+                <nav className='flex flex-col space-y-[0.5rem]'>
+                  <NavLinks
+                    links={centerLinks}
+                    isAuthenticated={isAuthenticated}
+                    isAdmin={isAdmin}
+                    onClick={handleNavigate}
+                    className=''
+                  />
+                  <hr className='my-[1rem] border-gray-700' />
+                  {renderSessionButtons(true)}
+                </nav>
+              </motion.div>
+              {/* tocar fuera cierra el menú */}
+              <div className='flex-1' onClick={() => setShowOffcanvas(false)} />
+            </motion.div>
+          </>
+        )}
+      </AnimatePresence>
       {/* espaciador */}
-      <div className="h-14 lg:h-14" />
+      <div className='h-[3.5rem] lg:h-[3.5rem]' />
     </>
   );
 }
