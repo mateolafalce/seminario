@@ -1,6 +1,5 @@
 import { useState, useContext, useEffect } from 'react'
 import { AuthContext } from "../../context/AuthContext";
-import './ReservaTabla.css'
 
 const canchas = [
   'Blindex A',
@@ -52,7 +51,6 @@ function ReservaTabla() {
   const [cantidades, setCantidades] = useState({})
   const { isAuthenticated } = useContext(AuthContext)
 
-  // Obtener cantidades de reservas
   useEffect(() => {
     const fetchCantidades = async () => {
       try {
@@ -96,7 +94,6 @@ function ReservaTabla() {
       const data = await response.json()
       alert(`Reserva exitosa: ${data.msg}`)
 
-      // Actualizar cantidades después de reservar
       setCantidades(prev => {
         const key = `${cancha}-${hora}`
         return {
@@ -111,49 +108,62 @@ function ReservaTabla() {
   }
 
   return (
-    <div>
-      <h2>Elige tu turno</h2>
-      <table>
-        <thead>
-          <tr>
-            <th>Cancha</th>
-            {horarios.map(h => <th key={h}>{h}</th>)}
-          </tr>
-        </thead>
-        <tbody>
-          {canchas.map(cancha => (
-            <tr key={cancha}>
-              <td>{cancha}</td>
-              {horarios.map(hora => {
+    <div className="flex flex-col items-center mt-8 min-h-[70vh] bg-[#101a2a] w-full py-6">
+      <h2 className="text-xl font-bold text-white mb-6 text-center">Reservar Turno</h2>
+      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6 w-full max-w-5xl">
+        {canchas.map((cancha) => (
+          <div
+            key={cancha}
+            className="bg-gray-800 rounded-xl flex flex-col items-center p-4"
+          >
+            <h3 className="text-base font-semibold text-[#eaff00] mb-3 text-center">{cancha}</h3>
+            <div className="flex flex-wrap gap-2 justify-center">
+              {horarios.map((hora) => {
                 const key = `${cancha}-${hora}`
                 const cantidad = cantidades[key] || 0
+                const isSelected = selected?.cancha === cancha && selected?.hora === hora
+                const isFull = cantidad >= 4
 
                 return (
-                  <td
+                  <button
                     key={hora}
-                    style={{
-                      cursor: isAuthenticated ? 'pointer' : 'not-allowed',
-                      backgroundColor: selected?.cancha === cancha && selected?.hora === hora ? '#a0e0a0' : '#f9f9f9',
-                      border: '1px solid #ccc',
-                      padding: '10px',
-                      textAlign: 'center'
-                    }}
+                    className={`
+                      px-2 py-1 rounded-full text-xs font-medium
+                      ${isSelected ? 'bg-[#eaff00] text-[#0D1B2A]' : ''}
+                      ${isFull ? 'bg-gray-500 text-gray-200 cursor-not-allowed' : ''}
+                      ${!isSelected && !isFull ? 'bg-gray-700 text-[#eaff00] hover:bg-[#eaff00] hover:text-[#0D1B2A]' : ''}
+                      focus:outline-none
+                    `}
+                    disabled={!isAuthenticated || isFull}
                     onClick={() => {
-                      if (isAuthenticated) {
-                        handleClick(cancha, hora)
-                      } else {
+                      if (!isAuthenticated) {
                         alert('Debes iniciar sesión para reservar')
+                      } else if (!isFull) {
+                        handleClick(cancha, hora)
                       }
                     }}
+                    style={{
+                      minWidth: '4rem',
+                      minHeight: '1.7rem',
+                      marginBottom: '0.1rem'
+                    }}
                   >
-                    <div>{cantidad}/4</div>
-                  </td>
+                    <span>{hora}</span>
+                    <span className="block text-[0.7rem] font-bold">
+                      {cantidad}/4 {isFull ? <span className="text-red-400">Lleno</span> : ''}
+                      {isSelected && !isFull ? <span className="text-green-700 ml-1">¡Reservado!</span> : ''}
+                    </span>
+                  </button>
                 )
               })}
-            </tr>
-          ))}
-        </tbody>
-      </table>
+            </div>
+          </div>
+        ))}
+      </div>
+      <div className="mt-6 text-gray-400 text-xs text-center max-w-2xl">
+        <span className="inline-block bg-[#eaff00]/70 text-[#0D1B2A] font-bold px-2 py-0.5 rounded-full mr-2">Tip</span>
+        Haz clic en un horario para reservar. Si el botón está gris, ese horario está lleno.
+      </div>
     </div>
   )
 }

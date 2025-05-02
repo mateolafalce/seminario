@@ -153,7 +153,7 @@ async def buscar_clientes(request: BuscarClienteRequest, user: dict = Depends(cu
     try:
         # Buscar clientes (en hilo separado)
         clientes = await asyncio.to_thread(
-            lambda: list(db_client.users.find({"username": request.nombre}))
+            lambda: list(db_client.users.find({"username": {"$regex": f"^{request.nombre}", "$options": "i"}}))
         )
         
         # Procesar resultados

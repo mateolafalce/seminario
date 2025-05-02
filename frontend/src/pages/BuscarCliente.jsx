@@ -1,6 +1,6 @@
 import { useState, useContext } from 'react';
 import { AuthContext } from '../context/AuthContext'
-import "../styles/Buscar.css"
+import Button from '../components/common/Button/Button';
 
 const categoria = ['2da','3ra','4ta', '5ta','6ta', '7ta', '8ta'];
 
@@ -11,7 +11,7 @@ function BuscarCliente() {
   const [clienteEditar, setClienteEditar] = useState(null);
 
   if (!isAuthenticated || !isAdmin) {
-    return <p>No tienes permisos para ver esta página.</p>
+    return <p className="text-center text-red-500 mt-10">No tienes permisos para ver esta página.</p>
   }
 
   const handleSubmit = async (e) => {
@@ -103,45 +103,62 @@ function BuscarCliente() {
   };
 
   return (
-    <div className="buscar-container">
-      <h2>Buscar Cliente</h2>
-      <form onSubmit={handleSubmit}>
+    <div className="max-w-3xl mx-auto mt-10 px-4">
+      <h2 className="text-3xl font-bold text-center text-white mb-8">Buscar Cliente</h2>
+      <form onSubmit={handleSubmit} className="flex flex-col sm:flex-row gap-4 items-center mb-8">
         <input
           type="text"
           placeholder="Ingrese el username"
           value={nombre}
           onChange={(e) => setNombre(e.target.value)}
           required
+          className="flex-1 px-4 py-2 rounded-lg border border-gray-600 bg-gray-800 text-white focus:outline-none focus:ring-2 focus:ring-[#E5FF00]"
         />
-        <button type="submit">Buscar</button>
+        <Button
+          type="submit"
+          texto="Buscar"
+          variant="default"
+        />
       </form>
 
-      <div className="resultados">
+      <div className="space-y-6">
         {resultados.map((cliente, index) => (
-          <div key={index} className="espacio-card">
-            <h3>{cliente.nombre} {cliente.apellido}</h3>
-            <p><strong>Username:</strong> {cliente.username}</p>
-            <p><strong>Email:</strong> {cliente.email}</p>
-            <p><strong>Habilitado:</strong> {cliente.habilitado ? 'Sí' : 'No'}</p>
-            <p><strong>Categoria:</strong> {cliente.categoria ? cliente.categoria : 'No Registrado'}</p>
-            <p><strong>Se Registro:</strong> {cliente.fecha_registro}</p>
-            <p><strong>Ultima Conexion:</strong> {cliente.ultima_conexion}</p>
-
-            <div className="acciones">
-              <button onClick={() => handleModificar(cliente)}>Modificar</button>
-              <button onClick={() => handleEliminar(cliente._id)}>Eliminar</button>
+          <div key={index} className="bg-gray-800 rounded-2xl shadow-lg p-6 relative">
+            <h3 className="text-xl font-semibold text-white mb-2">{cliente.nombre} {cliente.apellido}</h3>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-8 gap-y-1 text-gray-300 text-base">
+              <p><span className="font-bold text-white">Username:</span> {cliente.username}</p>
+              <p><span className="font-bold text-white">Email:</span> {cliente.email}</p>
+              <p><span className="font-bold text-white">Habilitado:</span> {cliente.habilitado ? 'Sí' : 'No'}</p>
+              <p><span className="font-bold text-white">Categoria:</span> {cliente.categoria ? cliente.categoria : 'No Registrado'}</p>
+              <p><span className="font-bold text-white">Se Registro:</span> {cliente.fecha_registro}</p>
+              <p><span className="font-bold text-white">Ultima Conexion:</span> {cliente.ultima_conexion}</p>
+            </div>
+            <div className="flex gap-4 mt-4">
+              <Button
+                type="button"
+                texto="Modificar"
+                onClick={() => handleModificar(cliente)}
+                variant="modificar"
+              />
+              <Button
+                type="button"
+                texto="Eliminar"
+                onClick={() => handleEliminar(cliente._id)}
+                variant="eliminar"
+              />
             </div>
 
             {clienteEditar && clienteEditar.id === cliente._id && (
-              <div className="form-editar">
-                <h3>Editar Cliente</h3>
-                <form onSubmit={handleEditarSubmit}>
+              <div className="mt-6 bg-gray-900 rounded-xl p-6 border border-gray-700">
+                <h3 className="text-lg font-bold text-white mb-4">Editar Cliente</h3>
+                <form onSubmit={handleEditarSubmit} className="space-y-4">
                   <input
                     type="text"
                     value={clienteEditar.nombre}
                     onChange={(e) => setClienteEditar({ ...clienteEditar, nombre: e.target.value })}
                     placeholder="Nombre"
                     required
+                    className="w-full px-4 py-2 rounded-lg border border-gray-600 bg-gray-800 text-white focus:outline-none"
                   />
                   <input
                     type="text"
@@ -149,6 +166,7 @@ function BuscarCliente() {
                     onChange={(e) => setClienteEditar({ ...clienteEditar, apellido: e.target.value })}
                     placeholder="Apellido"
                     required
+                    className="w-full px-4 py-2 rounded-lg border border-gray-600 bg-gray-800 text-white focus:outline-none"
                   />
                   <input
                     type="email"
@@ -156,34 +174,47 @@ function BuscarCliente() {
                     onChange={(e) => setClienteEditar({ ...clienteEditar, email: e.target.value })}
                     placeholder="Email"
                     required
+                    className="w-full px-4 py-2 rounded-lg border border-gray-600 bg-gray-800 text-white focus:outline-none"
                   />
-                  <br/>
-                <select
-                  value={clienteEditar.categoria}
-                  onChange={(e) => setClienteEditar({ ...clienteEditar, categoria: e.target.value })}
-                >
-                  <option value="">Seleccionar categoría</option>
-                  {categoria.map((cat) => (
-                    <option key={cat} value={cat}>
-                      {cat}
-                    </option>
-                  ))}
-                </select>
-                <br/>
-                  <input
-                    type="checkbox"
-                    checked={clienteEditar.habilitado}
-                    onChange={(e) =>
-                      setClienteEditar({
-                        ...clienteEditar,
-                        habilitado: e.target.checked,
-                      })
-                    }
-                  />
-                  <label>Usuario habilitado</label>
-                  <br/>
-                  <button type="submit">Guardar cambios</button>
-                  <button type="button" onClick={() => setClienteEditar(null)}>Cancelar</button>
+                  <select
+                    value={clienteEditar.categoria}
+                    onChange={(e) => setClienteEditar({ ...clienteEditar, categoria: e.target.value })}
+                    className="w-full px-4 py-2 rounded-lg border border-gray-600 bg-gray-800 text-white focus:outline-none"
+                  >
+                    <option value="">Seleccionar categoría</option>
+                    {categoria.map((cat) => (
+                      <option key={cat} value={cat}>
+                        {cat}
+                      </option>
+                    ))}
+                  </select>
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="checkbox"
+                      checked={clienteEditar.habilitado}
+                      onChange={(e) =>
+                        setClienteEditar({
+                          ...clienteEditar,
+                          habilitado: e.target.checked,
+                        })
+                      }
+                      className="accent-[#E5FF00] w-5 h-5"
+                    />
+                    <label className="text-white">Usuario habilitado</label>
+                  </div>
+                  <div className="flex gap-4 mt-2">
+                    <Button
+                      type="submit"
+                      texto="Guardar cambios"
+                      variant="default"
+                    />
+                    <Button
+                      type="button"
+                      texto="Cancelar"
+                      onClick={() => setClienteEditar(null)}
+                      variant="cancelar"
+                    />
+                  </div>
                 </form>
               </div>
             )}

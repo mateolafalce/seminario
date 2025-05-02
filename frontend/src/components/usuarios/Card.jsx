@@ -1,34 +1,23 @@
-import React, {useState} from 'react'
-import VerUsuarios from "./VerUsuarios";
-import "../../styles/Styles.css";
+import React from "react";
+import IconoAvatar from "../../assets/icons/iconoAvatar";
 
-function Card(){
-    const [showModal,setShowModal] =useState(false)
-
-    const handleCardClick=() =>{
-        setShowModal(true)
-    }
-    const handleCloseModal = () =>{
-        setShowModal(false)
-    }
-    return(
-        <>
-       <div className="card mb-3 cursor tamanio " onClick={handleCardClick}>
-            <div className="row g-0">
-                <div className="col-md-4">
-                    <img src="/user.jpg" className="img-fluid rounded-start" alt="..."/>
-                </div>
-                <div className="col-md-8">
-                    <div className="card-body">
-                        <h5 className="card-title">Listar Usuarios</h5>
-                        <p className="card-text">This is a wider card with supporting text below as a natural lead-in to additional content. This content is a little bit longer.</p>
-                    </div>
-                </div>
+function Card({ onClick }) {
+    return (
+        <div
+            className={'max-w-[32rem] mt-[5rem] mx-auto my-6 bg-gray-800 rounded-3xl shadow-lg cursor-pointer hover:shadow-2xl transition-shadow flex items-center border border-gray-700'}
+            onClick={onClick}
+        >
+            <div className={'flex-shrink-0 pl-6 py-4'}>
+                <IconoAvatar/>
+            </div>
+            <div className={'flex flex-col justify-center p-6 flex-1'}>
+                <h5 className={'text-xl font-bold mb-2 text-center text-white'}>Listar Usuarios</h5>
+                <p className={'text-gray-200 text-base text-center'}>
+                    Visualiza y gestiona la lista de usuarios registrados en el sistema. Haz clic para ver más detalles.
+                </p>
             </div>
         </div>
-        <VerUsuarios show={showModal} onHide={handleCloseModal}/>
-        </>
-    )
+    );
 }
 
-export default Card
+export default Card;

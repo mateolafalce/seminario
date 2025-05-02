@@ -1,4 +1,5 @@
 import React from 'react';
+import Button from '../components/common/Button/Button';
 
 function Unauthorized() {
   return (
@@ -14,9 +15,11 @@ function Unauthorized() {
               <p className="mb-0">
                 Por favor, contacta al administrador si crees que esto es un error.
               </p>
-              <button className="btn btn-outline-secondary mt-3" onClick={() => window.history.back()}>
-                Volver atrás
-              </button>
+              <Button
+                texto="Volver atrás"
+                onClick={() => window.history.back()}
+                className="btn btn-outline-secondary mt-3"
+              />
             </div>
           </div>
         </div>

@@ -1,118 +1,22 @@
+@import "tailwindcss";
+
+/* tema visual del autocompletado, ignorar */
+input:-webkit-autofill,
+input:-webkit-autofill:focus,
+input:-webkit-autofill:hover,
+input:-webkit-autofill:active {
+  -webkit-box-shadow: 0 0 0 1000px #374151 inset !important;
+  box-shadow: 0 0 0 1000px #374151 inset !important;
+  -webkit-text-fill-color: #fff !important;
+  color: #fff !important;
+  transition: background-color 5000s ease-in-out 0s;
+}
+
+
 body {
   margin: 0;
   font-family: 'Segoe UI';
-  background-color: #0D1B2A;            
-  color: white
+  background-color: #0D1B2A; /* Fondo oscuro */
+  overflow-x: hidden; /* Evita scroll horizontal no deseado */
 }
 
-.navbar {
-    display: flex;
-    justify-content: center;
-    background-color: #218838;
-    padding: 1px 0;
-    position: fixed;
-    width: 100%;
-    top: 0;
-    left: 0;
-    border-bottom-right-radius: 40px;
-    border-bottom-left-radius: 40px;
-}
-
-.navbar button {
-    background: none;
-    border: none;
-    color: white;
-    font-size: 16px;
-    padding: 10px 20px;
-    cursor: pointer;
-    border-radius: 8px;
-}
-
-.navbar button:hover {
-    background-color: #056448;
-    border-radius: 10px;
-}
-
-.navbar button:active{
-  background-color:  #045f44;
-}
-
-.content {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  border-radius: 8px;
-  padding: 80px;
-  box-shadow: 8px;
-  text-align: center;
-}
-
-.content h1 {
-  font-size: 2.5em;
-  color: #333;
-  margin-bottom: 40px;
-}
-
-.content p {
-  font-size: 1.1em;
-  color: #666;
-  line-height: 1.6;
-  max-width: 800px;
-}
-
-table {
-  border-collapse: collapse;
-  width: 100%;
-  background-color: #eafff0;
-}
-
-th, td {
-  border: 1px solid #ddd;
-  text-align: center;
-  padding: 8px;
-}
-
-td:hover {
-  background-color: #d0ffd0;
-}
-
-.app-container {
-  display: flex;
-  flex-direction: column;
-  min-height: 100vh; 
-}
-
-.content {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  border-radius: 8px;
-  padding: 80px;
-  box-shadow: 8px;
-  text-align: center;
-  flex-grow: 1;
-}
-
-.session-timeout-overlay {
-  position: fixed;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
-  background-color: rgba(0, 0, 0, 0.7);
-  flex-direction: column;
-  justify-content: center;
-  align-items: center;
-  z-index: 1001; 
-  color: white;
-  text-align: center;
-}
-
-.session-timeout-overlay h2 {
-  font-size: 2.5em;
-  margin-bottom: 20px;
-}
-
-.session-timeout-overlay p {
-  font-size: 1.5em;
-}

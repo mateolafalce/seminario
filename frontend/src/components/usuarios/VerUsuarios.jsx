@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import '../../index.css'; // Importa los estilos globales
+import { motion, AnimatePresence } from 'framer-motion';
+import IconoAvatar from '../../assets/icons/iconoAvatar';
 
 function VerUsuarios({ show, onHide }) {
   const [users, setUsers] = useState([]);
@@ -41,45 +42,81 @@ function VerUsuarios({ show, onHide }) {
   }, [show]);
 
   return (
-    <div className={`modal fade ${show ? 'show' : ''}`} style={{ display: show ? 'block' : 'none' }} tabIndex="-1">
-      <div className="modal-dialog modal-lg">
-        <div className="modal-content">
-          <div className="modal-header">
-            <h5 className="modal-title">Lista de Usuarios</h5>
-            <button type="button" className="btn-close" aria-label="Close" onClick={onHide}></button>
-          </div>
-          <div className="modal-body">
-            {loading && <p>Cargando usuarios...</p>}
-            {error && <p className="text-danger">{error}</p>}
-            {!loading && !error && users.length > 0 ? (
-              <ul>
-                {users.map(user => (
-                  <li key={user.id}>
-                    <div className="card mb-3">
-                      <div className="row g-0">
-                        <div className="col-md-4">
-                          <img src="/user.jpg" className="img-fluid rounded-start" alt="..." />
-                        </div>
-                        <div className="col-md-8">
-                          <div className="card-body">
-                            <h5 className="card-title">{user.nombre} {user.apellido}</h5>
-                            <p className="card-text">información acerca del jugador</p>
-                          </div>
+    <AnimatePresence>
+      {show && (
+        <motion.div
+          className="fixed inset-0 z-50 flex items-center justify-center"
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          transition={{ duration: 0.25 }}
+        >
+          {/* fondo borroso y oscuro copiado del mobile :D */}
+          <motion.div
+            className="absolute inset-0 bg-[#0D1B2A]/30 backdrop-blur-[0.375rem]"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{
+              type: 'spring',
+              stiffness: 120,
+              damping: 20,
+              duration: 0.32
+            }}
+            onClick={onHide}
+          />
+          {/* modal */}
+          <motion.div
+            className="relative bg-gray-800 rounded-3xl shadow-2xl w-full max-w-2xl mx-4 border border-gray-700"
+            initial={{ y: 40, opacity: 0, scale: 0.97 }}
+            animate={{ y: 0, opacity: 1, scale: 1 }}
+            exit={{ y: 40, opacity: 0, scale: 0.97 }}
+            transition={{
+              type: 'spring',
+              stiffness: 260,
+              damping: 24,
+              delay: 0.08 
+            }}
+          >
+            <div className="flex items-center justify-between border-b border-gray-700 px-8 py-6">
+              <h5 className="text-2xl font-bold text-white">Lista de Usuarios</h5>
+              <button
+                type="button"
+                className="text-gray-400 hover:text-gray-200 text-3xl font-bold focus:outline-none"
+                aria-label="Close"
+                onClick={onHide}
+              >
+                ×
+              </button>
+            </div>
+            <div className="px-8 py-6 max-h-[60vh] overflow-y-auto">
+              {loading && <p className="text-gray-300">Cargando usuarios...</p>}
+              {error && <p className="text-red-400">{error}</p>}
+              {!loading && !error && users.length > 0 ? (
+                <ul className="space-y-4">
+                  {users.map(user => (
+                    <li key={user.id}>
+                      <div className="flex bg-gray-700 rounded-2xl shadow p-4">
+                        <IconoAvatar/>
+                        <div className="flex flex-col justify-center w-full text-center">
+                          <h5 className="text-lg font-semibold text-white">{user.nombre} {user.apellido}</h5>
+                          <p className="text-gray-400 text-base">Información acerca del jugador</p>
                         </div>
                       </div>
-                    </div>
-                  </li>
-                ))}
-              </ul>
-            ) : (!loading && !error && (
-              <p>No hay usuarios para mostrar.</p>
-            ))}
-          </div>
-          <div className="modal-footer">
-          </div>
-        </div>
-      </div>
-    </div>
+                    </li>
+                  ))}
+                </ul>
+              ) : (!loading && !error && (
+                <p className="text-gray-300">No hay usuarios para mostrar.</p>
+              ))}
+            </div>
+            <div className="px-8 py-4 border-t border-gray-700 flex justify-end">
+              {/* se podrian agregaar botones por aca*/}
+            </div>
+          </motion.div>
+        </motion.div>
+      )}
+    </AnimatePresence>
   );
 }
 
