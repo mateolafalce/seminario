@@ -62,7 +62,7 @@ function Register() {
   };
 
   return (
-    <div className='-mt-[4rem]'>
+    <div className='mt-[3rem]'>
       {mensajeExito && (
         <MessageAlert tipo='success' mensaje={mensajeExito} />
       )}

@@ -17,7 +17,7 @@ router = APIRouter(prefix="/users_b",
                     tags=["usuarios_b"],
                     responses={status.HTTP_400_BAD_REQUEST:{"message":"No encontrado"}})
 ALGORITHM = "HS256"
-ACCESS_TOKEN_DURATION = 5
+ACCESS_TOKEN_DURATION = 60  # Duración del token en minutos
 SECRET = "201d573bd7d1344d3a3bfce1550b69102fd11be3db6d379508b6cccc58ea230b"
 crypt = CryptContext(schemes=["bcrypt"])
 
