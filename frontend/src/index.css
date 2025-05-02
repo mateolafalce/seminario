@@ -12,12 +12,10 @@ input:-webkit-autofill:active {
   transition: background-color 5000s ease-in-out 0s;
 }
 
-
 body {
   margin: 0;
   font-family: 'Segoe UI';
   background-color: #0D1B2A; /* Fondo oscuro */
-  color: white;
   overflow-x: hidden; /* Evita scroll horizontal no deseado */
 }
 

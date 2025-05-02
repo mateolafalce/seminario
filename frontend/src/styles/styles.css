@@ -1,15 +1,1 @@
-.carousel-item{
-    max-height: 400px;
-}
-.tamanio{
-    max-width: 540px;
-    cursor:'pinter';
-}
-
-.cursor{
-    cursor:"pointer";
-}
-
-ul{
-    list-style-type:none;
-}
+/*soy un estilo? pero como estoy usando tailwind no me sirve de nada*/
