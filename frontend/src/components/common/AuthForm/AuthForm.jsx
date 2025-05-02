@@ -82,6 +82,7 @@ function AuthForm({
         texto={cargando ? "Cargando..." : textoBoton}
         disabled={cargando}
         className="w-full mt-[0.6rem] text-base py-[0.9rem]"
+        variant="bold"
       />
 
       {children}
