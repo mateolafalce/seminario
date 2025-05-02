@@ -18,7 +18,7 @@ function GestionClientes() {
         <div className="flex flex-col md:flex-row gap-6 w-full justify-center">
           <Button
             texto="Crear Cliente"
-            onClick={() => navigate('/register')}
+            onClick={() => navigate('/register?admin=1')}
           />
           <Button
             texto="Buscar Cliente"

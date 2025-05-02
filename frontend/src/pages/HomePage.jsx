@@ -12,7 +12,7 @@ export default function HomePage() {
   const { isAuthenticated } = useContext(AuthContext);
 
   return (
-    <div className='flex flex-col items-center justify-start px-2 mt-8 h-full'>
+    <div className='flex flex-col items-center justify-start px-2 mt-8 mb-[3rem] h-full'>
       <h1 className='text-4xl font-extrabold text-center text-white mb-8 tracking-wide drop-shadow-lg'>Boulevard81</h1>
       <Carousel images={images} />
       <p className='text-gray-200 text-lg text-center mb-10 max-w-2xl mt-10'>
@@ -20,7 +20,7 @@ export default function HomePage() {
         <span className='font-bold text-[#eaff00] block mt-8'>¡Regístrate o inicia sesión para comenzar!</span>
       </p>
       {!isAuthenticated && (
-        <div className='flex flex-col md:flex-row gap-4 justify-center'>
+        <div className='flex flex-col mt-[3rem] md:flex-row gap-4 justify-center'>
           <Button
             texto='Iniciar Sesión'
             onClick={() => navigate('/login')}
@@ -29,7 +29,7 @@ export default function HomePage() {
             texto='Registrarse'
             onClick={() => navigate('/register')}
           />
-        </div>
+        </div>    
       )}
     </div>
   );

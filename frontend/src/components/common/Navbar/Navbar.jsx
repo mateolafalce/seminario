@@ -159,9 +159,9 @@ function CustomNavbar() {
               <motion.div
                 className='w-[16rem] bg-gray-900 h-full p-[1.5rem] flex flex-col'
                 initial={{ x: '-100%' }}
-                animate={{ x: 0 }}
+                animate={{ x: 0 }}S
                 exit={{ x: '-100%' }}
-                transition={{ type: 'spring', stiffness: 300, damping: 30 }}
+                transition={{ type: 'spring', stiffness: 180, damping: 20 }}
               >
                 <div className='flex items-center justify-between mb-[1.5rem]'>
                   <div

@@ -1,6 +1,6 @@
 import React, { useContext, useState } from 'react';
 import { AuthContext } from '../context/AuthContext';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import AuthForm from '../components/common/AuthForm/AuthForm';
 import MessageAlert from '../components/common/Alert/MessageAlert';
 
@@ -9,6 +9,9 @@ function Register() {
   const [cargando, setCargando] = useState(false);
   const [mensajeExito, setMensajeExito] = useState('');
   const navigate = useNavigate();
+  const location = useLocation();
+  const params = new URLSearchParams(location.search);
+  const esAdmin = params.get('admin') === '1';
   const { loginWithToken } = useContext(AuthContext);
 
   const campos = [
@@ -49,7 +52,7 @@ function Register() {
         loginWithToken(data.accessToken);
         setTimeout(() => {
           navigate('/');
-        }, 1500); // Espera 1.5 segundos antes de redirigir al home
+        }, 1500);
       } else {
         const errorData = await response.json();
         setErrores({ general: errorData.detail || 'Error al registrar usuario' });
@@ -74,12 +77,14 @@ function Register() {
         cargando={cargando}
         errores={errores}
       >
-        <p className='mt-4 text-center text-white'>
-          ¿Ya tienes cuenta?{' '}
-          <a href='/login' className='text-[#E5FF00] hover:underline'>
-            Inicia sesión
-          </a>
-        </p>
+        {!esAdmin && (
+          <p className='mt-4 text-center text-white'>
+            ¿Ya tienes cuenta?{' '}
+            <a href='/login' className='text-[#E5FF00] hover:underline'>
+              Inicia sesión
+            </a>
+          </p>
+        )}
       </AuthForm>
     </div>
   );

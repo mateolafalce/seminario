@@ -58,7 +58,7 @@ function Login() {
 
   return (
     <div>
-      <div className='mt-[8rem]'>
+      <div className='mt-[4rem]'>
         <AuthForm
           titulo="Iniciar Sesión"
           campos={campos}
