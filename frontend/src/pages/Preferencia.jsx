@@ -2,6 +2,9 @@ import { useEffect, useState } from "react";
 import { generarHorarios } from '../components/usuarios/ReservaTabla';
 import Button from '../components/common/Button/Button';
 
+// esta es una linea nueva que se uso para las ip y conectarse con el movil o cualquier dispositivo en la red
+const BACKEND_URL = `http://${window.location.hostname}:8000`;
+
 const diasSemana = ["Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado", "Domingo"];
 const canchasDisponibles = ['Blindex A','Blindex B','Blindex C', 'Cemento Techada','Cemento Sin Techar'];
 const horariosDisponibles = generarHorarios();
@@ -36,7 +39,8 @@ export default function PreferenciasUsuario() {
   const [preferenciasGuardadas, setPreferenciasGuardadas] = useState([]);
 
   useEffect(() => {
-    fetch('http://127.0.0.1:8000/preferencias/obtener', {
+    // antes iba: fetch('http://127.0.0.1:8000/preferencias/obtener', {
+    fetch(`${BACKEND_URL}/preferencias/obtener`, {
       headers: { 'Authorization': `Bearer ${localStorage.getItem('accessToken')}` }
     })
       .then(res => res.ok ? res.json() : [])
@@ -55,7 +59,8 @@ export default function PreferenciasUsuario() {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    const response = await fetch('http://127.0.0.1:8000/preferencias/guardar', {
+    // antes iba: const response = await fetch('http://127.0.0.1:8000/preferencias/guardar', {
+    const response = await fetch(`${BACKEND_URL}/preferencias/guardar`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',

@@ -1,6 +1,9 @@
 import { useState, useContext, useEffect } from 'react'
 import { AuthContext } from "../../context/AuthContext";
 
+// esta es una linea nueva que se uso para las ip y conectarse con el movil o cualquier dispositivo en la red
+const BACKEND_URL = `http://${window.location.hostname}:8000`;
+
 const canchas = [
   'Blindex A',
   'Blindex B',
@@ -54,7 +57,8 @@ function ReservaTabla() {
   useEffect(() => {
     const fetchCantidades = async () => {
       try {
-        const res = await fetch('http://127.0.0.1:8000/reservas/cantidad')
+        // antes iba: const res = await fetch('http://127.0.0.1:8000/reservas/cantidad')
+        const res = await fetch(`${BACKEND_URL}/reservas/cantidad`)
         const data = await res.json()
         const mapa = {}
         for (const item of data) {
@@ -74,7 +78,8 @@ function ReservaTabla() {
     setSelected({ cancha, hora })
     const token = localStorage.getItem('accessToken')
     try {
-      const response = await fetch('http://127.0.0.1:8000/reservas/reservar', {
+      // antes iba: const response = await fetch('http://127.0.0.1:8000/reservas/reservar', {
+      const response = await fetch(`${BACKEND_URL}/reservas/reservar`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

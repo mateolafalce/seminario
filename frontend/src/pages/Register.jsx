@@ -4,6 +4,9 @@ import { useNavigate, useLocation } from 'react-router-dom';
 import AuthForm from '../components/common/AuthForm/AuthForm';
 import MessageAlert from '../components/common/Alert/MessageAlert';
 
+// esta es una linea nueva que se uso para las ip y conectarse con el movil o cualquier dispositivo en la red
+const BACKEND_URL = `http://${window.location.hostname}:8000`;
+
 function Register() {
   const [errores, setErrores] = useState({});
   const [cargando, setCargando] = useState(false);
@@ -35,7 +38,8 @@ function Register() {
     }
 
     try {
-      const response = await fetch('http://127.0.0.1:8000/users_b/register', {
+      // antes iba: const response = await fetch('http://127.0.0.1:8000/users_b/register', {
+      const response = await fetch(`${BACKEND_URL}/users_b/register`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

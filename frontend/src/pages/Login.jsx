@@ -3,6 +3,11 @@ import { useNavigate, Link } from 'react-router-dom';
 import { AuthContext } from '../context/AuthContext';
 import AuthForm from '../components/common/AuthForm/AuthForm';
 
+//frontend: npm run dev -- --host y para el backend: uvicorn main:app --reload --host 0.0.0.0 --port 8000
+
+// esta es una linea nueva que uso para las ip y conectarse desde cualquier dispositivo
+const BACKEND_URL = `http://${window.location.hostname}:8000`;
+
 function Login() {
   const navigate = useNavigate();
   const { login } = useContext(AuthContext);
@@ -30,7 +35,8 @@ function Login() {
     setCargando(true);
     setErrores({});
     try {
-      const response = await fetch('http://127.0.0.1:8000/users_b/login', {
+      // antes iba: const response = await fetch('http://127.0.0.1:8000/users_b/login', {
+      const response = await fetch(`${BACKEND_URL}/users_b/login`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
         body: `username=${encodeURIComponent(valores.username)}&password=${encodeURIComponent(valores.password)}`,

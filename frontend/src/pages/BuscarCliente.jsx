@@ -4,6 +4,9 @@ import Button from '../components/common/Button/Button';
 
 const categoria = ['2da','3ra','4ta', '5ta','6ta', '7ta', '8ta'];
 
+// esta es una linea nueva que se uso para las ip y conectarse con el movil o cualquier dispositivo en la red
+const BACKEND_URL = `http://${window.location.hostname}:8000`;
+
 function BuscarCliente() {
   const [nombre, setNombre] = useState('');
   const [resultados, setResultados] = useState([]);
@@ -16,7 +19,8 @@ function BuscarCliente() {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    const response = await fetch('http://127.0.0.1:8000/users_b/buscar', {
+    // antes iba: const response = await fetch('http://127.0.0.1:8000/users_b/buscar', {
+    const response = await fetch(`${BACKEND_URL}/users_b/buscar`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -39,7 +43,8 @@ function BuscarCliente() {
 
   const handleEliminar = async (id) => {
     if (!window.confirm(`¿Seguro que deseas eliminar este cliente?`)) return;
-      const response = await fetch('http://127.0.0.1:8000/users_b/eliminar', {
+      // antes iba: const response = await fetch('http://127.0.0.1:8000/users_b/eliminar', {
+      const response = await fetch(`${BACKEND_URL}/users_b/eliminar`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -73,7 +78,8 @@ function BuscarCliente() {
   const handleEditarSubmit = async (e) => {
     e.preventDefault();
     const token = localStorage.getItem('token');
-    const response = await fetch('http://127.0.0.1:8000/users_b/modificar', {
+    // antes iba: const response = await fetch('http://127.0.0.1:8000/users_b/modificar', {
+    const response = await fetch(`${BACKEND_URL}/users_b/modificar`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',

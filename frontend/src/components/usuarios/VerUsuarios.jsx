@@ -2,6 +2,9 @@ import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import IconoAvatar from '../../assets/icons/iconoAvatar';
 
+// esta es una linea nueva que se uso para las ip y conectarse con el movil o cualquier dispositivo en la red
+const BACKEND_URL = `http://${window.location.hostname}:8000`;
+
 function VerUsuarios({ show, onHide }) {
   const [users, setUsers] = useState([]);
   const [error, setError] = useState(null);
@@ -15,7 +18,8 @@ function VerUsuarios({ show, onHide }) {
       setError(null);
 
       try {
-        const response = await fetch('http://127.0.0.1:8000/admin/users', {
+        // antes iba: const response = await fetch('http://127.0.0.1:8000/admin/users', {
+        const response = await fetch(`${BACKEND_URL}/admin/users`, {
           headers: {
             'Authorization': `Bearer ${localStorage.getItem('accessToken')}`,
           },
