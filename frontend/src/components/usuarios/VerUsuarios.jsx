@@ -106,7 +106,8 @@ function VerUsuarios({ show, onHide }) {
                       <div className="flex bg-gray-700 rounded-2xl shadow p-4">
                         <IconoAvatar/>
                         <div className="flex flex-col justify-center w-full text-center">
-                          <h5 className="text-lg font-semibold text-white">{user.nombre} {user.apellido}</h5>
+                          <h5 className="text-base font-semibold text-white">Nombre y apellido: {user.nombre} {user.apellido}</h5>
+                          <h6 className="text-base text-white">Username: {user.username}</h6>
                           <p className="text-gray-400 text-base">Información acerca del jugador</p>
                         </div>
                       </div>
