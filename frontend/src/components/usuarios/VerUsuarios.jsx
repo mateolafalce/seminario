@@ -18,10 +18,11 @@ function VerUsuarios({ show, onHide }) {
       setError(null);
 
       try {
-        // antes iba: const response = await fetch('http://127.0.0.1:8000/admin/users', {
-        // antes: const response = await fetch(`${BACKEND_URL}/admin/users`, {
         // ahora con /api:
-        const response = await fetch(`${BACKEND_URL}/api/admin/users`, {
+        const url = window.location.hostname === "localhost"
+          ? `${BACKEND_URL}/api/admin/users`
+          : "/api/admin/users";
+        const response = await fetch(url, {
           headers: {
             'Authorization': `Bearer ${localStorage.getItem('accessToken')}`,
           },

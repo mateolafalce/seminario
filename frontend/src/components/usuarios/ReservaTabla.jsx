@@ -57,10 +57,10 @@ function ReservaTabla() {
   useEffect(() => {
     const fetchCantidades = async () => {
       try {
-        // antes iba: const res = await fetch('http://127.0.0.1:8000/reservas/cantidad')
-        // antes: const res = await fetch(`${BACKEND_URL}/reservas/cantidad`)
-        // ahora con /api:
-        const res = await fetch(`${BACKEND_URL}/api/reservas/cantidad`)
+        const url = window.location.hostname === "localhost"
+          ? `${BACKEND_URL}/api/reservas/cantidad`
+          : "/api/reservas/cantidad";
+        const res = await fetch(url)
         const data = await res.json()
         const mapa = {}
         for (const item of data) {
@@ -80,10 +80,10 @@ function ReservaTabla() {
     setSelected({ cancha, hora })
     const token = localStorage.getItem('accessToken')
     try {
-      // antes iba: const response = await fetch('http://127.0.0.1:8000/reservas/reservar', {
-      // antes: const response = await fetch(`${BACKEND_URL}/reservas/reservar`, {
-      // ahora con /api:
-      const response = await fetch(`${BACKEND_URL}/api/reservas/reservar`, {
+      const url = window.location.hostname === "localhost"
+        ? `${BACKEND_URL}/api/reservas/reservar`
+        : "/api/reservas/reservar";
+      const response = await fetch(url, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

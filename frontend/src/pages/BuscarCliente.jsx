@@ -19,10 +19,10 @@ function BuscarCliente() {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    // antes iba: const response = await fetch('http://127.0.0.1:8000/users_b/buscar', {
-    // antes: const response = await fetch(`${BACKEND_URL}/users_b/buscar`, {
-    // ahora con /api:
-    const response = await fetch(`${BACKEND_URL}/api/users_b/buscar`, {
+    const url = window.location.hostname === "localhost"
+      ? `${BACKEND_URL}/api/users_b/buscar`
+      : "/api/users_b/buscar";
+    const response = await fetch(url, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -45,27 +45,27 @@ function BuscarCliente() {
 
   const handleEliminar = async (id) => {
     if (!window.confirm(`¿Seguro que deseas eliminar este cliente?`)) return;
-      // antes iba: const response = await fetch('http://127.0.0.1:8000/users_b/eliminar', {
-      // antes: const response = await fetch(`${BACKEND_URL}/users_b/eliminar`, {
-      // ahora con /api:
-      const response = await fetch(`${BACKEND_URL}/api/users_b/eliminar`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${localStorage.getItem('accessToken')}`,
-        },
-        body: JSON.stringify({ identificador: id }),
-      });
+    const url = window.location.hostname === "localhost"
+      ? `${BACKEND_URL}/api/users_b/eliminar`
+      : "/api/users_b/eliminar";
+    const response = await fetch(url, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${localStorage.getItem('accessToken')}`,
+      },
+      body: JSON.stringify({ identificador: id }),
+    });
 
-      if (response.status === 401) {
-        alert('Tu sesión ha expirado. Por favor, volvé a iniciar sesión.');
-        window.location.href = '/login';
-      } else if (response.ok) {
-        setResultados(prev => prev.filter(e => e._id !== id));
-      } else {
-        const errorText = await response.text();
-        alert(errorText || 'Error en la solicitud')
-      }
+    if (response.status === 401) {
+      alert('Tu sesión ha expirado. Por favor, volvé a iniciar sesión.');
+      window.location.href = '/login';
+    } else if (response.ok) {
+      setResultados(prev => prev.filter(e => e._id !== id));
+    } else {
+      const errorText = await response.text();
+      alert(errorText || 'Error en la solicitud')
+    }
   };
 
   const handleModificar = (cliente) => {
@@ -82,10 +82,10 @@ function BuscarCliente() {
   const handleEditarSubmit = async (e) => {
     e.preventDefault();
     const token = localStorage.getItem('token');
-    // antes iba: const response = await fetch('http://127.0.0.1:8000/users_b/modificar', {
-    // antes: const response = await fetch(`${BACKEND_URL}/users_b/modificar`, {
-    // ahora con /api:
-    const response = await fetch(`${BACKEND_URL}/api/users_b/modificar`, {
+    const url = window.location.hostname === "localhost"
+      ? `${BACKEND_URL}/api/users_b/modificar`
+      : "/api/users_b/modificar";
+    const response = await fetch(url, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',

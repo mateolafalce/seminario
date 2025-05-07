@@ -15,7 +15,7 @@ export const AuthProvider = ({ children }) => {
     if (token) {
       setIsAuthenticated(true);
       setIsAdmin(storedIsAdmin === 'true');
-      setIsAdmin(storedHabilitado === 'true');
+      setHabilitado(storedHabilitado === 'true');
     } else {
       setIsAuthenticated(false);
       setIsAdmin(false);
@@ -23,20 +23,23 @@ export const AuthProvider = ({ children }) => {
     }
   }, []);
 
-  const login = (token, isAdminUser, habilitado) => {
+  // Guarda los datos de sesión en localStorage y en el estado
+  const login = (token, isAdminUser, habilitadoUser) => {
     localStorage.setItem('accessToken', token);
     localStorage.setItem('isAdmin', isAdminUser);
-    localStorage.setItem('habilitado', habilitado);
+    localStorage.setItem('habilitado', habilitadoUser);
     setIsAuthenticated(true);
     setIsAdmin(isAdminUser);
-    setHabilitado(habilitado)
+    setHabilitado(habilitadoUser);
   };
 
+  // Solo guarda el token y setea autenticado
   const loginWithToken = (token) => {
     localStorage.setItem('accessToken', token)
     setIsAuthenticated(true)
   }
 
+  // Limpia todo al cerrar sesión
   const logout = () => {
     localStorage.removeItem('accessToken');
     localStorage.removeItem('isAdmin');

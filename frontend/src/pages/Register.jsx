@@ -41,7 +41,11 @@ function Register() {
       // antes iba: const response = await fetch('http://127.0.0.1:8000/users_b/register', {
       // antes: const response = await fetch(`${BACKEND_URL}/users_b/register`, {
       // ahora con /api:
-      const response = await fetch(`${BACKEND_URL}/api/users_b/register`, {
+      // En producción (nginx), usar ruta relativa para que funcione con HTTPS y proxy_pass
+      const url = window.location.hostname === "localhost"
+        ? `${BACKEND_URL}/api/users_b/register`
+        : "/api/users_b/register";
+      const response = await fetch(url, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

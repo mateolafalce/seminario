@@ -42,7 +42,11 @@ export default function PreferenciasUsuario() {
     // antes iba: fetch('http://127.0.0.1:8000/preferencias/obtener', {
     // antes: fetch(`${BACKEND_URL}/preferencias/obtener`, {
     // ahora con /api:
-    fetch(`${BACKEND_URL}/api/preferencias/obtener`, {
+    // En producción (nginx), usar ruta relativa
+    const url = window.location.hostname === "localhost"
+      ? `${BACKEND_URL}/api/preferencias/obtener`
+      : "/api/preferencias/obtener";
+    fetch(url, {
       headers: { 'Authorization': `Bearer ${localStorage.getItem('accessToken')}` }
     })
       .then(res => res.ok ? res.json() : [])
@@ -64,7 +68,11 @@ export default function PreferenciasUsuario() {
     // antes iba: const response = await fetch('http://127.0.0.1:8000/preferencias/guardar', {
     // antes: const response = await fetch(`${BACKEND_URL}/preferencias/guardar`, {
     // ahora con /api:
-    const response = await fetch(`${BACKEND_URL}/api/preferencias/guardar`, {
+    // En producción (nginx), usar ruta relativa
+    const url = window.location.hostname === "localhost"
+      ? `${BACKEND_URL}/api/preferencias/guardar`
+      : "/api/preferencias/guardar";
+    const response = await fetch(url, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
