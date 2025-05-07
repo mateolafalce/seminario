@@ -36,7 +36,9 @@ function Login() {
     setErrores({});
     try {
       // antes iba: const response = await fetch('http://127.0.0.1:8000/users_b/login', {
-      const response = await fetch(`${BACKEND_URL}/users_b/login`, {
+      // antes: const response = await fetch(`${BACKEND_URL}/users_b/login`, {
+      // ahora con /api:
+      const response = await fetch(`${BACKEND_URL}/api/users_b/login`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
         body: `username=${encodeURIComponent(valores.username)}&password=${encodeURIComponent(valores.password)}`,

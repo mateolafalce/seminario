@@ -39,7 +39,9 @@ function Register() {
 
     try {
       // antes iba: const response = await fetch('http://127.0.0.1:8000/users_b/register', {
-      const response = await fetch(`${BACKEND_URL}/users_b/register`, {
+      // antes: const response = await fetch(`${BACKEND_URL}/users_b/register`, {
+      // ahora con /api:
+      const response = await fetch(`${BACKEND_URL}/api/users_b/register`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

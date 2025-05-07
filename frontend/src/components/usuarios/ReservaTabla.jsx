@@ -58,7 +58,9 @@ function ReservaTabla() {
     const fetchCantidades = async () => {
       try {
         // antes iba: const res = await fetch('http://127.0.0.1:8000/reservas/cantidad')
-        const res = await fetch(`${BACKEND_URL}/reservas/cantidad`)
+        // antes: const res = await fetch(`${BACKEND_URL}/reservas/cantidad`)
+        // ahora con /api:
+        const res = await fetch(`${BACKEND_URL}/api/reservas/cantidad`)
         const data = await res.json()
         const mapa = {}
         for (const item of data) {
@@ -79,7 +81,9 @@ function ReservaTabla() {
     const token = localStorage.getItem('accessToken')
     try {
       // antes iba: const response = await fetch('http://127.0.0.1:8000/reservas/reservar', {
-      const response = await fetch(`${BACKEND_URL}/reservas/reservar`, {
+      // antes: const response = await fetch(`${BACKEND_URL}/reservas/reservar`, {
+      // ahora con /api:
+      const response = await fetch(`${BACKEND_URL}/api/reservas/reservar`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

@@ -20,7 +20,9 @@ function BuscarCliente() {
   const handleSubmit = async (e) => {
     e.preventDefault();
     // antes iba: const response = await fetch('http://127.0.0.1:8000/users_b/buscar', {
-    const response = await fetch(`${BACKEND_URL}/users_b/buscar`, {
+    // antes: const response = await fetch(`${BACKEND_URL}/users_b/buscar`, {
+    // ahora con /api:
+    const response = await fetch(`${BACKEND_URL}/api/users_b/buscar`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -44,7 +46,9 @@ function BuscarCliente() {
   const handleEliminar = async (id) => {
     if (!window.confirm(`¿Seguro que deseas eliminar este cliente?`)) return;
       // antes iba: const response = await fetch('http://127.0.0.1:8000/users_b/eliminar', {
-      const response = await fetch(`${BACKEND_URL}/users_b/eliminar`, {
+      // antes: const response = await fetch(`${BACKEND_URL}/users_b/eliminar`, {
+      // ahora con /api:
+      const response = await fetch(`${BACKEND_URL}/api/users_b/eliminar`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -79,7 +83,9 @@ function BuscarCliente() {
     e.preventDefault();
     const token = localStorage.getItem('token');
     // antes iba: const response = await fetch('http://127.0.0.1:8000/users_b/modificar', {
-    const response = await fetch(`${BACKEND_URL}/users_b/modificar`, {
+    // antes: const response = await fetch(`${BACKEND_URL}/users_b/modificar`, {
+    // ahora con /api:
+    const response = await fetch(`${BACKEND_URL}/api/users_b/modificar`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',

@@ -40,7 +40,9 @@ export default function PreferenciasUsuario() {
 
   useEffect(() => {
     // antes iba: fetch('http://127.0.0.1:8000/preferencias/obtener', {
-    fetch(`${BACKEND_URL}/preferencias/obtener`, {
+    // antes: fetch(`${BACKEND_URL}/preferencias/obtener`, {
+    // ahora con /api:
+    fetch(`${BACKEND_URL}/api/preferencias/obtener`, {
       headers: { 'Authorization': `Bearer ${localStorage.getItem('accessToken')}` }
     })
       .then(res => res.ok ? res.json() : [])
@@ -60,7 +62,9 @@ export default function PreferenciasUsuario() {
   const handleSubmit = async (e) => {
     e.preventDefault();
     // antes iba: const response = await fetch('http://127.0.0.1:8000/preferencias/guardar', {
-    const response = await fetch(`${BACKEND_URL}/preferencias/guardar`, {
+    // antes: const response = await fetch(`${BACKEND_URL}/preferencias/guardar`, {
+    // ahora con /api:
+    const response = await fetch(`${BACKEND_URL}/api/preferencias/guardar`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
