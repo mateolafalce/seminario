@@ -224,7 +224,7 @@ Una vez hecho esto, los cambios hechos se revertiran.
   * [ ] Buscar Usuario por dni para gestionar usuario
   * [x] Alta de un cliente
 * Frontend General
-  * [ ] Navbar
+  * [x] Hcaer el Navbar
   * [ ] Footer con links importantes
 * Notificaciones
   * [ ] Recibir aprovacion de WSP y del cliente (?)
