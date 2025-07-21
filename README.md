@@ -1,6 +1,6 @@
 <div align="center">
 
-<img style="float: right; height: 384px; width: 384px;" src="https://github.com/mateolafalce/seminario/blob/main/frontend/public/logo(Facha).svg"/>
+<img style="float: right; height: 192px; width: 192px;" src="https://github.com/mateolafalce/seminario/blob/main/frontend/public/logo(Facha).svg"/>
 
 # Boulevard 81
 
