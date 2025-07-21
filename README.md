@@ -206,14 +206,13 @@ Una vez hecho esto, los cambios hechos se revertiran.
   * [ ] Cancelar Reserva
   * [ ] Implementar logica para poder reservar con un rango de 1 semana
   * [ ] Cachear el contenido de la peticion HTTP para no sobrecargar el servidor
-* ABML de Preferencias del usuario
+* ABML de Preferencias del usuario (Mateo)
   * [x] Crear la entidad Preferencia
   * [x] Implementar la logica en el backend
   * [x] Implementar el frontend de la reserva
-  * [ ] Setear limites para que no nos hagan goma la app
-  * [ ] Pedir confirmacion de la prefernecia
-  * [ ] Modificar preferencia
-  * [ ] Eliminar preferencia
+  * [x] Setear limites para que no nos hagan goma la app
+  * [x] Modificar preferencia
+  * [x] Eliminar preferencia
 * Sistema de matcheo de jugadores (Marcos)
   * [ ] Crear la entidad Matcheo
   * [ ] Implementar la logica en el backend
