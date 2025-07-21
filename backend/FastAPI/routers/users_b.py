@@ -127,11 +127,55 @@ async def login(form: OAuth2PasswordRequestForm = Depends()):
 async def me(user: User = Depends(current_user)):
     return user
 
+@router.get("/admin/users")
+async def get_all_users(user: dict = Depends(current_user), page: int = 1, limit: int = 10):
+    # Verificar si el usuario es admin
+    is_admin = await asyncio.to_thread(
+        lambda: db_client.admins.find_one({"user": ObjectId(user['id'])})
+    )
+    if not is_admin:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="No tienes permisos para acceder a esta información"
+        )
+
+    # Lógica de paginación
+    skip = (page - 1) * limit
+    
+    # Obtener el total de usuarios y los usuarios de la página actual
+    total_users = await asyncio.to_thread(lambda: db_client.users.count_documents({}))
+    users_cursor = await asyncio.to_thread(
+        lambda: db_client.users.find({}, {"password": 0}).skip(skip).limit(limit)
+    )
+    
+    users_list = []
+    for u in users_cursor:
+        u["id"] = str(u["_id"])
+        del u["_id"]
+        
+        # Manejar el campo 'categoria' para que sea serializable
+        if "categoria" in u and u["categoria"] is not None and isinstance(u["categoria"], ObjectId):
+            # Buscar el nombre de la categoría correspondiente al ObjectId
+            categoria_obj = db_client.categorias.find_one({"_id": u["categoria"]})
+            u["categoria"] = categoria_obj["nombre"] if categoria_obj else "Sin categoría"
+        else:
+            # Asignar un valor por defecto si no tiene categoría
+            u["categoria"] = "Sin categoría"
+            
+        users_list.append(u)
+
+    return {
+        "total": total_users,
+        "page": page,
+        "limit": limit,
+        "users": users_list
+    }
+
+
 class BuscarClienteRequest(BaseModel):
     nombre: str
 
 # Lo busca por username
-# TODO se debria poder buscar por nombre y apellido
 @router.post("/buscar")
 async def buscar_clientes(request: BuscarClienteRequest, user: dict = Depends(current_user)):
     # Obtener el ID del usuario correctamente (tanto si es dict como User)
