@@ -215,7 +215,7 @@ Una vez hecho esto, los cambios hechos se revertiran.
   * [ ] Modificar preferencia
   * [ ] Eliminar preferencia
 * Sistema de matcheo de jugadores
-	* [ ] Crear la entidad Matcheo
+  * [ ] Crear la entidad Matcheo
   * [ ] Implementar la logica en el backend
   * [ ] Implementar el frontend respectivo
 * Modulo del Admin (unificarlo todo en uno)
@@ -234,9 +234,12 @@ Una vez hecho esto, los cambios hechos se revertiran.
   * [ ] Fletar "¡Regístrate o inicia sesión para comenzar!" cuando estamos logueados
   * [ ] Hacer que las imagenes vayan pasando solas cada x tiempo (mantener la posibilidad de pasarlas a mano)
   * [ ] Solucionar Login y register duplicados, al momento de ingresar al home (no logueado)
+  * [ ] TODO: Crear un servicio para que cada hora ejecute el script.
 * Modulo de estadisticas (100% opcional)
   * [ ] Mostrar cuantas personas reservaron
   * [ ] Mostrar trafico segmentado x hora (?)
+ 
+  
 
 
 ## Diagrama de clases
