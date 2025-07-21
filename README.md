@@ -12,11 +12,11 @@
 
 **Objetivo:** Ofrecer una solucion web que: 
 
-+ Centralizará el proceso de reserva de canchas (son diferentes y los consumidores son exigentes).
++ Centralizará el proceso de reserva de canchas (son diferentes y los consumidores son exigentes)
 
-+ Login de los clientes.
++ Login de los clientes
 
-+ Sistema de matcheo de parejas basado en su historial deportivo y preferencias.
++ Sistema de matcheo de parejas basado en su historial deportivo y preferencias
 
 ---
 
