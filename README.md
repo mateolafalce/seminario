@@ -238,7 +238,7 @@ Una vez hecho esto, los cambios hechos se revertiran.
   * [ ] Mostrar cuantas personas reservaron
   * [ ] Mostrar trafico segmentado x hora (?)
 * DevOps - CI/CD
-  * [x] Crear un servicio para que cada hora ejecute el script
+  * [x] Actualizar el repo cada 1 hora
 
 
 ## Diagrama de clases
