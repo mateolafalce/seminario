@@ -197,20 +197,47 @@ Una vez hecho esto, los cambios hechos se revertiran.
    * [x] Login
    * [x] Register
    * [x] Gestionar Usuarios
-   * [ ] Gestionar Reservas
+   * [ ] Que me autocomplete la contraseña cuando selecciono el nombre de usuario
 * Reserva de canchas
   * [x] Crear la entidad Reserva
   * [x] Implementar la logica en el backend
   * [x] Implementar el frontend de la reserva
-  * [ ] Implementar notificaciones
+  * [ ] Preguntar por confirmacion de cancha
+  * [ ] Cancelar Reserva
+  * [ ] Implementar logica para poder reservar con un rango de 1 semana
+  * [ ] Cachear el contenido de la peticion HTTP para no sobrecargar el servidor
 * ABML de Preferencias del usuario
   * [x] Crear la entidad Preferencia
   * [x] Implementar la logica en el backend
   * [x] Implementar el frontend de la reserva
+  * [ ] Setear limites para que no nos hagan goma la app
+  * [ ] Pedir confirmacion de la prefernecia
+  * [ ] Modificar preferencia
+  * [ ] Eliminar preferencia
 * Sistema de matcheo de jugadores
 	* [ ] Crear la entidad Matcheo
   * [ ] Implementar la logica en el backend
-  * [ ] Implementar el frontend de la reserva
+  * [ ] Implementar el frontend respectivo
+* Modulo del Admin (unificarlo todo en uno)
+  * [ ] Listar Usuarios (Ir mostrando de a 20?, pero no toda la BD)  y luego permitir modificarlo
+  * [ ] Buscar Usuario por nombre de usuario para gestionar usuario
+  * [ ] Buscar Usuario por dni para gestionar usuario
+  * [x] Alta de un cliente
+* Frontend General
+  * [ ] Navbar
+  * [ ] Footer con links importantes
+* Notificaciones
+  * [ ] Recibir aprovacion de WSP y del cliente (?)
+  * [ ] Implemnetar estructura de la BD
+  * [ ] Notificar posible matcheo
+* Home
+  * [ ] Fletar "¡Regístrate o inicia sesión para comenzar!" cuando estamos logueados
+  * [ ] Hacer que las imagenes vayan pasando solas cada x tiempo (mantener la posibilidad de pasarlas a mano)
+* DevOps
+  * [ ] Pipeline de CI/CD para no actualizar la pagina a manola
+* Modulo de estadisticas (100% opcional)
+  * [ ] Mostrar cuantas personas reservaron
+  * [ ] Mostrar trafico segmentado x hora (?)
 
 
 ## Diagrama de clases
