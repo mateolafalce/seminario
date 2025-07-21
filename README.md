@@ -1,3 +1,5 @@
+![iconoNegocio](frontend/public/logo(Facha).svg)
+
 # Proyecto Seminario - Grupo 5
 
 **Empresa:** Boulevard 81
