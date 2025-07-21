@@ -1,7 +1,5 @@
 <div align="center">
 
-![iconoNegocio](frontend/public/logo(Facha).svg)
-
 <img style="float: right; height: 384px; width: 384px;" src="https://github.com/mateolafalce/seminario/blob/main/frontend/public/logo(Facha).svg"/>
 
 # Boulevard 81
