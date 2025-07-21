@@ -234,13 +234,11 @@ Una vez hecho esto, los cambios hechos se revertiran.
   * [ ] Fletar "¡Regístrate o inicia sesión para comenzar!" cuando estamos logueados
   * [ ] Hacer que las imagenes vayan pasando solas cada x tiempo (mantener la posibilidad de pasarlas a mano)
   * [x] Solucionar Login y register duplicados, al momento de ingresar al home (no logueado)
-
 * Modulo de estadisticas (100% opcional)
   * [ ] Mostrar cuantas personas reservaron
   * [ ] Mostrar trafico segmentado x hora (?)
- 
-
-* [ ] TODO: Crear un servicio para que cada hora ejecute el script.
+ * DevOps - CI/CD
+  * [ ] Crear un servicio para que cada hora ejecute el script
 
 
 ## Diagrama de clases
