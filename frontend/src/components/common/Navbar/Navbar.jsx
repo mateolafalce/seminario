@@ -12,7 +12,6 @@ const centerLinks = [
   { label: "Turnos", path: "/reserva", show: ({ isAuthenticated }) => isAuthenticated },
   { label: "Preferencias", path: "/preferencias", show: ({ isAuthenticated, isAdmin }) => isAuthenticated && !isAdmin },
   { label: "Admin", path: "/Admin", show: ({ isAuthenticated, isAdmin }) => isAuthenticated && isAdmin },
-  { label: "Gestionar Cliente", path: "/gestionar-clientes", show: ({ isAuthenticated, isAdmin }) => isAuthenticated && isAdmin },
 ];
 
 // estilo de los botones del medio
