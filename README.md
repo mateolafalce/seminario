@@ -1,8 +1,14 @@
+<div align="center">
+
 ![iconoNegocio](frontend/public/logo(Facha).svg)
 
-# Proyecto Seminario - Grupo 5
+<img style="float: right; height: 384px; width: 384px;" src="https://github.com/mateolafalce/seminario/blob/main/frontend/public/logo(Facha).svg"/>
 
-**Empresa:** Boulevard 81
+# Boulevard 81
+
+</div>
+
+## Proyecto Seminario - Grupo 5
 
 **Descripcion:** Boulevard 81 es un complejo deportivo de la cuidad de La Plata que actualmente maneja el core de su sistema manualmente con un administrador. El complejo deportivo alquila canchas de paddel para entrenamientos rutinarios y para clientes esporadicos ademas de realizar torneos de padel. El resultado de los torneos de padel tambien son compartidos manualmente mediante una hoja de calcula excel compartida.
 
