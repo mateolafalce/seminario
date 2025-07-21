@@ -16,7 +16,7 @@ input:-webkit-autofill:active {
 body {
   margin: 0;
   font-family: 'Segoe UI';
-  background-color: #df27d2; /* Fondo oscuro */
+  background-color: #0D1B2A; /* Fondo oscuro */
   overflow-x: hidden; /* Evita scroll horizontal no deseado */
 }
 
