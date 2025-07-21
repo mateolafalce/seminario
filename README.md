@@ -219,8 +219,8 @@ Una vez hecho esto, los cambios hechos se revertiran.
   * [ ] Implementar la logica en el backend
   * [ ] Implementar el frontend respectivo
 * Modulo del Admin (Mateo)
-  * [ ] Listar Usuarios (Ir mostrando de a 20?, pero no toda la BD)  y luego permitir modificarlo
-  * [ ] Buscar Usuario por nombre de usuario para gestionar usuario
+  * [x] Listar Usuarios (muestra de a 10)  y luego permitir modificarlo
+  * [x] Buscar Usuario por nombre de usuario para gestionar usuario
   * [ ] Buscar Usuario por dni para gestionar usuario
   * [x] Alta de un cliente
 * Frontend General (Nico)
