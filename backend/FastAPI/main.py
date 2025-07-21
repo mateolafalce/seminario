@@ -4,13 +4,9 @@ from fastapi.middleware.cors import CORSMiddleware
 
 app = FastAPI()
 
-# app.include_router(users_b.router)
 app.include_router(users_b.router, prefix="/api")
-# app.include_router(admin_users.router_admin)
 app.include_router(admin_users.router_admin, prefix="/api")
-# app.include_router(reservas.router)
 app.include_router(reservas.router, prefix="/api")
-# app.include_router(preferencias.router)
 app.include_router(preferencias.router, prefix="/api")
 
 app.add_middleware(
