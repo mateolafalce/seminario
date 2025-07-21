@@ -197,7 +197,7 @@ Una vez hecho esto, los cambios hechos se revertiran.
    * [x] Login
    * [x] Register
    * [x] Gestionar Usuarios
-   * [ ] Que me autocomplete la contraseña cuando selecciono el nombre de usuario
+   * [x] Que me autocomplete la contraseña cuando selecciono el nombre de usuario
 * Reserva de canchas
   * [x] Crear la entidad Reserva
   * [x] Implementar la logica en el backend
@@ -214,32 +214,33 @@ Una vez hecho esto, los cambios hechos se revertiran.
   * [ ] Pedir confirmacion de la prefernecia
   * [ ] Modificar preferencia
   * [ ] Eliminar preferencia
-* Sistema de matcheo de jugadores
+* Sistema de matcheo de jugadores (Marcos)
   * [ ] Crear la entidad Matcheo
   * [ ] Implementar la logica en el backend
   * [ ] Implementar el frontend respectivo
-* Modulo del Admin (unificarlo todo en uno)
+* Modulo del Admin (Mateo)
   * [ ] Listar Usuarios (Ir mostrando de a 20?, pero no toda la BD)  y luego permitir modificarlo
   * [ ] Buscar Usuario por nombre de usuario para gestionar usuario
   * [ ] Buscar Usuario por dni para gestionar usuario
   * [x] Alta de un cliente
-* Frontend General
+* Frontend General (Nico)
   * [x] Hcaer el Navbar
   * [ ] Footer con links importantes
 * Notificaciones
   * [ ] Recibir aprovacion de WSP y del cliente (?)
   * [ ] Implemnetar estructura de la BD
   * [ ] Notificar posible matcheo
-* Home
+* Home (javi)
   * [ ] Fletar "¡Regístrate o inicia sesión para comenzar!" cuando estamos logueados
   * [ ] Hacer que las imagenes vayan pasando solas cada x tiempo (mantener la posibilidad de pasarlas a mano)
-  * [ ] Solucionar Login y register duplicados, al momento de ingresar al home (no logueado)
-  * [ ] TODO: Crear un servicio para que cada hora ejecute el script.
+  * [x] Solucionar Login y register duplicados, al momento de ingresar al home (no logueado)
+
 * Modulo de estadisticas (100% opcional)
   * [ ] Mostrar cuantas personas reservaron
   * [ ] Mostrar trafico segmentado x hora (?)
  
-  
+
+* [ ] TODO: Crear un servicio para que cada hora ejecute el script.
 
 
 ## Diagrama de clases
