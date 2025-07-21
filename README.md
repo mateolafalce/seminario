@@ -226,6 +226,7 @@ Una vez hecho esto, los cambios hechos se revertiran.
 * Frontend General (Nico)
   * [x] Hcaer el Navbar
   * [ ] Footer con links importantes
+  * [ ] Cambiar los alert por toast
 * Notificaciones
   * [ ] Recibir aprovacion de WSP y del cliente (?)
   * [ ] Implemnetar estructura de la BD
