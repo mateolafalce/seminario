@@ -237,7 +237,7 @@ Una vez hecho esto, los cambios hechos se revertiran.
 * Modulo de estadisticas (100% opcional)
   * [ ] Mostrar cuantas personas reservaron
   * [ ] Mostrar trafico segmentado x hora (?)
- * DevOps - CI/CD
+* DevOps - CI/CD
   * [ ] Crear un servicio para que cada hora ejecute el script
 
 
