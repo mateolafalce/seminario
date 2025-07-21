@@ -1,20 +1,40 @@
-import React,{ useContext, useState} from 'react'
+import React, { useContext, useState } from 'react'
+import { useNavigate } from 'react-router-dom';
 import VerUsuarios from '../components/usuarios/VerUsuarios'
 import Card from '../components/usuarios/Card'
 import { AuthContext } from '../context/AuthContext';
+import Button from '../components/common/Button/Button';
 
 function Admin() {
     const [showModal, setShowModal] = useState(false);
     const { isAuthenticated, isAdmin } = useContext(AuthContext);
+    const navigate = useNavigate();
 
     if (!isAuthenticated || !isAdmin) {
-      return <p>No tienes permisos para ver esta página.</p>
+      return <p className="text-center text-red-400 mt-10">No tienes permisos para ver esta página.</p>
     }
 
     return(
         <>
-        <Card onClick={() => setShowModal(true)} />
-        <VerUsuarios show={showModal} onHide={() => setShowModal(false)} />
+            <Card onClick={() => setShowModal(true)} />
+            <VerUsuarios show={showModal} onHide={() => setShowModal(false)} />
+
+            {/* --- Contenido de GestionClientes añadido --- */}
+            <div className="flex flex-col items-center justify-center mt-10 px-4">
+                <div className="bg-gray-800 rounded-3xl shadow-2xl max-w-lg w-full border border-gray-700 p-10 flex flex-col items-center">
+                    <h2 className="text-2xl font-bold text-white mb-8 text-center">Gestionar Clientes</h2>
+                    <div className="flex flex-col md:flex-row gap-6 w-full justify-center">
+                        <Button
+                            texto="Crear Cliente"
+                            onClick={() => navigate('/register?admin=1')}
+                        />
+                        <Button
+                            texto="Buscar Cliente"
+                            onClick={() => navigate('/clientes/buscar')}
+                        />
+                    </div>
+                </div>
+            </div>
         </>
     )
 }
