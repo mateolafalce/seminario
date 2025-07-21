@@ -215,6 +215,10 @@ Una vez hecho esto, los cambios hechos se revertiran.
 
 ## Diagrama de clases
 
+<div align="center">
+
 ![diagrama de clases](imagenes/diagramaClases.png)
+
+</div>
 
 Cualquier modificacion que quieran hacerle al diagrama de clases podran hacerlo modificando el archivo .eap presente en el drive compartido entre nosotros.
