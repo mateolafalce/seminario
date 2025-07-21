@@ -12,6 +12,8 @@
 
 + Sistema de matcheo de parejas basado en su historial deportivo y preferencias.
 
+---
+
 <details>
 <summary>Backend (clic para expandir)</summary>
 
