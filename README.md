@@ -12,6 +12,9 @@
 
 + Sistema de matcheo de parejas basado en su historial deportivo y preferencias.
 
+<details>
+<summary>Backend (clic para expandir)</summary>
+
 ## Backend
 
 ```bash
@@ -39,6 +42,11 @@ Ejecutar el servidor
 uvicorn main:app --reload
 ```
 
+</details>
+
+<details>
+<summary>Frontend (clic para expandir)</summary>
+
 ## Frontend
 
 Instalar [Node.js](https://nodejs.org/es/download)
@@ -54,6 +62,7 @@ npm install react-router-dom
 ```bash
 npm run dev
 ```
+</details>
 
 <details>
 <summary>Tema de las branch (clic para expandir)</summary>
