@@ -56,7 +56,7 @@ npm run dev
 ```
 
 <details>
-<summary>Guía de Git y Flujo de Trabajo (clic para expandir)</summary>
+<summary>Tema de las branch (clic para expandir)</summary>
 
 ## Tema de las branch
 
@@ -170,6 +170,31 @@ Para obtener el HASH del commit que queremos eliminar, y luego:
 ```bash
 git reverse HASH
 ```
+Una vez hecho esto, los cambios hechos se revertiran.
+
+</details>
+
+# Roadmap
+
+* Logueo de usuarios y admin
+   * [x] Login
+   * [x] Register
+   * [x] Gestionar Usuarios
+   * [ ] Gestionar Reservas
+* Reserva de canchas
+  * [x] Crear la entidad Reserva
+  * [x] Implementar la logica en el backend
+  * [x] Implementar el frontend de la reserva
+  * [ ] Implementar notificaciones
+* ABML de Preferencias del usuario
+  * [x] Crear la entidad Preferencia
+  * [x] Implementar la logica en el backend
+  * [x] Implementar el frontend de la reserva
+* Sistema de matcheo de jugadores
+	* [ ] Crear la entidad Matcheo
+  * [ ] Implementar la logica en el backend
+  * [ ] Implementar el frontend de la reserva
+
 
 ## Diagrama de clases
 
