@@ -233,6 +233,7 @@ Una vez hecho esto, los cambios hechos se revertiran.
 * Home
   * [ ] Fletar "¡Regístrate o inicia sesión para comenzar!" cuando estamos logueados
   * [ ] Hacer que las imagenes vayan pasando solas cada x tiempo (mantener la posibilidad de pasarlas a mano)
+  * [ ] Solucionar Login y register duplicados, al momento de ingresar al home (no logueado)
 * DevOps
   * [ ] Pipeline de CI/CD para no actualizar la pagina a manola
 * Modulo de estadisticas (100% opcional)
