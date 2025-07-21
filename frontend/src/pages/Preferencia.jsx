@@ -37,6 +37,7 @@ export default function PreferenciasUsuario() {
   const habilitado = localStorage.getItem('habilitado');
   const [preferencias, setPreferencias] = useState({ dias: [], horarios: [], canchas: [] });
   const [preferenciasGuardadas, setPreferenciasGuardadas] = useState([]);
+  const [preferenciaEditar, setPreferenciaEditar] = useState(null); // Estado para modo edición
 
   useEffect(() => {
     // antes iba: fetch('http://127.0.0.1:8000/preferencias/obtener', {
@@ -65,28 +66,83 @@ export default function PreferenciasUsuario() {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    // antes iba: const response = await fetch('http://127.0.0.1:8000/preferencias/guardar', {
-    // antes: const response = await fetch(`${BACKEND_URL}/preferencias/guardar`, {
-    // ahora con /api:
-    // En producción (nginx), usar ruta relativa
-    const url = window.location.hostname === "localhost"
-      ? `${BACKEND_URL}/api/preferencias/guardar`
-      : "/api/preferencias/guardar";
+
+    if (preferencias.dias.length === 0 || preferencias.horarios.length === 0 || preferencias.canchas.length === 0) {
+      alert("Debes seleccionar al menos un día, un horario y una cancha.");
+      return;
+    }
+
+    const isEditing = preferenciaEditar !== null;
+    const url = isEditing
+      ? (window.location.hostname === "localhost" ? `${BACKEND_URL}/api/preferencias/modificar/${preferenciaEditar.id}` : `/api/preferencias/modificar/${preferenciaEditar.id}`)
+      : (window.location.hostname === "localhost" ? `${BACKEND_URL}/api/preferencias/guardar` : "/api/preferencias/guardar");
+    
+    const method = isEditing ? 'PUT' : 'POST';
+
     const response = await fetch(url, {
-      method: 'POST',
+      method: method,
       headers: {
         'Content-Type': 'application/json',
         'Authorization': `Bearer ${localStorage.getItem('accessToken')}`,
       },
       body: JSON.stringify(preferencias),
     });
+
     if (response.ok) {
-      alert("Preferencias guardadas con éxito");
+      alert(isEditing ? "Preferencia actualizada con éxito" : "Preferencias guardadas con éxito");
       setPreferencias({ dias: [], horarios: [], canchas: [] });
-      const data = await response.json();
-      setPreferenciasGuardadas(data);
+      setPreferenciaEditar(null); // Salir del modo edición
+      
+      // Refrescar la lista de preferencias guardadas
+      const urlObtener = window.location.hostname === "localhost"
+        ? `${BACKEND_URL}/api/preferencias/obtener`
+        : "/api/preferencias/obtener";
+      fetch(urlObtener, { headers: { 'Authorization': `Bearer ${localStorage.getItem('accessToken')}` }})
+        .then(res => res.json())
+        .then(data => setPreferenciasGuardadas(data));
     } else {
-      alert("Error al guardar preferencias");
+      const errorData = await response.json();
+      alert(`Error: ${errorData.detail || 'Error desconocido'}`);
+    }
+  };
+
+  const handleModificarClick = (pref) => {
+    setPreferenciaEditar(pref);
+    setPreferencias({
+      dias: pref.dias,
+      horarios: pref.horarios,
+      canchas: pref.canchas,
+    });
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
+  const handleCancelEdit = () => {
+    setPreferenciaEditar(null);
+    setPreferencias({ dias: [], horarios: [], canchas: [] });
+  };
+
+  const handleEliminar = async (id) => {
+    if (!window.confirm("¿Estás seguro de que quieres eliminar esta preferencia?")) {
+      return;
+    }
+
+    const url = window.location.hostname === "localhost"
+      ? `${BACKEND_URL}/api/preferencias/eliminar/${id}`
+      : `/api/preferencias/eliminar/${id}`;
+      
+    const response = await fetch(url, {
+      method: 'DELETE',
+      headers: {
+        'Authorization': `Bearer ${localStorage.getItem('accessToken')}`,
+      },
+    });
+
+    if (response.ok) {
+      alert("Preferencia eliminada con éxito.");
+      setPreferenciasGuardadas(prev => prev.filter(p => p.id !== id));
+    } else {
+      const errorData = await response.json();
+      alert(`Error al eliminar la preferencia: ${errorData.detail || 'Error desconocido'}`);
     }
   };
 
@@ -120,14 +176,29 @@ export default function PreferenciasUsuario() {
               </div>
             </div>
           ))}
-          <div className="flex justify-center">
+          <div className="flex justify-center gap-4">
             <Button
               type="submit"
-              texto="Guardar preferencias"
+              texto={preferenciaEditar ? "Actualizar Preferencia" : "Guardar preferencias"}
               className="mt-4 px-6 py-2"
               variant="bold"
+              disabled={!preferenciaEditar && preferenciasGuardadas.length >= 7}
             />
+            {preferenciaEditar && (
+              <Button
+                type="button"
+                texto="Cancelar"
+                onClick={handleCancelEdit}
+                className="mt-4 px-6 py-2"
+                variant="cancelar"
+              />
+            )}
           </div>
+          {!preferenciaEditar && preferenciasGuardadas.length >= 7 && (
+            <p className="text-center text-yellow-400 mt-4 text-sm">
+              Has alcanzado el límite de 7 preferencias. Para agregar una nueva, primero debes eliminar una existente.
+            </p>
+          )}
         </form>
       </div>
       <div className="bg-gray-900 rounded-2xl shadow p-6 w-full max-w-3xl border border-gray-700">
@@ -136,11 +207,25 @@ export default function PreferenciasUsuario() {
           <p className="text-gray-300 text-center">No tienes preferencias guardadas aún.</p>
         ) : (
           <ul className="space-y-3">
-            {preferenciasGuardadas.map((pref, index) => (
-              <li key={index} className="bg-gray-800 p-4 rounded-xl border border-gray-700">
-                <p className="text-white"><strong>Días:</strong> <span className="text-[#eaff00]">{pref.dias.join(', ')}</span></p>
-                <p className="text-white"><strong>Horarios:</strong> <span className="text-green-300">{pref.horarios.join(', ')}</span></p>
-                <p className="text-white"><strong>Canchas:</strong> <span className="text-purple-300">{pref.canchas.join(', ')}</span></p>
+            {preferenciasGuardadas.map((pref) => (
+              <li key={pref.id} className="bg-gray-800 p-4 rounded-xl border border-gray-700 flex justify-between items-center">
+                <div>
+                  <p className="text-white"><strong>Días:</strong> <span className="text-[#eaff00]">{pref.dias.join(', ')}</span></p>
+                  <p className="text-white"><strong>Horarios:</strong> <span className="text-green-300">{pref.horarios.join(', ')}</span></p>
+                  <p className="text-white"><strong>Canchas:</strong> <span className="text-purple-300">{pref.canchas.join(', ')}</span></p>
+                </div>
+                <div className="flex gap-2">
+                  <Button
+                    texto="Modificar"
+                    onClick={() => handleModificarClick(pref)}
+                    variant="modificar"
+                  />
+                  <Button
+                    texto="Eliminar"
+                    onClick={() => handleEliminar(pref.id)}
+                    variant="eliminar"
+                  />
+                </div>
               </li>
             ))}
           </ul>
