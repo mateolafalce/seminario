@@ -10,7 +10,7 @@ const TEXT_COLORS = {
 export default function HeroSection({ isAuthenticated, navigationHandlers }) {
   return (
     <section 
-      className="relative isolate overflow-hidden h-screen min-h-[700px] flex items-center"
+      className="relative isolate overflow-hidden h-screen min-h-[700px] flex items-center -mt-[3.5rem]"
       role="banner"
       aria-labelledby="hero-title"
     >
@@ -22,7 +22,7 @@ export default function HeroSection({ isAuthenticated, navigationHandlers }) {
       />
       <div className="absolute inset-0 bg-gray-900/60 mix-blend-multiply -z-10" />
 
-      <div className="mx-auto max-w-7xl px-6 lg:px-8">
+      <div className="mx-auto max-w-7xl px-6 lg:px-8 pt-[3.5rem]">
         <div className="max-w-2xl text-left">
           <h1 
             id="hero-title"
