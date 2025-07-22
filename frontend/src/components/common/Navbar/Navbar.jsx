@@ -1,5 +1,5 @@
 import React, { useContext, useEffect, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, Link } from "react-router-dom";
 import { AuthContext } from "../../../context/AuthContext";
 import Button from "../Button/Button";
 import logoCompleto from "../../../assets/icons/logoCompletoBlanco.svg";
@@ -10,6 +10,7 @@ const centerLinks = [
   { label: "Home", path: "/home", show: ({ isAuthenticated }) => true },
   { label: "Canchas", path: "/canchas", show: ({ isAuthenticated }) => true },
   { label: "Turnos", path: "/reserva", show: ({ isAuthenticated }) => isAuthenticated },
+  { label: "Mis Reservas", path: "/mis-reservas", show: ({ isAuthenticated }) => isAuthenticated },
   { label: "Preferencias", path: "/preferencias", show: ({ isAuthenticated, isAdmin }) => isAuthenticated && !isAdmin },
   { label: "Admin", path: "/Admin", show: ({ isAuthenticated, isAdmin }) => isAuthenticated && isAdmin },
 ];

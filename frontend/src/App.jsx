@@ -1,5 +1,5 @@
 import './index.css';
-import { BrowserRouter as Router, Routes, Route, useNavigate } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import Login from './pages/Login';
 import Canchas from './pages/Canchas';
 import Register from './pages/Register';
@@ -8,11 +8,12 @@ import Reserva from './pages/Reserva';
 import HomePage from './pages/HomePage';
 import BuscarCliente from './pages/BuscarCliente';
 import Admin from './pages/Admin';
-import { AuthProvider, AuthContext } from './context/AuthContext';
+import { AuthProvider } from './context/AuthContext'; // Solo AuthProvider
 import Unauthorized from './pages/Unauthorized';
 import Preferencias from './pages/Preferencia';
+import MisReservas from './pages/MisReservas';
 import AdminRoute from './components/admin/AdminRoute';
-import React, { useState, useEffect, useContext } from 'react';
+import React from 'react';
 
 function App() {
   return (
@@ -95,6 +96,8 @@ function AppWithTimeout() {
           <Route path="/Admin/*" element={<AdminRoute />}>
           <Route index element={<Admin />} />
           </Route>
+          <Route path="/mis-reservas" element={<MisReservas />} />
+
           <Route path="/unauthorized" element={<Unauthorized />} />
         </Routes>
       </div>
