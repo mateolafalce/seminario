@@ -45,12 +45,25 @@ async def reservar(reserva: Reserva, user: dict = Depends(current_user)):
     try:
         # --- Validación de la fecha ---
         fecha_reserva_dt = datetime.strptime(reserva.fecha, "%d-%m-%Y").date()
-        hoy_dt = datetime.now(argentina_tz).date()
+        ahora_dt = datetime.now(argentina_tz)
+        hoy_dt = ahora_dt.date()
         limite_dt = hoy_dt + timedelta(days=7)
 
         if not (hoy_dt <= fecha_reserva_dt < limite_dt):
              raise ValueError("La fecha de reserva debe ser entre hoy y los próximos 6 días.")
         
+        # --- Validación de horarios pasados (solo para el día de hoy) ---
+        if fecha_reserva_dt == hoy_dt:
+            hora_inicio_str = reserva.horario.split('-')[0] # "09:00"
+            hora_reserva_dt = ahora_dt.replace(
+                hour=int(hora_inicio_str.split(':')[0]),
+                minute=int(hora_inicio_str.split(':')[1]),
+                second=0,
+                microsecond=0
+            )
+            if (hora_reserva_dt - ahora_dt) < timedelta(hours=1):
+                raise ValueError("No puedes reservar en un horario que ya pasó o con menos de 1 hora de antelación.")
+
         # Verificar que tenemos un ID de usuario válido
         if not user.get("id") or not ObjectId.is_valid(user["id"]):
             raise HTTPException(status_code=400, detail="ID de usuario no válido")
