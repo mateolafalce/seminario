@@ -1,8 +1,6 @@
-import React from 'react';
 import Button from "../common/Button/Button";
 
 export default function CTASection({ isAuthenticated, navigationHandlers }) {
-  // Solo mostrar si el usuario NO está autenticado
   if (isAuthenticated) return null;
 
   return (
@@ -19,7 +17,7 @@ export default function CTASection({ isAuthenticated, navigationHandlers }) {
             ¿Listo para jugar?
             <br />
             <span className="bg-gradient-to-r from-yellow-400 to-yellow-300 bg-clip-text text-transparent">
-              Únite a la comunidad de Boulevard81 hoy.
+              Únete a la comunidad de Boulevard81 hoy.
             </span>
           </h2>
         </div>

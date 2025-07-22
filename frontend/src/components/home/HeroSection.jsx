@@ -1,4 +1,3 @@
-import React from 'react';
 import Button from "../common/Button/Button";
 import heroImageSrc from "../../assets/images/homeHeroPadel.jpg";
 
@@ -27,8 +26,8 @@ export default function HeroSection({ isAuthenticated, navigationHandlers }) {
           >
             Tu Próximo Partido de Pádel Empieza Aquí
           </h1>
-          <p className={'mt-6 text-lg leading-8 text-gray-300'}>
-            Somos un complejo deportivo en La Plata. Reserva canchas, encontra rivales de tu nivel y lleva tus estadísticas al siguiente nivel.
+          <p className={`mt-6 text-lg leading-8 text-gray-300`}>
+            Somos un complejo deportivo en La Plata. Reserva canchas, encuentra rivales de tu nivel y lleva tus estadísticas al siguiente nivel.
           </p>
           {!isAuthenticated && (
             <div className="mt-10 flex flex-col sm:flex-row items-center gap-4 sm:gap-x-6">
