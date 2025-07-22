@@ -94,7 +94,7 @@ function CustomNavbar() {
       <nav
         className={
           scrolled
-            ? 'fixed w-full z-50 backdrop-blur-md transition-colors duration-300 bg-[#0D1B2A]/80 shadow-lg'
+            ? 'fixed w-full z-50 backdrop-blur-md transition-colors duration-300 bg-[#FFFFF]/80 shadow-lg'
             : 'fixed w-full z-50 backdrop-blur-md transition-colors duration-300 bg-transparent'
         }
         style={{ minHeight: "3rem" }}
