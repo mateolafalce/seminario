@@ -176,21 +176,37 @@ function ReservaTabla() {
                 const isSelected = selected?.cancha === cancha && selected?.hora === hora
                 const isFull = cantidad >= 4
 
+                // --- Lógica para deshabilitar horarios pasados ---
+                let isPast = false;
+                const hoyValue = fechasDisponibles[0].value;
+                if (selectedDate === hoyValue) {
+                  const ahora = new Date();
+                  const [horaInicio, minutoInicio] = hora.split('-')[0].split(':');
+                  const horaTurno = new Date();
+                  horaTurno.setHours(parseInt(horaInicio), parseInt(minutoInicio), 0, 0);
+                  
+                  // Es pasado si el turno es anterior a la hora actual + 1 hora
+                  if ((horaTurno.getTime() - ahora.getTime()) < 3600000) { // 3600000ms = 1 hora
+                    isPast = true;
+                  }
+                }
+                // --- Fin de la lógica ---
+
                 return (
                   <button
                     key={hora}
                     className={`
-                      px-2 py-1 rounded-full text-xs font-medium
+                      px-2 py-1 rounded-full text-xs font-medium transition-colors
                       ${isSelected ? 'bg-[#eaff00] text-[#0D1B2A]' : ''}
-                      ${isFull ? 'bg-gray-500 text-gray-200 cursor-not-allowed' : ''}
-                      ${!isSelected && !isFull ? 'bg-gray-700 text-[#eaff00] hover:bg-[#eaff00] hover:text-[#0D1B2A]' : ''}
+                      ${isFull || isPast ? 'bg-gray-600 text-gray-400 cursor-not-allowed' : ''}
+                      ${!isSelected && !isFull && !isPast ? 'bg-gray-700 text-[#eaff00] hover:bg-[#eaff00] hover:text-[#0D1B2A]' : ''}
                       focus:outline-none
                     `}
-                    disabled={!isAuthenticated || isFull}
+                    disabled={!isAuthenticated || isFull || isPast}
                     onClick={() => {
                       if (!isAuthenticated) {
                         alert('Debes iniciar sesión para reservar')
-                      } else if (!isFull) {
+                      } else if (!isFull && !isPast) {
                         handleClick(cancha, hora)
                       }
                     }}
