@@ -1,4 +1,6 @@
 import React, { createContext, useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { createApi } from '../utils/api'; // Importamos nuestra nueva función
 
 export const AuthContext = createContext();
 
@@ -6,6 +8,7 @@ export const AuthProvider = ({ children }) => {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [isAdmin, setIsAdmin] = useState(false);
   const [habilitado, setHabilitado] = useState(false);
+  const navigate = useNavigate();
 
   useEffect(() => {
     const token = localStorage.getItem('accessToken');
@@ -23,23 +26,6 @@ export const AuthProvider = ({ children }) => {
     }
   }, []);
 
-  // Guarda los datos de sesión en localStorage y en el estado
-  const login = (token, isAdminUser, habilitadoUser) => {
-    localStorage.setItem('accessToken', token);
-    localStorage.setItem('isAdmin', isAdminUser);
-    localStorage.setItem('habilitado', habilitadoUser);
-    setIsAuthenticated(true);
-    setIsAdmin(isAdminUser);
-    setHabilitado(habilitadoUser);
-  };
-
-  // Solo guarda el token y setea autenticado
-  const loginWithToken = (token) => {
-    localStorage.setItem('accessToken', token)
-    setIsAuthenticated(true)
-  }
-
-  // Limpia todo al cerrar sesión
   const logout = () => {
     localStorage.removeItem('accessToken');
     localStorage.removeItem('isAdmin');
@@ -49,8 +35,34 @@ export const AuthProvider = ({ children }) => {
     setHabilitado(false);
   };
 
+  // --- NUEVA LÓGICA ---
+  // Función que se ejecutará cuando la API devuelva un 401
+  const handleUnauthorized = () => {
+    logout();
+    alert("Tu sesión ha expirado. Por favor, inicia sesión de nuevo.");
+    navigate('/login', { replace: true });
+  };
+
+  // Creamos una instancia de nuestro fetch wrapper y la pasamos al contexto
+  const apiFetch = createApi(handleUnauthorized);
+  // --- FIN NUEVA LÓGICA ---
+
+  const login = (token, isAdminUser, habilitadoUser) => {
+    localStorage.setItem('accessToken', token);
+    localStorage.setItem('isAdmin', isAdminUser);
+    localStorage.setItem('habilitado', habilitadoUser);
+    setIsAuthenticated(true);
+    setIsAdmin(isAdminUser);
+    setHabilitado(habilitadoUser);
+  };
+
+  const loginWithToken = (token) => {
+    localStorage.setItem('accessToken', token)
+    setIsAuthenticated(true)
+  }
+
   return (
-    <AuthContext.Provider value={{ loginWithToken, isAuthenticated, isAdmin, habilitado, login, logout }}>
+    <AuthContext.Provider value={{ apiFetch, isAuthenticated, isAdmin, habilitado, login, logout, loginWithToken }}>
       {children}
     </AuthContext.Provider>
   );

@@ -49,17 +49,38 @@ export const generarHorarios = () => {
 
 const horarios = generarHorarios()
 
+// --- Helper para generar las fechas ---
+const generarFechas = () => {
+  const fechas = [];
+  const hoy = new Date();
+  const options = { weekday: 'long', day: 'numeric', month: 'long' };
+  
+  for (let i = 0; i < 7; i++) {
+    const fecha = new Date(hoy);
+    fecha.setDate(hoy.getDate() + i);
+    const display = new Intl.DateTimeFormat('es-ES', options).format(fecha);
+    const value = `${String(fecha.getDate()).padStart(2, '0')}-${String(fecha.getMonth() + 1).padStart(2, '0')}-${fecha.getFullYear()}`;
+    fechas.push({ display: display.charAt(0).toUpperCase() + display.slice(1), value });
+  }
+  return fechas;
+};
+
+const fechasDisponibles = generarFechas();
+
 function ReservaTabla() {
   const [selected, setSelected] = useState(null)
   const [cantidades, setCantidades] = useState({})
+  const [selectedDate, setSelectedDate] = useState(fechasDisponibles[0].value);
   const { isAuthenticated } = useContext(AuthContext)
 
   useEffect(() => {
     const fetchCantidades = async () => {
       try {
-        const url = window.location.hostname === "localhost"
+        const url = new URL(window.location.hostname === "localhost"
           ? `${BACKEND_URL}/api/reservas/cantidad`
-          : "/api/reservas/cantidad";
+          : "/api/reservas/cantidad");
+        url.searchParams.append('fecha', selectedDate);
+        
         const res = await fetch(url)
         const data = await res.json()
         const mapa = {}
@@ -70,13 +91,19 @@ function ReservaTabla() {
         setCantidades(mapa)
       } catch (err) {
         console.error('Error al traer las cantidades:', err)
+        setCantidades({}) // Limpiar cantidades si hay error
       }
     }
 
     fetchCantidades()
-  }, [])
+  }, [selectedDate]); // Se ejecuta cada vez que cambia la fecha
 
   const handleClick = async (cancha, hora) => {
+    // Preguntar al usuario si está seguro
+    if (!window.confirm(`¿Estás seguro de que quieres reservar en la cancha "${cancha}" a las ${hora} para el día ${selectedDate}?`)) {
+      return; // Si el usuario cancela, no hacer nada
+    }
+
     setSelected({ cancha, hora })
     const token = localStorage.getItem('accessToken')
     try {
@@ -91,7 +118,8 @@ function ReservaTabla() {
         },
         body: JSON.stringify({
           cancha,
-          horario: hora
+          horario: hora,
+          fecha: selectedDate // Enviar la fecha seleccionada
         })
       })
 
@@ -113,12 +141,31 @@ function ReservaTabla() {
 
     } catch (err) {
       alert(`Error al reservar turno: ${err.message}`)
+      setSelected(null); // Limpiar la selección si hay un error
     }
   }
 
   return (
     <div className="flex flex-col items-center mt-8 min-h-[70vh] bg-[#101a2a] w-full py-6">
-      <h2 className="text-xl font-bold text-white mb-6 text-center">Reservar Turno</h2>
+      <h2 className="text-xl font-bold text-white mb-4 text-center">Reservar Turno</h2>
+      
+      <div className="mb-6 w-full max-w-xs">
+        <label htmlFor="fecha-select" className="block text-sm font-medium text-gray-300 mb-2 text-center">Selecciona una fecha:</label>
+        <select
+          id="fecha-select"
+          value={selectedDate}
+          onChange={(e) => {
+            setSelectedDate(e.target.value);
+            setSelected(null); // Limpiar selección al cambiar de día
+          }}
+          className="bg-gray-700 border border-gray-600 text-white text-sm rounded-lg focus:ring-[#eaff00] focus:border-[#eaff00] block w-full p-2.5"
+        >
+          {fechasDisponibles.map(fecha => (
+            <option key={fecha.value} value={fecha.value}>{fecha.display}</option>
+          ))}
+        </select>
+      </div>
+
       <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6 w-full max-w-5xl">
         {canchas.map((cancha) => (
           <div

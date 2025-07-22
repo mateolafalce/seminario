@@ -4,7 +4,7 @@ from jose import jwt, JWTError
 from passlib.context import CryptContext
 from datetime import datetime, timedelta
 from routers.defs import *
-from db.models.user import User,UserDB
+from db.models.user import User, UserDB
 from db.client import db_client
 from datetime import datetime
 from pydantic import BaseModel 
@@ -16,14 +16,17 @@ from datetime import datetime
 from typing import List, Dict
 from fastapi.responses import JSONResponse
 import asyncio
+import pytz  # Importante: añade esta importación
 
-router = APIRouter(prefix="/reservas",
-                    tags=["reserva"],
-                    responses={status.HTTP_400_BAD_REQUEST:{"message":"No encontrado"}})
-
+# Define la clase Reserva que falta
 class Reserva(BaseModel):
     cancha: str
     horario: str
+    fecha: str # DD-MM-YYYY format
+
+router = APIRouter(prefix="/reservas",
+                   tags=["reservas"],
+                   responses={404: {"message": "No encontrado"}})
 
 def clean_mongo_doc(doc):
     doc["_id"] = str(doc["_id"])
@@ -38,8 +41,16 @@ def clean_mongo_doc(doc):
 @router.post("/reservar")
 async def reservar(reserva: Reserva, user: dict = Depends(current_user)):
     argentina_tz = pytz.timezone("America/Argentina/Buenos_Aires")
-    fecha = datetime.now(argentina_tz).strftime("%d-%m-%Y")
+    
     try:
+        # --- Validación de la fecha ---
+        fecha_reserva_dt = datetime.strptime(reserva.fecha, "%d-%m-%Y").date()
+        hoy_dt = datetime.now(argentina_tz).date()
+        limite_dt = hoy_dt + timedelta(days=7)
+
+        if not (hoy_dt <= fecha_reserva_dt < limite_dt):
+             raise ValueError("La fecha de reserva debe ser entre hoy y los próximos 6 días.")
+        
         # Verificar que tenemos un ID de usuario válido
         if not user.get("id") or not ObjectId.is_valid(user["id"]):
             raise HTTPException(status_code=400, detail="ID de usuario no válido")
@@ -55,14 +66,14 @@ async def reservar(reserva: Reserva, user: dict = Depends(current_user)):
                 raise ValueError("Horario inválido")
             horario_id = horario_doc["_id"]
 
-            # Validar que el usuario no tenga una reserva en el mismo horario
+            # Validar que el usuario no tenga una reserva en el mismo horario y fecha
             reserva_existente = db_client.reservas.find_one({
                 "usuario": ObjectId(user["id"]),
-                "fecha": fecha,
+                "fecha": reserva.fecha,
                 "hora_inicio": ObjectId(horario_id)
             })
             if reserva_existente:
-                raise ValueError("Ya tenés una reserva en ese horario")
+                raise ValueError("Ya tenés una reserva en ese horario y fecha")
 
             # Buscar la cancha por nombre y obtener ID
             cancha_doc = db_client.canchas.find_one({"nombre": reserva.cancha})
@@ -74,7 +85,7 @@ async def reservar(reserva: Reserva, user: dict = Depends(current_user)):
             filtro = {
                 "$and": [
                     {"cancha": cancha_id},
-                    {"fecha": fecha},
+                    {"fecha": reserva.fecha},
                     {"hora_inicio": horario_id}
                 ]
             }
@@ -84,7 +95,7 @@ async def reservar(reserva: Reserva, user: dict = Depends(current_user)):
 
             nueva_reserva = {
                 "cancha": cancha_id, 
-                "fecha": fecha,
+                "fecha": reserva.fecha,
                 "hora_inicio": horario_id,
                 "usuario": ObjectId(user["id"]),
             }
@@ -108,10 +119,82 @@ async def reservar(reserva: Reserva, user: dict = Depends(current_user)):
             status_code=500, 
             detail=f"Error al guardar la reserva: {str(e)}"
         )
-               
-@router.get("/cantidad")
-async def obtener_cantidad_reservas():
+
+@router.get("/mis-reservas")
+async def get_mis_reservas(user: dict = Depends(current_user)):
+    user_id = ObjectId(user["id"])
+    
     pipeline = [
+        {"$match": {"usuario": user_id}},
+        {"$lookup": {"from": "canchas", "localField": "cancha", "foreignField": "_id", "as": "cancha_info"}},
+        {"$unwind": "$cancha_info"},
+        {"$lookup": {"from": "horarios", "localField": "hora_inicio", "foreignField": "_id", "as": "horario_info"}},
+        {"$unwind": "$horario_info"},
+        {"$project": {
+            "_id": 1, "fecha": 1, "cancha": "$cancha_info.nombre", "horario": "$horario_info.hora"
+        }},
+        {"$sort": {"fecha": 1, "horario": 1}}
+    ]
+    
+    reservas_cursor = await asyncio.to_thread(lambda: list(db_client.reservas.aggregate(pipeline)))
+    
+    reservas_list = []
+    for r in reservas_cursor:
+        r["_id"] = str(r["_id"])
+        reservas_list.append(r)
+        
+    return reservas_list
+
+@router.delete("/cancelar/{reserva_id}")
+async def cancelar_reserva(reserva_id: str, user: dict = Depends(current_user)):
+    if not ObjectId.is_valid(reserva_id):
+        raise HTTPException(status_code=400, detail="ID de reserva inválido")
+
+    reserva_oid = ObjectId(reserva_id)
+    
+    reserva = await asyncio.to_thread(
+        lambda: db_client.reservas.find_one({"_id": reserva_oid, "usuario": ObjectId(user["id"])})
+    )
+
+    if not reserva:
+        raise HTTPException(status_code=404, detail="Reserva no encontrada o no tienes permiso para cancelarla")
+
+    horario_doc = await asyncio.to_thread(lambda: db_client.horarios.find_one({"_id": reserva["hora_inicio"]}))
+    hora_inicio_str = horario_doc["hora"].split('-')[0]
+    
+    argentina_tz = pytz.timezone("America/Argentina/Buenos_Aires")
+    reserva_dt_str = f"{reserva['fecha']} {hora_inicio_str}"
+    reserva_dt = datetime.strptime(reserva_dt_str, "%d-%m-%Y %H:%M")
+    reserva_dt = argentina_tz.localize(reserva_dt)
+    
+    ahora_dt = datetime.now(argentina_tz)
+    
+    # Se comprueba si la diferencia entre la hora de la reserva y la hora actual es de al menos 1 hora.
+    if (reserva_dt - ahora_dt) >= timedelta(hours=1):
+        # Si la condición se cumple, se procede a eliminar la reserva.
+        result = await asyncio.to_thread(lambda: db_client.reservas.delete_one({"_id": reserva_oid}))
+
+        if result.deleted_count == 1:
+            return {"msg": "Reserva cancelada con éxito"}
+        else:
+            # Este caso es poco probable si la búsqueda inicial tuvo éxito, pero es una buena práctica manejarlo.
+            raise HTTPException(status_code=500, detail="Error al procesar la cancelación.")
+    else:
+        # Si queda menos de 1 hora, se deniega la cancelación.
+        raise HTTPException(status_code=400, detail="No se puede cancelar la reserva con menos de 1 hora de antelación.")
+
+@router.get("/cantidad")
+async def obtener_cantidad_reservas(fecha: str):
+    # Validar formato de fecha
+    try:
+        datetime.strptime(fecha, "%d-%m-%Y")
+    except ValueError:
+        raise HTTPException(status_code=400, detail="Formato de fecha inválido. Use DD-MM-YYYY.")
+
+    pipeline = [
+        {
+            "$match": {"fecha": fecha} # Filtrar por la fecha proporcionada
+        },
         {
             "$group": {
                 "_id": {"cancha": "$cancha", "hora_inicio": "$hora_inicio"}, 
