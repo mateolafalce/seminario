@@ -71,32 +71,35 @@ function ReservaTabla() {
   const [selected, setSelected] = useState(null)
   const [cantidades, setCantidades] = useState({})
   const [selectedDate, setSelectedDate] = useState(fechasDisponibles[0].value);
-  const { isAuthenticated } = useContext(AuthContext)
+  const { isAuthenticated, apiFetch } = useContext(AuthContext); // Obtenemos apiFetch del contexto
 
   useEffect(() => {
     const fetchCantidades = async () => {
       try {
-        const url = new URL(window.location.hostname === "localhost"
-          ? `${BACKEND_URL}/api/reservas/cantidad`
-          : "/api/reservas/cantidad");
-        url.searchParams.append('fecha', selectedDate);
+        // Usamos apiFetch y le pasamos los parámetros de búsqueda
+        const response = await apiFetch(`/api/reservas/cantidad?fecha=${selectedDate}`);
         
-        const res = await fetch(url)
-        const data = await res.json()
-        const mapa = {}
-        for (const item of data) {
-          const key = `${item.cancha}-${item.horario}`
-          mapa[key] = item.cantidad
+        if (response.ok) {
+          const data = await response.json();
+          const mapa = {};
+          for (const item of data) {
+            const key = `${item.cancha}-${item.horario}`;
+            mapa[key] = item.cantidad;
+          }
+          setCantidades(mapa);
+        } else {
+          setCantidades({});
         }
-        setCantidades(mapa)
       } catch (err) {
-        console.error('Error al traer las cantidades:', err)
-        setCantidades({}) // Limpiar cantidades si hay error
+        if (err.message !== 'Sesión expirada') {
+          console.error('Error al traer las cantidades:', err);
+        }
+        setCantidades({}); // Limpiar cantidades si hay error
       }
     }
 
-    fetchCantidades()
-  }, [selectedDate]); // Se ejecuta cada vez que cambia la fecha
+    fetchCantidades();
+  }, [selectedDate, apiFetch]); // Añadimos apiFetch a las dependencias
 
   const handleClick = async (cancha, hora) => {
     // Preguntar al usuario si está seguro
@@ -104,32 +107,25 @@ function ReservaTabla() {
       return; // Si el usuario cancela, no hacer nada
     }
 
-    setSelected({ cancha, hora })
-    const token = localStorage.getItem('accessToken')
+    setSelected({ cancha, hora });
     try {
-      const url = window.location.hostname === "localhost"
-        ? `${BACKEND_URL}/api/reservas/reservar`
-        : "/api/reservas/reservar";
-      const response = await fetch(url, {
+      // Usamos apiFetch para la petición POST
+      const response = await apiFetch('/api/reservas/reservar', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
-        },
         body: JSON.stringify({
           cancha,
           horario: hora,
           fecha: selectedDate // Enviar la fecha seleccionada
         })
-      })
+      });
 
       if (!response.ok) {
-        const error = await response.json()
-        throw new Error(error.detail || 'Error al reservar')
+        const error = await response.json();
+        throw new Error(error.detail || 'Error al reservar');
       }
 
-      const data = await response.json()
-      alert(`Reserva exitosa: ${data.msg}`)
+      const data = await response.json();
+      alert(`Reserva exitosa: ${data.msg}`);
 
       setCantidades(prev => {
         const key = `${cancha}-${hora}`
