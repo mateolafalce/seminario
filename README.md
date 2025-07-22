@@ -206,7 +206,7 @@ Una vez hecho esto, los cambios hechos se revertiran.
   * [x] Cancelar Reserva (Mis reservas)
   * [x] Implementar logica para poder reservar con un rango de 1 semana
   * [ ] Cachear el contenido de la peticion HTTP para no sobrecargar el servidor
-* ABML de Preferencias del usuario (Mateo)
+* ABML de Preferencias del usuario
   * [x] Crear la entidad Preferencia
   * [x] Implementar la logica en el backend
   * [x] Implementar el frontend de la reserva
