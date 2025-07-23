@@ -49,6 +49,16 @@ function CustomNavbar() {
     return () => window.removeEventListener("scroll", handleScroll);
   }, []);
 
+  useEffect(() => {
+    const handleResize = () => {
+      if (window.innerWidth >= 1024) {
+        setShowOffcanvas(false);
+      }
+    };
+    window.addEventListener("resize", handleResize);
+    return () => window.removeEventListener("resize", handleResize);
+  }, []);
+
   const handleLogout = () => {
     logout();
     navigate("/login");
@@ -149,61 +159,76 @@ function CustomNavbar() {
           </button>
         </div>
       </nav>
-      {/* el menu lateral para celulares */}
+      {/* el menu fullscreen para celulares */}
       <AnimatePresence>
         {showOffcanvas && (
-          <>
-            {/* fondo borroso */}
-            <motion.div
-              className='fixed inset-0 z-50 flex bg-[#0D1B2A]/30 backdrop-blur-[0.375rem]'
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              transition={{ duration: 0.25 }}
+          <motion.div
+            className='fixed inset-0 z-50 bg-[#0D1B2A] lg:hidden'
+            initial={{ x: '-100%' }}
+            animate={{ x: 0 }}
+            exit={{ x: '-100%' }}
+            transition={{ type: 'spring', stiffness: 180, damping: 20 }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* boton cerrar minimalista */}
+            <button
+              onClick={() => setShowOffcanvas(false)}
+              className='absolute top-8 right-8 text-white/60 hover:text-white transition-colors z-10'
+              aria-label="Cerrar menú"
             >
-              {/* animacion lateral del desplegable */}
-              <motion.div
-                className='w-[16rem] bg-gray-900 h-full p-[1.5rem] flex flex-col'
-                initial={{ x: '-100%' }}
-                animate={{ x: 0 }}
-                exit={{ x: '-100%' }}
-                transition={{ type: 'spring', stiffness: 180, damping: 20 }}
-              >
-                <div className='flex items-center justify-between mb-[1.5rem]'>
-                  <div
-                    className='flex items-center cursor-pointer select-none'
-                    onClick={() => handleNavigate("/home")}
+              <svg className="w-8 h-8" fill="none" stroke="currentColor" strokeWidth={1} viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
+            
+            {/* contenido ultra minimalista */}
+            <div className='h-full flex flex-col justify-center items-center'>
+              <nav className='flex flex-col space-y-8 mb-12'>
+                {centerLinks
+                  .filter(link => link.show({ isAuthenticated, isAdmin }))
+                  .map(link => (
+                    <button
+                      key={link.label}
+                      type="button"
+                      onClick={() => handleNavigate(link.path)}
+                      className='text-white text-3xl font-extralight text-center py-2 transition-all duration-300 hover:text-[#E5FF00] hover:scale-105'
+                    >
+                      {link.label}
+                    </button>
+                  ))}
+              </nav>
+              
+              {/* botones de sesion minimalistas */}
+              {!isAuthenticated ? (
+                <div className='flex flex-col space-y-6'>
+                  <button
+                    onClick={() => handleNavigate("/login")}
+                    className='text-white text-xl font-extralight text-center py-2 transition-all duration-300 hover:text-[#E5FF00] hover:scale-105 border border-white/20 rounded-full px-8'
                   >
-                    <img
-                      src={logoCompleto}
-                      alt="Boulevard81 Logo"
-                      className='mr-[0.5rem] select-none'
-                      style={{ userSelect: "none", height: "1.5rem", width: "auto", display: "block" }}
-                      draggable={false}
-                    />
-                    <span className='text-white font-bold tracking-wide text-[1.2rem] ml-[0.5rem] select-none'>
-                      Boulevard81
-                    </span>
-                  </div>
+                    Iniciar Sesión
+                  </button>
+                  <button
+                    onClick={() => handleNavigate("/register")}
+                    className='text-[#0D1B2A] text-xl font-extralight text-center py-2 transition-all duration-300 hover:bg-[#E5FF00] bg-white rounded-full px-8'
+                  >
+                    Registrarse
+                  </button>
                 </div>
-                <nav className='flex flex-col space-y-[0.5rem]'>
-                  <NavLinks
-                    links={centerLinks}
-                    isAuthenticated={isAuthenticated}
-                    isAdmin={isAdmin}
-                    onClick={handleNavigate}
-                    className=''
-                  />
-                  <hr className='my-[1rem] border-gray-700' />
-                  {renderSessionButtons(true)}
-                </nav>
-              </motion.div>
-              {/* tocar fuera cierra el menú */}
-              <div className='flex-1' onClick={() => setShowOffcanvas(false)} />
-            </motion.div>
-          </>
+              ) : (
+                <div className='flex flex-col space-y-4'>
+                  <button
+                    onClick={handleLogout}
+                    className='text-white text-xl font-extralight text-center py-2 transition-all duration-300 hover:text-red-400 hover:scale-105 border border-white/20 rounded-full px-8'
+                  >
+                    Cerrar Sesión
+                  </button>
+                </div>
+              )}
+            </div>
+          </motion.div>
         )}
       </AnimatePresence>
+
       {/* espaciador */}
       <div className='h-[3.5rem] lg:h-[3.5rem]' />
     </>
