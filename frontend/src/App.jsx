@@ -8,6 +8,7 @@ import Reserva from './pages/Reserva';
 import HomePage from './pages/HomePage';
 import BuscarCliente from './pages/BuscarCliente';
 import Admin from './pages/Admin';
+import AdminDashboard from './pages/AdminDashboard';
 import { AuthProvider } from './context/AuthContext'; // Solo AuthProvider
 import Unauthorized from './pages/Unauthorized';
 import Preferencias from './pages/Preferencia';
@@ -97,7 +98,7 @@ function AppWithTimeout() {
           <Route index element={<Admin />} />
           </Route>
           <Route path="/mis-reservas" element={<MisReservas />} />
-
+          <Route path="/admin/dashboard" element={<AdminDashboard />} />
           <Route path="/unauthorized" element={<Unauthorized />} />
         </Routes>
       </div>
