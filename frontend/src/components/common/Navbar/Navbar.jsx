@@ -8,7 +8,7 @@ import { motion, AnimatePresence } from "framer-motion";
 // las redirecciones centrales
 const centerLinks = [
   { label: "Home", path: "/home", show: ({ isAuthenticated }) => true },
-  { label: "Canchas", path: "/canchas", show: ({ isAuthenticated }) => true },
+  
   { label: "Turnos", path: "/reserva", show: ({ isAuthenticated }) => isAuthenticated },
   { label: "Mis Reservas", path: "/mis-reservas", show: ({ isAuthenticated }) => isAuthenticated },
   { label: "Preferencias", path: "/preferencias", show: ({ isAuthenticated, isAdmin }) => isAuthenticated && !isAdmin },

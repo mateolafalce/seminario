@@ -2,7 +2,7 @@ import './index.css';
 import { BrowserRouter as Router, Routes, Route, useNavigate } from 'react-router-dom';
 import React, { useState, useEffect, useContext } from 'react';
 import Login from './pages/Login';
-import Canchas from './pages/Canchas';
+
 import Register from './pages/Register';
 import Navbar from './components/common/Navbar/Navbar';
 import Reserva from './pages/Reserva';
@@ -75,7 +75,7 @@ function AppWithTimeout() {
         <Routes>
           <Route path="/" element={<HomePage />} />
           <Route path="/home" element={<HomePage />} />
-          <Route path="/canchas" element={<Canchas />} />
+          
           <Route path="/login" element={<Login />} />
           <Route path="/register" element={<Register />} />
           <Route path="/reserva" element={<Reserva />} />

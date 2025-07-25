@@ -1,13 +1,12 @@
 import React, { useContext, useState } from 'react'
 import { useNavigate } from 'react-router-dom';
-import VerUsuarios from '../components/usuarios/VerUsuarios'
-import BuscarCliente from '../pages/BuscarCliente'
 import { AuthContext } from '../context/AuthContext';
 import { motion } from 'framer-motion';
+import GestionUsuarios from '../components/admin/dashboard/VerUsuariosInline';
+import RegisterInline from '../components/admin/dashboard/RegisterInline';
 
 function AdminDashboard() {
     const [activeTab, setActiveTab] = useState('usuarios');
-    const [showModal, setShowModal] = useState(false);
     const { isAuthenticated, isAdmin } = useContext(AuthContext);
     const navigate = useNavigate();
 
@@ -16,8 +15,7 @@ function AdminDashboard() {
     }
 
     const tabs = [
-        { id: 'usuarios', label: 'Ver Todos', icon: '👥' },
-        { id: 'buscar', label: 'Buscar', icon: '🔍' },
+        { id: 'usuarios', label: 'Gestión de Usuarios', icon: '👥' },
         { id: 'crear', label: 'Crear Usuario', icon: '➕' },
         { id: 'stats', label: 'Estadísticas', icon: '📊' }
     ];
@@ -27,24 +25,8 @@ function AdminDashboard() {
             case 'usuarios':
                 return (
                     <div className="bg-gray-800 rounded-xl p-6">
-                        <h3 className="text-xl font-semibold text-white mb-4">Todos los Usuarios</h3>
-                        <button 
-                            onClick={() => setShowModal(true)}
-                            className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg mb-4 transition-colors"
-                        >
-                            Ver Lista Completa
-                        </button>
-                        <VerUsuarios show={showModal} onHide={() => setShowModal(false)} />
-                    </div>
-                );
-            
-            case 'buscar':
-                return (
-                    <div className="bg-gray-800 rounded-xl p-6">
-                        <h3 className="text-xl font-semibold text-white mb-4">Búsqueda Avanzada</h3>
-                        <div className="bg-gray-900 rounded-lg p-4">
-                            <BuscarCliente />
-                        </div>
+                        <h3 className="text-xl font-semibold text-white mb-4">Gestión Completa de Usuarios</h3>
+                        <GestionUsuarios />
                     </div>
                 );
             
@@ -52,40 +34,30 @@ function AdminDashboard() {
                 return (
                     <div className="bg-gray-800 rounded-xl p-6">
                         <h3 className="text-xl font-semibold text-white mb-4">Crear Nuevo Usuario</h3>
-                        <div className="bg-gray-900 rounded-lg p-4">
-                            <button 
-                                onClick={() => navigate('/register?admin=1')}
-                                className="bg-green-600 hover:bg-green-700 text-white px-6 py-3 rounded-lg transition-colors"
-                            >
-                                Ir a Formulario de Registro
-                            </button>
-                            <p className="text-gray-400 mt-2 text-sm">
-                                Próximamente: Formulario inline integrado
-                            </p>
-                        </div>
+                        <RegisterInline />
                     </div>
                 );
             
             case 'stats':
                 return (
                     <div className="bg-gray-800 rounded-xl p-6">
-                        <h3 className="text-xl font-semibold text-white mb-4">Estadísticas del Sistema</h3>
+                        <h3 className="text-xl font-semibold text-white mb-4">Estadísticas del Sistema en progreso?? </h3>
                         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                             <div className="bg-gray-900 p-4 rounded-lg text-center">
                                 <div className="text-2xl font-bold text-blue-400">--</div>
-                                <div className="text-gray-400">Total Usuarios</div>
+                                <div className="text-gray-400">Total Usuarios ?</div>
                             </div>
                             <div className="bg-gray-900 p-4 rounded-lg text-center">
                                 <div className="text-2xl font-bold text-green-400">--</div>
-                                <div className="text-gray-400">Activos</div>
+                                <div className="text-gray-400">Activos ?</div>
                             </div>
                             <div className="bg-gray-900 p-4 rounded-lg text-center">
                                 <div className="text-2xl font-bold text-yellow-400">--</div>
-                                <div className="text-gray-400">Este Mes</div>
+                                <div className="text-gray-400">Este Mes ?</div>
                             </div>
                         </div>
                         <p className="text-gray-400 mt-4 text-sm">
-                            Próximamente: Métricas en tiempo real
+                            Próximamente ????
                         </p>
                     </div>
                 );
