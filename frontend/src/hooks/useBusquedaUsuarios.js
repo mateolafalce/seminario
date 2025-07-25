@@ -1,7 +1,10 @@
 import { useState, useContext } from 'react';
 import { AuthContext } from '../context/AuthContext';
 
-const BACKEND_URL = `http://${window.location.hostname}:8000`;
+const BACKEND_URL =
+  window.location.hostname === "localhost"
+    ? `http://${window.location.hostname}:8000`
+    : ""; // vacío para producción
 
 export const useBusquedaUsuarios = () => {
   const [resultados, setResultados] = useState([]);
@@ -25,7 +28,7 @@ export const useBusquedaUsuarios = () => {
     try {
       const url = window.location.hostname === "localhost"
         ? `${BACKEND_URL}/api/users_b/buscar`
-        : "/api/users_b/buscar";
+        : `/api/users_b/buscar`;
 
       const response = await fetch(url, {
         method: 'POST',

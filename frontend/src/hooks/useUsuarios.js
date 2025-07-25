@@ -1,6 +1,9 @@
 import { useState, useEffect, useContext } from "react";
 import { AuthContext } from "../context/AuthContext";
-const BACKEND_URL = `http://${window.location.hostname}:8000`;
+const BACKEND_URL =
+  window.location.hostname === "localhost"
+    ? `http://${window.location.hostname}:8000`
+    : ""; // vacío para producción, usará rutas relativas
 
 export function useUsuarios() {
   const [users, setUsers] = useState([]);
@@ -15,7 +18,9 @@ export function useUsuarios() {
     setError(null);
     try {
       const limit = 10;
-      const url = `${BACKEND_URL}/api/users_b/admin/users?page=${page}&limit=${limit}`;
+      const url = window.location.hostname === "localhost"
+        ? `${BACKEND_URL}/api/users_b/admin/users?page=${page}&limit=${limit}`
+        : `/api/users_b/admin/users?page=${page}&limit=${limit}`;
       const res = await fetch(url, {
         headers: {
           'Authorization': `Bearer ${localStorage.getItem('accessToken')}`,

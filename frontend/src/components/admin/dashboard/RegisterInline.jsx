@@ -3,7 +3,10 @@ import { AuthContext } from "../../../context/AuthContext";
 import AuthForm from "../../common/AuthForm/AuthForm";
 import MessageAlert from "../../common/Alert/MessageAlert";
 
-const BACKEND_URL = `http://${window.location.hostname}:8000`;
+const BACKEND_URL =
+  window.location.hostname === "localhost"
+    ? `http://${window.location.hostname}:8000`
+    : ""; // vacío para producción
 
 function RegisterInline({ onUsuarioCreado }) {
   const [errores, setErrores] = useState({});
@@ -33,7 +36,7 @@ function RegisterInline({ onUsuarioCreado }) {
     try {
       const url = window.location.hostname === "localhost"
         ? `${BACKEND_URL}/api/users_b/register`
-        : "/api/users_b/register";
+        : `/api/users_b/register`;
       const response = await fetch(url, {
         method: "POST",
         headers: { 
