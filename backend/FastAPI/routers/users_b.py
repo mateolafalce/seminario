@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status, Body
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
 from jose import jwt, JWTError
 from passlib.context import CryptContext
@@ -341,3 +341,83 @@ async def eliminar_usuario(data: EliminarUsuarioRequest, user: dict = Depends(cu
             status_code=500,
             detail=f"Error al eliminar usuario: {str(e)}"
         )
+
+from fastapi import Body
+
+@router.put("/{user_id}")
+async def editar_usuario(
+    user_id: str,
+    body: dict = Body(...),
+    user: dict = Depends(current_user)
+):
+    # Solo admin puede editar
+    def operaciones_sincronas():
+        current_user_data = db_client.users.find_one({"_id": ObjectId(user["id"])})
+        if not current_user_data:
+            raise ValueError("Usuario no encontrado")
+        is_admin = db_client.admins.find_one({"user": current_user_data["_id"]})
+        if not is_admin:
+            raise ValueError("Solo los admin pueden modificar usuarios")
+
+        # Buscar categoría por nombre si existe
+        categoria_nombre = body.get("categoria")
+        categoria_obj = None
+        if categoria_nombre:
+            categoria_obj = db_client.categorias.find_one({"nombre": categoria_nombre})
+            if not categoria_obj:
+                raise ValueError(f"Categoría '{categoria_nombre}' no encontrada")
+
+        update_data = {
+            "nombre": body.get("nombre"),
+            "apellido": body.get("apellido"),
+            "email": body.get("email"),
+            "habilitado": body.get("habilitado"),
+        }
+        if categoria_obj:
+            update_data["categoria"] = categoria_obj["_id"]
+        else:
+            update_data["categoria"] = None
+
+        result = db_client.users.update_one(
+            {"_id": ObjectId(user_id)},
+            {"$set": update_data}
+        )
+        if result.matched_count == 0:
+            raise ValueError("Usuario a modificar no encontrado")
+        return True
+
+    try:
+        await asyncio.to_thread(operaciones_sincronas)
+        return {"success": True}
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error al modificar usuario: {str(e)}")
+
+@router.delete("/{user_id}")
+async def eliminar_usuario(
+    user_id: str,
+    user: dict = Depends(current_user)
+):
+    def operaciones_sincronas():
+        current_user_data = db_client.users.find_one({"_id": ObjectId(user["id"])})
+        if not current_user_data:
+            raise ValueError("Usuario no encontrado")
+        is_admin = db_client.admins.find_one({"user": current_user_data["_id"]})
+        if not is_admin:
+            raise ValueError("Solo los admin pueden eliminar usuarios")
+        if str(current_user_data["_id"]) == user_id:
+            raise ValueError("No puedes eliminarte a ti mismo")
+        result = db_client.users.delete_one({"_id": ObjectId(user_id)})
+        if result.deleted_count == 0:
+            raise ValueError("Usuario no encontrado o ya eliminado")
+        db_client.admins.delete_one({"user": ObjectId(user_id)})
+        return True
+
+    try:
+        await asyncio.to_thread(operaciones_sincronas)
+        return {"success": True}
+    except ValueError as e:
+        raise HTTPException(status_code=403 if "eliminarte" in str(e) else 404, detail=str(e))
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error al eliminar usuario: {str(e)}")

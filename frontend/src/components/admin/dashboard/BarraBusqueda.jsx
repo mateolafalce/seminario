@@ -15,7 +15,7 @@ const BarraBusqueda = ({ onBuscar, onLimpiar, modoBusqueda, resultados, loading 
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 mb-4">
       {/* Formulario de búsqueda con el mismo estilo que BuscarCliente */}
       <form onSubmit={handleSubmit} className="flex flex-col sm:flex-row gap-4 items-center">
         <input
@@ -42,16 +42,6 @@ const BarraBusqueda = ({ onBuscar, onLimpiar, modoBusqueda, resultados, loading 
           )}
         </div>
       </form>
-      
-      {/* Información de resultados */}
-      {modoBusqueda && (
-        <div className="bg-gray-800 rounded-xl p-4 border border-gray-700">
-          <div className="text-sm text-blue-400">
-            <span className="font-semibold">Resultados para:</span> "{termino}" 
-            <span className="ml-2 text-gray-300">({resultados.length} encontrados)</span>
-          </div>
-        </div>
-      )}
       
       {!modoBusqueda && (
         <div className="bg-gray-800 mb-8">

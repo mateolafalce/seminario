@@ -1,12 +1,14 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useContext } from "react";
+import { AuthContext } from "../context/AuthContext";
 const BACKEND_URL = `http://${window.location.hostname}:8000`;
 
-export const useUsuarios = () => {
+export function useUsuarios() {
   const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
+  const { logout } = useContext(AuthContext);
 
   const fetchUsers = async (page = 1) => {
     setLoading(true);
@@ -44,11 +46,62 @@ export const useUsuarios = () => {
     }
   };
 
-  // Puedes agregar editarUsuario y eliminarUsuario aquí si lo necesitas
+  const editarUsuario = async (usuarioData) => {
+    try {
+      const url = window.location.hostname === "localhost"
+        ? `http://${window.location.hostname}:8000/api/users_b/${usuarioData.id}`
+        : `/api/users_b/${usuarioData.id}`;
+      const response = await fetch(url, {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${localStorage.getItem("accessToken")}`
+        },
+        body: JSON.stringify(usuarioData)
+      });
+      if (response.status === 401) {
+        logout();
+        return { success: false, error: "Sesión expirada. Por favor inicia sesión nuevamente." };
+      }
+      if (response.ok) {
+        return { success: true };
+      } else {
+        const errorData = await response.json();
+        return { success: false, error: errorData.detail || "Error al editar usuario" };
+      }
+    } catch (error) {
+      return { success: false, error: "Error de conexión" };
+    }
+  };
+
+  const eliminarUsuario = async (usuarioId) => {
+    try {
+      const url = window.location.hostname === "localhost"
+        ? `http://${window.location.hostname}:8000/api/users_b/${usuarioId}`
+        : `/api/users_b/${usuarioId}`;
+      const response = await fetch(url, {
+        method: "DELETE",
+        headers: {
+          "Authorization": `Bearer ${localStorage.getItem("accessToken")}`
+        }
+      });
+      if (response.status === 401) {
+        logout();
+        return { success: false, error: "Sesión expirada. Por favor inicia sesión nuevamente." };
+      }
+      if (response.ok) {
+        return { success: true };
+      } else {
+        const errorData = await response.json();
+        return { success: false, error: errorData.detail || "Error al eliminar usuario" };
+      }
+    } catch (error) {
+      return { success: false, error: "Error de conexión" };
+    }
+  };
 
   return {
     users, loading, error, currentPage, totalPages,
-    fetchUsers, handlePageChange,
-    // editarUsuario, eliminarUsuario
+    fetchUsers, handlePageChange, editarUsuario, eliminarUsuario
   };
 };

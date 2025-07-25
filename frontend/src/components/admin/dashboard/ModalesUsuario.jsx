@@ -36,6 +36,10 @@ const ModalesUsuario = ({
 
   const handleEditar = async (e) => {
     e.preventDefault();
+    if (!onEditar) {
+      mostrarMensaje('error', 'Error', 'No se puede editar el usuario. Función no disponible.');
+      return;
+    }
     const resultado = await onEditar(usuarioEditar);
     
     if (resultado.success) {

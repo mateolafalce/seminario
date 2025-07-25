@@ -14,6 +14,7 @@ function VerUsuariosInline() {
     users, loading, error, currentPage, totalPages,
     fetchUsers, handlePageChange, editarUsuario, eliminarUsuario
   } = useUsuarios();
+  // Verifica que useUsuarios retorna editarUsuario y eliminarUsuario correctamente
 
   // Búsqueda
   const {
@@ -49,49 +50,43 @@ function VerUsuariosInline() {
   };
 
   return (
-   
-      
-      
-      <div className="pt-8 rounded-xl p-6 border border-gray-700 shadow-lg relative">
-        
+    <div>
+      {/* Buscador */}
+      <BarraBusqueda
+        onBuscar={buscar}
+        onLimpiar={limpiar}
+        modoBusqueda={modoBusqueda}
+        resultados={resultados}
+        loading={loadingBusqueda}
+      />
 
-        {/* Buscador */}
-        <BarraBusqueda
-          onBuscar={buscar}
-          onLimpiar={limpiar}
-          modoBusqueda={modoBusqueda}
-          resultados={resultados}
-          loading={loadingBusqueda}
+      {/* Lista de usuarios */}
+      <ListaUsuarios
+        usuarios={usuariosParaMostrar}
+        loading={estasCargando}
+        error={errorActual}
+        onEditar={modales.abrirEditar}
+        onEliminar={modales.abrirEliminar}
+        modoBusqueda={modoBusqueda}
+      />
+
+      {/* Paginación */}
+      {!modoBusqueda && totalPages > 1 && (
+        <Paginacion
+          currentPage={currentPage}
+          totalPages={totalPages}
+          onPageChange={handlePageChange}
+          loading={loading}
         />
+      )}
 
-        {/* Lista de usuarios */}
-        <ListaUsuarios
-          usuarios={usuariosParaMostrar}
-          loading={estasCargando}
-          error={errorActual}
-          onEditar={modales.abrirEditar}
-          onEliminar={modales.abrirEliminar}
-          modoBusqueda={modoBusqueda}
-        />
-
-        {/* Paginación */}
-        {!modoBusqueda && totalPages > 1 && (
-          <Paginacion
-            currentPage={currentPage}
-            totalPages={totalPages}
-            onPageChange={handlePageChange}
-            loading={loading}
-          />
-        )}
-
-        {/* Modales */}
-        <ModalesUsuario
-          modales={modales}
-          onEditar={handleEditar}
-          onEliminar={handleEliminar}
-        />
-      </div>
-    
+      {/* Modales */}
+      <ModalesUsuario
+        modales={modales}
+        onEditar={handleEditar}
+        onEliminar={handleEliminar}
+      />
+    </div>
   );
 }
 

@@ -42,42 +42,7 @@ function AdminDashboard() {
             case 'stats':
                 return (
                     <div className="space-y-6">
-                        {/* Stats responsivos */}
-                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                            <motion.div
-                                initial={{ opacity: 0, y: 20 }}
-                                animate={{ opacity: 1, y: 0 }}
-                                className="bg-gradient-to-br from-blue-500/20 to-blue-600/20 border border-blue-500/30 p-6 rounded-xl text-center"
-                            >
-                                <div className="text-3xl font-bold text-blue-400 mb-2">--</div>
-                                <div className="text-gray-300 text-sm">Total Usuarios</div>
-                            </motion.div>
-                            <motion.div
-                                initial={{ opacity: 0, y: 20 }}
-                                animate={{ opacity: 1, y: 0 }}
-                                transition={{ delay: 0.1 }}
-                                className="bg-gradient-to-br from-green-500/20 to-green-600/20 border border-green-500/30 p-6 rounded-xl text-center"
-                            >
-                                <div className="text-3xl font-bold text-green-400 mb-2">--</div>
-                                <div className="text-gray-300 text-sm">Usuarios Activos</div>
-                            </motion.div>
-                            <motion.div
-                                initial={{ opacity: 0, y: 20 }}
-                                animate={{ opacity: 1, y: 0 }}
-                                transition={{ delay: 0.2 }}
-                                className="bg-gradient-to-br from-yellow-500/20 to-yellow-600/20 border border-yellow-500/30 p-6 rounded-xl text-center sm:col-span-2 lg:col-span-1"
-                            >
-                                <div className="text-3xl font-bold text-yellow-400 mb-2">--</div>
-                                <div className="text-gray-300 text-sm">Nuevos Este Mes</div>
-                            </motion.div>
-                        </div>
-                        
-                        {/* Placeholder para más contenido */}
-                        <div className="bg-gray-800/50 border border-gray-700 rounded-xl p-8 text-center">
-                            <div className="text-4xl mb-4">📈</div>
-                            <h3 className="text-xl font-semibold text-white mb-2">Más estadísticas próximamente</h3>
-                            <p className="text-gray-400">Gráficos y métricas detalladas en desarrollo</p>
-                        </div>
+                        <h1 className="text-xl font-bold text-white">En progreso? 🤠</h1>
                     </div>
                 );
             default:
@@ -86,7 +51,7 @@ function AdminDashboard() {
     };
 
     return (
-        <div className=" bg-gray-900 px-2 sm:px-4 lg:px-6 py-8">
+        <div className="bg-gray-900 px-2 sm:px-4 lg:px-6 py-8">
             <div className="grid grid-cols-1 lg:grid-cols-[220px_1fr] gap-6 max-w-7xl mx-auto">
                 {/* Sidebar alineado a la izquierda */}
                 <aside className="bg-gray-800 border border-gray-700 rounded-xl p-6 h-fit">
@@ -94,19 +59,19 @@ function AdminDashboard() {
                     <p className="text-gray-400 text-sm mb-6">Gestión del sistema</p>
                     <nav className="space-y-1">
                         {tabs.map((tab) => (
-                            <button
+                            <Button
                                 key={tab.id}
                                 onClick={() => setActiveTab(tab.id)}
-                                className={`w-full flex items-center justify-start gap-1 px-2 py-1 rounded-lg text-left text-sm font-medium transition-all duration-150 ${
+                                texto={tab.label}
+                                icon={<span className="text-base">{tab.icon}</span>}
+                                variant={activeTab === tab.id ? "primary" : "default"}
+                                className={`w-full flex items-center justify-start gap-1 px-2 py-1 rounded-full text-left text-sm font-medium transition-all duration-150 ${
                                     activeTab === tab.id
                                         ? 'bg-yellow-400 text-black shadow'
                                         : 'bg-gray-700 text-white hover:bg-yellow-500 hover:text-black'
                                 }`}
                                 style={{ minHeight: '28px' }}
-                            >
-                                <span className="text-base">{tab.icon}</span>
-                                <span style={{ fontSize: '0.95em' }}>{tab.label}</span>
-                            </button>
+                            />
                         ))}
                     </nav>
                 </aside>
