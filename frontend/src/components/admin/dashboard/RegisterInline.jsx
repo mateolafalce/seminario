@@ -5,18 +5,17 @@ import MessageAlert from "../../common/Alert/MessageAlert";
 
 const BACKEND_URL = `http://${window.location.hostname}:8000`;
 
-function RegisterInline() {
+function RegisterInline({ onUsuarioCreado }) {
   const [errores, setErrores] = useState({});
   const [cargando, setCargando] = useState(false);
   const [mensajeExito, setMensajeExito] = useState("");
 
   const campos = [
-    { nombre: "nombre", etiqueta: "Nombre", tipo: "text", placeholder: "Tu nombre" },
-    { nombre: "apellido", etiqueta: "Apellido", tipo: "text", placeholder: "Tu apellido" },
+    { nombre: "nombre", etiqueta: "Nombre", tipo: "text", placeholder: "Nombre completo" },
+    { nombre: "apellido", etiqueta: "Apellido", tipo: "text", placeholder: "Apellido" },
     { nombre: "email", etiqueta: "Email", tipo: "email", placeholder: "correo@ejemplo.com", autoComplete: "email" },
     { nombre: "username", etiqueta: "Nombre de usuario", tipo: "text", placeholder: "Nombre de usuario", autoComplete: "username" },
-    { nombre: "password", etiqueta: "Contraseña", tipo: "password", placeholder: "Contraseña", autoComplete: "new-password" },
-    { nombre: "repeatPassword", etiqueta: "Repetir Contraseña", tipo: "password", placeholder: "Repite tu contraseña", autoComplete: "new-password" },
+    { nombre: "password", etiqueta: "Contraseña", tipo: "password", placeholder: "Contraseña", autoComplete: "new-password" }
   ];
 
   const handleRegister = async (valores) => {
@@ -24,8 +23,9 @@ function RegisterInline() {
     setMensajeExito("");
     setCargando(true);
 
-    if (valores.password !== valores.repeatPassword) {
-      setErrores({ repeatPassword: "Las contraseñas no coinciden" });
+    // Validación básica de contraseña
+    if (valores.password.length < 6) {
+      setErrores({ password: "La contraseña debe tener al menos 6 caracteres" });
       setCargando(false);
       return;
     }
@@ -54,7 +54,11 @@ function RegisterInline() {
         // Limpiar formulario después de registro exitoso
         setTimeout(() => {
           setMensajeExito("");
-        }, 5000);
+          // Notificar al componente padre que se creó un usuario
+          if (onUsuarioCreado) {
+            onUsuarioCreado();
+          }
+        }, 1500);
       } else {
         const errorData = await response.json();
         setErrores({ general: errorData.detail || "Error al registrar usuario" });

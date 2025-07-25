@@ -31,7 +31,7 @@ function AppWithTimeout() {
   const navigate = useNavigate();
   const { logout, isAuthenticated } = useContext(AuthContext);
   const [lastActivity, setLastActivity] = useState(Date.now());
-  const inactivityTimeout = 5 * 60 * 1000;
+  const inactivityTimeout = 60 * 60 * 1000;
 
   const resetInactivityTimer = () => setLastActivity(Date.now());
 
