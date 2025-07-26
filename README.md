@@ -239,6 +239,11 @@ Una vez hecho esto, los cambios hechos se revertiran.
   * [ ] Mostrar trafico segmentado x hora (?)
 * DevOps - CI/CD
   * [x] Actualizar el repo cada 1 hora
+* Modulo de canchas (gestionado por el admin)
+  * [ ] Modelar la BD 
+  * [ ] Implemnetar el backend para el ABML
+  * [ ] Implemnetar el frontend
+  * [ ] Arreglar cualquier conflicto
 
 
 ## Diagrama de clases
