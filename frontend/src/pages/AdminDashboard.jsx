@@ -4,14 +4,18 @@ import { AuthContext } from '../context/AuthContext';
 import { motion } from 'framer-motion';
 import GestionUsuarios from '../components/admin/dashboard/VerUsuariosInline';
 import RegisterInline from '../components/admin/dashboard/RegisterInline';
+import ListarCanchas from '../components/admin/dashboard/VerCanchasInline';
+import CrearCanchaInline from '../components/admin/dashboard/CrearCanchaInline';
 import Modal from '../components/common/Modal/Modal';
 import Button from '../components/common/Button/Button';
 import { HiUsers } from "react-icons/hi";
 import { IoStatsChartSharp } from "react-icons/io5";
+import { PiCourtBasketballFill } from "react-icons/pi";
 
 function AdminDashboard() {
     const [activeTab, setActiveTab] = useState('usuarios');
     const [modalCrearAbierto, setModalCrearAbierto] = useState(false);
+    const [refreshCanchas, setRefreshCanchas] = useState(false); // NUEVO: para refrescar listado de canchas
     const { isAuthenticated, isAdmin, logout } = useContext(AuthContext);
     const navigate = useNavigate();
 
@@ -28,7 +32,8 @@ function AdminDashboard() {
 
     const tabs = [
         { id: 'usuarios', label: 'Gestión Usuarios', icon: <HiUsers />, shortLabel: 'Usuarios' },
-        { id: 'stats', label: 'Estadísticas', icon: <IoStatsChartSharp />, shortLabel: 'Stats' }
+        { id: 'stats', label: 'Estadísticas', icon: <IoStatsChartSharp />, shortLabel: 'Stats' },
+        { id: 'canchas', label: 'Gestion Canchas', icon: <PiCourtBasketballFill />, shortLabel: 'Canchas' },
     ];
 
     const handleUsuarioCreado = () => {
@@ -36,10 +41,19 @@ function AdminDashboard() {
         window.location.reload();
     };
 
+    // NUEVO: handler para cancha creada
+    const handleCanchaCreada = () => {
+        setModalCrearAbierto(false);
+        setRefreshCanchas(r => !r); // trigger refresh en AltaCancha
+    };
+
     const renderContent = () => {
         switch (activeTab) {
             case 'usuarios':
                 return <GestionUsuarios />;
+            case 'canchas':
+                // Pasar refreshCanchas como prop para que AltaCancha refresque el listado
+                return <ListarCanchas key={refreshCanchas} />;
             case 'stats':
                 return (
                     <div className="space-y-6">
@@ -115,6 +129,7 @@ function AdminDashboard() {
                                 </h2>
                                 <p className="text-gray-400 text-xs mt-1">
                                     {activeTab === 'usuarios' && 'Administra todos los usuarios del sistema'}
+                                    {activeTab === 'canchas' && 'Administra todas las canchas del sistema'}
                                     {activeTab === 'stats' && 'Visualiza estadísticas del sistema'}
                                 </p>
                             </div>
@@ -122,6 +137,16 @@ function AdminDashboard() {
                         {activeTab === 'usuarios' && (
                             <Button
                                 texto="Crear Usuario"
+                                onClick={() => setModalCrearAbierto(true)}
+                                variant="primary"
+                                size="md"
+                                className="rounded-lg font-semibold shadow w-full sm:w-auto"
+                                icon={<span className="text-base">+</span>}
+                            />
+                        )}
+                        {activeTab === 'canchas' && (
+                            <Button
+                                texto="Crear Cancha"
                                 onClick={() => setModalCrearAbierto(true)}
                                 variant="primary"
                                 size="md"
@@ -152,7 +177,9 @@ function AdminDashboard() {
             {/* Modal */}
             <Modal isOpen={modalCrearAbierto} onClose={() => setModalCrearAbierto(false)}>
                 <div className="flex items-center justify-between border-b border-gray-700 px-6 py-4">
-                    <h5 className="text-xl font-bold text-white">Crear Nuevo Usuario</h5>
+                    <h5 className="text-xl font-bold text-white">
+                        {activeTab === 'usuarios' ? 'Crear Nuevo Usuario' : 'Crear Nueva Cancha'}
+                    </h5>
                     <button
                         type="button"
                         className="text-gray-400 hover:text-gray-200 text-3xl font-bold"
@@ -162,7 +189,12 @@ function AdminDashboard() {
                     </button>
                 </div>
                 <div className="px-6 py-6">
-                    <RegisterInline onUsuarioCreado={handleUsuarioCreado} />
+                    {activeTab === 'usuarios' && (
+                        <RegisterInline onUsuarioCreado={handleUsuarioCreado} />
+                    )}
+                    {activeTab === 'canchas' && (
+                        <CrearCanchaInline onCanchaCreada={handleCanchaCreada} />
+                    )}
                 </div>
             </Modal>
         </div>

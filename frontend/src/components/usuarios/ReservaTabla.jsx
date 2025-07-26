@@ -1,16 +1,7 @@
 import { useState, useContext, useEffect } from 'react'
 import { AuthContext } from "../../context/AuthContext";
 
-// esta es una linea nueva que se uso para las ip y conectarse con el movil o cualquier dispositivo en la red
 const BACKEND_URL = `http://${window.location.hostname}:8000`;
-
-const canchas = [
-  'Blindex A',
-  'Blindex B',
-  'Blindex C',
-  'Cemento Techada',
-  'Cemento Sin Techar'
-]
 
 export const generarHorarios = () => {
   const horarios = []
@@ -71,14 +62,31 @@ function ReservaTabla() {
   const [selected, setSelected] = useState(null)
   const [cantidades, setCantidades] = useState({})
   const [selectedDate, setSelectedDate] = useState(fechasDisponibles[0].value);
-  const { isAuthenticated, apiFetch } = useContext(AuthContext); // Obtenemos apiFetch del contexto
+  const [canchas, setCanchas] = useState([]);
+  const { isAuthenticated, apiFetch } = useContext(AuthContext);
+
+  // Obtener canchas desde la API
+  useEffect(() => {
+    const fetchCanchas = async () => {
+      try {
+        const response = await apiFetch('/api/canchas/listar');
+        if (response.ok) {
+          const data = await response.json();
+          setCanchas(data.map(c => c.nombre));
+        } else {
+          setCanchas([]);
+        }
+      } catch (err) {
+        setCanchas([]);
+      }
+    };
+    fetchCanchas();
+  }, [apiFetch]);
 
   useEffect(() => {
     const fetchCantidades = async () => {
       try {
-        // Usamos apiFetch y le pasamos los parámetros de búsqueda
         const response = await apiFetch(`/api/reservas/cantidad?fecha=${selectedDate}`);
-        
         if (response.ok) {
           const data = await response.json();
           const mapa = {};
@@ -94,28 +102,26 @@ function ReservaTabla() {
         if (err.message !== 'Sesión expirada') {
           console.error('Error al traer las cantidades:', err);
         }
-        setCantidades({}); // Limpiar cantidades si hay error
+        setCantidades({});
       }
     }
 
     fetchCantidades();
-  }, [selectedDate, apiFetch]); // Añadimos apiFetch a las dependencias
+  }, [selectedDate, apiFetch]);
 
   const handleClick = async (cancha, hora) => {
-    // Preguntar al usuario si está seguro
     if (!window.confirm(`¿Estás seguro de que quieres reservar en la cancha "${cancha}" a las ${hora} para el día ${selectedDate}?`)) {
-      return; // Si el usuario cancela, no hacer nada
+      return;
     }
 
     setSelected({ cancha, hora });
     try {
-      // Usamos apiFetch para la petición POST
       const response = await apiFetch('/api/reservas/reservar', {
         method: 'POST',
         body: JSON.stringify({
           cancha,
           horario: hora,
-          fecha: selectedDate // Enviar la fecha seleccionada
+          fecha: selectedDate
         })
       });
 
@@ -137,7 +143,7 @@ function ReservaTabla() {
 
     } catch (err) {
       alert(`Error al reservar turno: ${err.message}`)
-      setSelected(null); // Limpiar la selección si hay un error
+      setSelected(null);
     }
   }
 
@@ -152,7 +158,7 @@ function ReservaTabla() {
           value={selectedDate}
           onChange={(e) => {
             setSelectedDate(e.target.value);
-            setSelected(null); // Limpiar selección al cambiar de día
+            setSelected(null);
           }}
           className="bg-gray-700 border border-gray-600 text-white text-sm rounded-lg focus:ring-[#eaff00] focus:border-[#eaff00] block w-full p-2.5"
         >

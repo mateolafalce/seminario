@@ -203,7 +203,7 @@ Una vez hecho esto, los cambios hechos se revertiran.
   * [x] Implementar la logica en el backend
   * [x] Implementar el frontend de la reserva
   * [x] Preguntar por confirmacion de cancha
-  * [x] Cancelar Reserva (Mis reservas)
+  * [ ] Cancelar Reserva (No se borran, cambian de estado)
   * [x] Implementar logica para poder reservar con un rango de 1 semana
   * [ ] Cachear el contenido de la peticion HTTP para no sobrecargar el servidor
 * ABML de Preferencias del usuario
@@ -220,10 +220,11 @@ Una vez hecho esto, los cambios hechos se revertiran.
 * Modulo del Admin (Mateo)
   * [x] Listar Usuarios (muestra de a 10)  y luego permitir modificarlo
   * [x] Buscar Usuario por nombre de usuario para gestionar usuario
-  * [ ] Buscar Usuario por dni para gestionar usuario
   * [x] Alta de un cliente
+  * [ ] Buscar Usuario por dni para gestionar usuario
+  * [ ] Validar que no pedimos toda la BD en las consultas de datos
 * Frontend General (Nico)
-  * [x] Hcaer el Navbar
+  * [x] Hacer el Navbar
   * [ ] Footer con links importantes
   * [ ] Cambiar los alert por toast
 * Notificaciones
@@ -231,8 +232,8 @@ Una vez hecho esto, los cambios hechos se revertiran.
   * [ ] Implemnetar estructura de la BD
   * [ ] Notificar posible matcheo
 * Home (javi)
-  * [ ] Fletar "¡Regístrate o inicia sesión para comenzar!" cuando estamos logueados
-  * [ ] Hacer que las imagenes vayan pasando solas cada x tiempo (mantener la posibilidad de pasarlas a mano)
+  * [x] Fletar "¡Regístrate o inicia sesión para comenzar!" cuando estamos logueados
+  * [x] Hacer que las imagenes vayan pasando solas cada x tiempo (mantener la posibilidad de pasarlas a mano)
   * [x] Solucionar Login y register duplicados, al momento de ingresar al home (no logueado)
 * Modulo de estadisticas (100% opcional)
   * [ ] Mostrar cuantas personas reservaron
@@ -240,11 +241,12 @@ Una vez hecho esto, los cambios hechos se revertiran.
 * DevOps - CI/CD
   * [x] Actualizar el repo cada 1 hora
 * Modulo de canchas (gestionado por el admin)
-  * [ ] Modelar la BD 
-  * [ ] Implemnetar el backend para el ABML
-  * [ ] Implemnetar el frontend
-  * [ ] Arreglar cualquier conflicto
-
+  * [x] Modelar la BD 
+  * [x] Implementar el backend para el ABML
+  * [x] Implemnetar el frontend
+  * [x] Arreglar cualquier conflicto
+* Seguridad
+  * [ ] Asegurarse de la autenticacion en cada endpoint
 
 ## Diagrama de clases
 

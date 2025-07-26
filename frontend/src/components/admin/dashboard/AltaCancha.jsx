@@ -1,0 +1,99 @@
+import React, { useState, useContext } from 'react'
+import { useNavigate } from 'react-router-dom'
+import { AuthContext } from '../../../context/AuthContext'
+import AuthForm from '../../common/AuthForm/AuthForm'
+import { createApi } from '../../../utils/api'
+import ListarCanchas from './ListarCanchas'
+
+function AltaCancha({ refresh }) {
+  const [errores, setErrores] = useState({})
+  const [loading, setLoading] = useState(false)
+  const [mensajeExito, setMensajeExito] = useState('')
+  const [refreshCanchas, setRefreshCanchas] = useState(false)
+  const { isAuthenticated, isAdmin, handleUnauthorized } = useContext(AuthContext)
+  const navigate = useNavigate()
+  const apiFetch = createApi(() => {
+    alert('Sesión expirada. Inicia sesión nuevamente.')
+    navigate('/login')
+  })
+
+  if (!isAuthenticated) {
+    return (
+      <div className="text-center mt-8">
+        <p className="text-red-600 text-lg">Necesitas iniciar sesión para ver esta página.</p>
+        <button 
+          onClick={() => navigate('/login')}
+          className="mt-4 bg-blue-600 hover:bg-blue-700 text-white font-medium py-2 px-4 rounded transition duration-200"
+        >
+          Ir al Login
+        </button>
+      </div>
+    )
+  }
+
+  if (!isAdmin) {
+    return (
+      <div className="text-center mt-8">
+        <p className="text-red-600 text-lg">No tienes permisos de administrador para ver esta página.</p>
+        <button 
+          onClick={() => navigate('/home')}
+          className="mt-4 bg-gray-600 hover:bg-gray-700 text-white font-medium py-2 px-4 rounded transition duration-200"
+        >
+          Volver al Home
+        </button>
+      </div>
+    )
+  }
+
+  const campos = [
+    { nombre: "nombre", etiqueta: "Nombre de la cancha", tipo: "text", placeholder: "Ej: Cancha 1" }
+  ]
+
+  const handleSubmit = async (valores) => {
+    setErrores({})
+    setMensajeExito('')
+    if (!valores.nombre || !valores.nombre.trim()) {
+      setErrores({ nombre: "El nombre es obligatorio" })
+      return
+    }
+    setLoading(true)
+    try {
+      const response = await apiFetch('/api/canchas/crear', {
+        method: 'POST',
+        body: JSON.stringify({ nombre: valores.nombre }),
+      })
+      if (response.ok) {
+        setMensajeExito('Cancha creada correctamente')
+        setRefreshCanchas(r => !r) // trigger refresh
+      } else {
+        const error = await response.json()
+        setErrores({ general: error.detail || 'Error al crear la cancha' })
+      }
+    } catch (err) {
+      setErrores({ general: err.message || 'Error de conexión con el servidor' })
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  return (
+    <div>
+      <div className="max-w-md mx-auto p-8 my-5">
+        <AuthForm
+          titulo="Crear Nueva Cancha"
+          campos={campos}
+          onSubmit={handleSubmit}
+          textoBoton="Crear Cancha"
+          cargando={loading}
+          errores={errores}
+        >
+          {mensajeExito && (
+            <p className="text-green-700 text-center mt-4">{mensajeExito}</p>
+          )}
+        </AuthForm>
+      </div>
+    </div>
+  )
+}
+
+export default AltaCancha
