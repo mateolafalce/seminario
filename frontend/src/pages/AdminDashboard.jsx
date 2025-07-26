@@ -94,7 +94,7 @@ function AdminDashboard() {
                 </aside>
 
                 {/* Main Content */}
-                <main className="flex flex-col flex-1 min-w-0">
+                <main>
                     <div className="bg-gray-800 border border-gray-700 rounded-2xl px-4 sm:px-6 py-4 mb-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 shadow-sm">
                         <div className="flex items-center gap-4 min-w-0">
                             <span className="text-3xl sm:text-5xl text-white">
@@ -123,8 +123,10 @@ function AdminDashboard() {
                     </div>
 
                     {/* Content Area */}
-                    <div className="overflow-y-auto overflow-x-hidden bg-gray-900 rounded-2xl border border-gray-700 w-full max-w-6xl mx-auto min-w-0"
-                        style={{ maxHeight: '70vh' }}>
+                    <div
+                        className="overflow-y-auto overflow-x-hidden bg-gray-900 rounded-2xl border border-gray-700 w-full max-w-6xl mx-auto min-w-0"
+                        style={{ maxHeight: '75vh' }}
+                    >
                         <motion.div
                             key={activeTab}
                             initial={{ opacity: 0, x: 20 }}
