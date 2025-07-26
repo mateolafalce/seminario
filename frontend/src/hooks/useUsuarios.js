@@ -1,11 +1,15 @@
 import { useState, useEffect, useContext } from "react";
 import { AuthContext } from "../context/AuthContext";
+
+// Hook personalizado para gestionar usuarios desde el backend.
+// Incluye carga, paginación, edición y eliminación de usuarios.
 const BACKEND_URL =
   window.location.hostname === "localhost"
     ? `http://${window.location.hostname}:8000`
-    : ""; // vacío para producción, usará rutas relativas
+    : ""; // En producción se usan rutas relativas
 
 export function useUsuarios() {
+  // Estados principales para la gestión de usuarios
   const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
@@ -13,11 +17,12 @@ export function useUsuarios() {
   const [totalPages, setTotalPages] = useState(1);
   const { logout } = useContext(AuthContext);
 
+  // Obtiene la lista de usuarios desde el backend, con paginación
   const fetchUsers = async (page = 1) => {
     setLoading(true);
     setError(null);
     try {
-      const limit = 10;
+      const limit = 10; // testesar despues tema disenio
       const url = window.location.hostname === "localhost"
         ? `${BACKEND_URL}/api/users_b/admin/users?page=${page}&limit=${limit}`
         : `/api/users_b/admin/users?page=${page}&limit=${limit}`;
@@ -40,10 +45,12 @@ export function useUsuarios() {
     }
   };
 
+  // Carga inicial de usuarios al montar el hook
   useEffect(() => {
     fetchUsers();
   }, []);
 
+  // Cambia de página en la paginación
   const handlePageChange = (newPage) => {
     if (newPage > 0 && newPage <= totalPages) {
       setCurrentPage(newPage);
@@ -51,6 +58,7 @@ export function useUsuarios() {
     }
   };
 
+  // Edita un usuario en el backend
   const editarUsuario = async (usuarioData) => {
     try {
       const url = window.location.hostname === "localhost"
@@ -79,6 +87,7 @@ export function useUsuarios() {
     }
   };
 
+  // Elimina un usuario en el backend
   const eliminarUsuario = async (usuarioId) => {
     try {
       const url = window.location.hostname === "localhost"
@@ -105,6 +114,7 @@ export function useUsuarios() {
     }
   };
 
+  // Devuelve los estados y funciones principales del hook
   return {
     users, loading, error, currentPage, totalPages,
     fetchUsers, handlePageChange, editarUsuario, eliminarUsuario

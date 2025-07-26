@@ -16,7 +16,7 @@ const BarraBusqueda = ({ onBuscar, onLimpiar, modoBusqueda, resultados, loading 
 
   return (
     <div className="space-y-6 mb-4">
-      {/* Formulario de búsqueda con el mismo estilo que BuscarCliente */}
+   
       <form onSubmit={handleSubmit} className="flex flex-col sm:flex-row gap-2 sm:gap-4 w-full items-stretch sm:items-center">
         <input
           type="text"

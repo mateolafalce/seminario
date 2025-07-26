@@ -43,7 +43,7 @@ function AdminDashboard() {
             case 'stats':
                 return (
                     <div className="space-y-6">
-                        <h1 className="text-xl font-bold text-white">En progreso... 🤠</h1>
+                        <h1 className="text-xl font-bold text-white">En progreso?? ... 🤠</h1>
                     </div>
                 );
             default:
@@ -56,12 +56,20 @@ function AdminDashboard() {
             <div className="grid grid-cols-1 lg:grid-cols-[220px_1fr] gap-4 sm:gap-6 lg:gap-8 max-w-7xl mx-auto">
                 {/* Sidebar */}
                 <aside className="bg-gray-800 border border-gray-700 rounded-2xl p-4 h-fit flex flex-col gap-4 shadow-md sm:sticky top-4 z-10">
-                    <div className="block sm:hidden">
+                    {/* Select mobile/tablet */}
+                    <div className="block lg:hidden">
                         <label className="text-white text-sm font-medium mb-2">Secciones</label>
                         <select
                             value={activeTab}
                             onChange={(e) => setActiveTab(e.target.value)}
-                            className="w-full bg-gray-700 text-white text-sm p-2 rounded-md"
+                            className="w-full bg-gray-700 text-white text-base p-3 rounded-lg border border-gray-600 focus:outline-none focus:ring-2 focus:ring-yellow-400 transition-all appearance-none"
+                            style={{
+                                minHeight: '48px',
+                                fontSize: '1rem',
+                                WebkitAppearance: 'none',
+                                MozAppearance: 'none',
+                                appearance: 'none'
+                            }}
                         >
                             {tabs.map(tab => (
                                 <option key={tab.id} value={tab.id}>
@@ -70,7 +78,8 @@ function AdminDashboard() {
                             ))}
                         </select>
                     </div>
-                    <div className="hidden sm:block">
+                    {/* Sidebar en desktop */}
+                    <div className="hidden lg:block">
                         <h1 className="text-lg font-bold text-white mb-1">Panel Admin</h1>
                         <p className="text-gray-400 text-xs mb-4">Gestión del sistema</p>
                         <nav className="flex flex-col gap-2">

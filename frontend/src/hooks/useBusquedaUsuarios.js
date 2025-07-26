@@ -4,16 +4,18 @@ import { AuthContext } from '../context/AuthContext';
 const BACKEND_URL =
   window.location.hostname === "localhost"
     ? `http://${window.location.hostname}:8000`
-    : ""; // vacío para producción
+    : ""; 
 
+// Hook para buscar usuarios por nombre o username luego dni??
 export const useBusquedaUsuarios = () => {
-  const [resultados, setResultados] = useState([]);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState(null);
-  const [modoBusqueda, setModoBusqueda] = useState(false);
-  const [terminoBusqueda, setTerminoBusqueda] = useState('');
+  const [resultados, setResultados] = useState([]); // Resultados de la búsqueda
+  const [loading, setLoading] = useState(false); // Estado de carga
+  const [error, setError] = useState(null); // Error de búsqueda
+  const [modoBusqueda, setModoBusqueda] = useState(false); // Si está en modo búsqueda
+  const [terminoBusqueda, setTerminoBusqueda] = useState(''); // Término actual
   const { logout } = useContext(AuthContext);
 
+  // Realiza la búsqueda de usuarios
   const buscar = async (termino) => {
     if (!termino.trim()) {
       limpiar();
@@ -46,6 +48,7 @@ export const useBusquedaUsuarios = () => {
 
       if (response.ok) {
         const data = await response.json();
+        // Adapta los datos recibidos al formato esperado
         const usuariosAdaptados = (data.clientes || data || []).map(cliente => ({
           id: cliente._id || cliente.id,
           nombre: cliente.nombre,
@@ -70,6 +73,7 @@ export const useBusquedaUsuarios = () => {
     }
   };
 
+  // Limpia los resultados y el estado de búsqueda
   const limpiar = () => {
     setResultados([]);
     setModoBusqueda(false);
@@ -77,10 +81,12 @@ export const useBusquedaUsuarios = () => {
     setTerminoBusqueda('');
   };
 
+  // Elimina un usuario de los resultados de búsqueda
   const eliminarDeResultados = (usuarioId) => {
     setResultados(prev => prev.filter(u => u.id !== usuarioId));
   };
 
+  // Exporta estados y funciones principales
   return {
     resultados,
     loading,

@@ -12,12 +12,13 @@ from bson import ObjectId
 import asyncio
 from datetime import datetime
 import pytz
+from fastapi import Body
 
 router = APIRouter(prefix="/users_b",
                     tags=["usuarios_b"],
                     responses={status.HTTP_400_BAD_REQUEST:{"message":"No encontrado"}})
 ALGORITHM = "HS256"
-ACCESS_TOKEN_DURATION = 5
+ACCESS_TOKEN_DURATION = 50
 SECRET = "201d573bd7d1344d3a3bfce1550b69102fd11be3db6d379508b6cccc58ea230b"
 crypt = CryptContext(schemes=["bcrypt"])
 
@@ -342,7 +343,7 @@ async def eliminar_usuario(data: EliminarUsuarioRequest, user: dict = Depends(cu
             detail=f"Error al eliminar usuario: {str(e)}"
         )
 
-from fastapi import Body
+#parte nueva
 
 @router.put("/{user_id}")
 async def editar_usuario(

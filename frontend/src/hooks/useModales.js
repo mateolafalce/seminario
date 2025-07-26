@@ -1,14 +1,17 @@
 import { useState } from 'react';
 
+// Hook para controlar el estado de los modales de usuario (crear, editar, eliminar)
 export const useModales = () => {
-  const [modalCrear, setModalCrear] = useState(false);
-  const [modalEditar, setModalEditar] = useState(false);
-  const [modalEliminar, setModalEliminar] = useState(false);
-  const [usuarioSeleccionado, setUsuarioSeleccionado] = useState(null);
+  const [modalCrear, setModalCrear] = useState(false); // Modal para crear usuario
+  const [modalEditar, setModalEditar] = useState(false); // Modal para editar usuario
+  const [modalEliminar, setModalEliminar] = useState(false); // Modal para eliminar usuario
+  const [usuarioSeleccionado, setUsuarioSeleccionado] = useState(null); // Usuario actual para editar/eliminar
 
+  // Abrir/cerrar modal de crear
   const abrirCrear = () => setModalCrear(true);
   const cerrarCrear = () => setModalCrear(false);
 
+  // Abrir/cerrar modal de editar
   const abrirEditar = (usuario) => {
     setUsuarioSeleccionado(usuario);
     setModalEditar(true);
@@ -18,6 +21,7 @@ export const useModales = () => {
     setUsuarioSeleccionado(null);
   };
 
+  // Abrir/cerrar modal de eliminar
   const abrirEliminar = (usuario) => {
     setUsuarioSeleccionado(usuario);
     setModalEliminar(true);
@@ -27,6 +31,7 @@ export const useModales = () => {
     setUsuarioSeleccionado(null);
   };
 
+  // Exporta estados y funciones de control
   return {
     modalCrear,
     modalEditar,
