@@ -15,7 +15,6 @@ import Unauthorized from './pages/Unauthorized';
 import Preferencias from './pages/Preferencia';
 import MisReservas from './pages/MisReservas';
 import AdminRoute from './components/admin/AdminRoute';
-import React from 'react';
 
 function App() {
   return (
