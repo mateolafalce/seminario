@@ -6,17 +6,18 @@ import GestionUsuarios from '../components/admin/dashboard/VerUsuariosInline';
 import RegisterInline from '../components/admin/dashboard/RegisterInline';
 import Modal from '../components/common/Modal/Modal';
 import Button from '../components/common/Button/Button';
+import { HiUsers } from "react-icons/hi";
+import { IoStatsChartSharp } from "react-icons/io5";
 
 function AdminDashboard() {
     const [activeTab, setActiveTab] = useState('usuarios');
-    const [sidebarOpen, setSidebarOpen] = useState(false);
     const [modalCrearAbierto, setModalCrearAbierto] = useState(false);
     const { isAuthenticated, isAdmin, logout } = useContext(AuthContext);
     const navigate = useNavigate();
 
     if (!isAuthenticated || !isAdmin) {
         return (
-            <div className="flex items-center justify-center">
+            <div className="flex items-center justify-center min-h-screen">
                 <div className="text-center">
                     <h2 className="text-2xl font-bold text-white mb-2">Acceso Denegado</h2>
                     <p className="text-red-400">No tienes permisos para ver esta página.</p>
@@ -26,8 +27,8 @@ function AdminDashboard() {
     }
 
     const tabs = [
-        { id: 'usuarios', label: 'Gestión de Usuarios', icon: '👥', shortLabel: 'Usuarios' },
-        { id: 'stats', label: 'Estadísticas', icon: '📊', shortLabel: 'Stats' }
+        { id: 'usuarios', label: 'Gestión Usuarios', icon: <HiUsers />, shortLabel: 'Usuarios' },
+        { id: 'stats', label: 'Estadísticas', icon: <IoStatsChartSharp />, shortLabel: 'Stats' }
     ];
 
     const handleUsuarioCreado = () => {
@@ -42,7 +43,7 @@ function AdminDashboard() {
             case 'stats':
                 return (
                     <div className="space-y-6">
-                        <h1 className="text-xl font-bold text-white">En progreso? 🤠</h1>
+                        <h1 className="text-xl font-bold text-white">En progreso... 🤠</h1>
                     </div>
                 );
             default:
@@ -51,62 +52,64 @@ function AdminDashboard() {
     };
 
     return (
-        <div className="bg-gray-900 px-2 sm:px-4 lg:px-6 py-8">
-            <div className="grid grid-cols-1 lg:grid-cols-[220px_1fr] gap-6 max-w-7xl mx-auto">
+        <div className="bg-gray-900 px-2 sm:px-4 lg:px-6 py-8 min-h-screen overflow-x-hidden">
+            <div className="grid grid-cols-1 lg:grid-cols-[220px_1fr] gap-8 max-w-7xl mx-auto min-w-0">
                 {/* Sidebar alineado a la izquierda */}
-                <aside className="bg-gray-800 border border-gray-700 rounded-xl p-6 h-fit">
-                    <h1 className="text-lg font-bold text-white mb-2">Panel Admin</h1>
-                    <p className="text-gray-400 text-sm mb-6">Gestión del sistema</p>
-                    <nav className="space-y-1">
+                <aside className="bg-gray-800 border border-gray-700 rounded-2xl p-4 h-fit flex flex-col gap-4 shadow-md">
+                    <div>
+                        <h1 className="text-lg font-bold text-white mb-1">Panel Admin</h1>
+                        <p className="text-gray-400 text-xs mb-4">Gestión del sistema</p>
+                    </div>
+                    <nav className="flex flex-col gap-2">
                         {tabs.map((tab) => (
                             <Button
                                 key={tab.id}
                                 onClick={() => setActiveTab(tab.id)}
-                                texto={tab.label}
-                                icon={<span className="text-base">{tab.icon}</span>}
+                                texto={
+                                    <span className="flex items-center gap-3">
+                                        <span className="flex items-center justify-center w-7 h-7">{tab.icon}</span>
+                                        <span className="truncate">{tab.label}</span>
+                                    </span>
+                                }
                                 variant={activeTab === tab.id ? "primary" : "default"}
-                                className={`w-full flex items-center justify-start gap-1 px-2 py-1 rounded-full text-left text-sm font-medium transition-all duration-150 ${
-                                    activeTab === tab.id
-                                        ? 'bg-yellow-400 text-black shadow'
-                                        : 'bg-gray-700 text-white hover:bg-yellow-500 hover:text-black'
-                                }`}
-                                style={{ minHeight: '28px' }}
+                                size="sm"
+                                className="w-full flex items-center justify-start rounded-lg text-left font-medium transition-all duration-150"
+                                style={{ minHeight: '36px' }}
                             />
                         ))}
                     </nav>
                 </aside>
 
                 {/* Contenido principal */}
-                <main className="flex flex-col min-w-0">
-                    {/* Header del contenido */}
-                    <div className="bg-gradient-to-r from-gray-800 to-gray-700 border border-gray-600 rounded-xl px-6 py-2 mb-2 flex items-center justify-between">
-                        <div className="flex items-center gap-3 min-w-0">
-                            <span className="text-2xl">{tabs.find(t => t.id === activeTab)?.icon}</span>
+                <main className="flex flex-col min-w-0 flex-1">
+                    <div className="bg-gray-800 border border-gray-700 rounded-2xl px-6 py-4 mb-4 flex items-center justify-between shadow-sm">
+                        <div className="flex items-center gap-4 min-w-0">
+                            <span className="text-5xl text-white">{tabs.find(t => t.id === activeTab)?.icon}</span>
                             <div>
-                                <h2 className="text-xl font-bold text-white truncate">
+                                <h2 className="text-xl font-semibold text-white truncate">
                                     {tabs.find(t => t.id === activeTab)?.label}
                                 </h2>
-                                <p className="text-gray-400 text-sm mt-0">
+                                <p className="text-gray-400 text-xs mt-1">
                                     {activeTab === 'usuarios' && 'Administra todos los usuarios del sistema'}
                                     {activeTab === 'stats' && 'Visualiza estadísticas del sistema'}
                                 </p>
                             </div>
                         </div>
-                        {/* Botón Crear Usuario usando tu componente Button */}
                         {activeTab === 'usuarios' && (
                             <Button
                                 texto="Crear Usuario"
                                 onClick={() => setModalCrearAbierto(true)}
-                                variant="default"
-                                className="bg-yellow-400 hover:bg-yellow-500 text-black font-bold px-6 py-2 rounded-full shadow-md transition-all duration-150"
+                                variant="primary"
+                                size="md"
+                                className="rounded-lg font-semibold shadow"
                                 icon={<span className="text-base">+</span>}
                             />
                         )}
                     </div>
 
-                    {/* Área de contenido - AJUSTADO */}
+                    {/* Área de contenido */}
                     <div
-                        className="overflow-y-auto bg-gray-900 mt-2 rounded-xl border border-gray-700 w-full max-w-6xl mx-auto"
+                        className="overflow-y-auto overflow-x-hidden bg-gray-900 rounded-2xl border border-gray-700 w-full max-w-6xl mx-auto min-w-0"
                         style={{ maxHeight: '70vh' }}
                     >
                         <motion.div
@@ -114,7 +117,7 @@ function AdminDashboard() {
                             initial={{ opacity: 0, x: 20 }}
                             animate={{ opacity: 1, x: 0 }}
                             transition={{ duration: 0.3 }}
-                            className="p-4"
+                            className="p-4 min-w-0"
                         >
                             {renderContent()}
                         </motion.div>
