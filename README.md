@@ -246,7 +246,6 @@ Una vez hecho esto, los cambios hechos se revertiran.
   * [ ] Arreglar cualquier conflicto
 
 
-
 ## Diagrama de clases
 
 <div align="center">

@@ -8,7 +8,7 @@ import asyncio
 
 ALGORITHM = "HS256"
 SECRET = "201d573bd7d1344d3a3bfce1550b69102fd11be3db6d379508b6cccc58ea230b"
-oauth2 = OAuth2PasswordBearer(tokenUrl = "/login")
+oauth2 = OAuth2PasswordBearer(tokenUrl="/api/users_b/login")
 
 async def current_user(token: str = Depends(oauth2)):
     credentials_exception = HTTPException(
