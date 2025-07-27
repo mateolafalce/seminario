@@ -16,8 +16,8 @@ const ModalesUsuario = ({ modales, onEditar, onEliminar }) => {
   // Actualiza el usuario a editar cuando cambia el modal
   useEffect(() => {
     if (modales.usuarioSeleccionado && modales.modalEditar) {
-      const { id, nombre, apellido, email, categoria, habilitado } = modales.usuarioSeleccionado;
-      setUsuarioEditar({ id, nombre, apellido, email, categoria: categoria || "", habilitado });
+      const { id, nombre, apellido, telefono, categoria, habilitado } = modales.usuarioSeleccionado;
+      setUsuarioEditar({ id, nombre, apellido, telefono: telefono || "", categoria: categoria || "", habilitado });
     }
   }, [modales.usuarioSeleccionado, modales.modalEditar]);
 
@@ -53,7 +53,6 @@ const ModalesUsuario = ({ modales, onEditar, onEliminar }) => {
 
   return (
     <>
-
       {/* Modal de edición */}
       <Modal isOpen={modales.modalEditar} onClose={modales.cerrarEditar}>
         <div className="flex items-center justify-between border-b border-gray-700 px-6 py-4">
@@ -63,10 +62,10 @@ const ModalesUsuario = ({ modales, onEditar, onEliminar }) => {
         <div className="px-6 py-6">
           <form onSubmit={handleEditar} className="space-y-4">
             <div className="grid grid-cols-1 gap-4">
-              {['nombre', 'apellido', 'email'].map((field, i) => (
+              {['nombre', 'apellido'].map((field, i) => (
                 <input
                   key={field}
-                  type={field === 'email' ? 'email' : 'text'}
+                  type="text"
                   value={usuarioEditar?.[field] || ''}
                   onChange={e => setUsuarioEditar({ ...usuarioEditar, [field]: e.target.value })}
                   className="w-full px-4 py-3 rounded-lg border border-gray-600 bg-gray-900 text-white focus:outline-none focus:ring-2 focus:ring-[#E5FF00]"
@@ -74,6 +73,14 @@ const ModalesUsuario = ({ modales, onEditar, onEliminar }) => {
                   required
                 />
               ))}
+              <input
+                type="text"
+                value={usuarioEditar?.telefono || ''}
+                onChange={e => setUsuarioEditar({ ...usuarioEditar, telefono: e.target.value })}
+                className="w-full px-4 py-3 rounded-lg border border-gray-600 bg-gray-900 text-white focus:outline-none focus:ring-2 focus:ring-[#E5FF00]"
+                placeholder="Teléfono"
+                required
+              />
               <select
                 value={usuarioEditar?.categoria || ''}
                 onChange={e => setUsuarioEditar({ ...usuarioEditar, categoria: e.target.value })}

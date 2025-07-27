@@ -398,7 +398,9 @@ async def editar_usuario(
         # Buscar categoría por nombre si existe
         categoria_nombre = body.get("categoria")
         categoria_obj = None
-        if categoria_nombre:
+        
+        # Si se proporciona un nombre de categoría y no es "Sin categoría" o vacío, búscalo.
+        if categoria_nombre and categoria_nombre not in ["Sin categoría", ""]:
             categoria_obj = db_client.categorias.find_one(
                 {"nombre": categoria_nombre})
             if not categoria_obj:
@@ -408,12 +410,13 @@ async def editar_usuario(
         update_data = {
             "nombre": body.get("nombre"),
             "apellido": body.get("apellido"),
-            "email": body.get("email"),
+            "telefono": body.get("telefono"),
             "habilitado": body.get("habilitado"),
         }
         if categoria_obj:
             update_data["categoria"] = categoria_obj["_id"]
         else:
+            # Si no hay categoría, se establece a None (null en la DB)
             update_data["categoria"] = None
 
         result = db_client.users.update_one(

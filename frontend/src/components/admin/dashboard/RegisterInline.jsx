@@ -16,7 +16,7 @@ function RegisterInline({ onUsuarioCreado }) {
   const campos = [
     { nombre: "nombre", etiqueta: "Nombre", tipo: "text", placeholder: "Nombre completo" },
     { nombre: "apellido", etiqueta: "Apellido", tipo: "text", placeholder: "Apellido" },
-    { nombre: "email", etiqueta: "Email", tipo: "email", placeholder: "correo@ejemplo.com", autoComplete: "email" },
+    { nombre: "telefono", etiqueta: "Teléfono", tipo: "text", placeholder: "Ej: 1122334455" },
     { nombre: "username", etiqueta: "Nombre de usuario", tipo: "text", placeholder: "Nombre de usuario", autoComplete: "username" },
     { nombre: "password", etiqueta: "Contraseña", tipo: "password", placeholder: "Contraseña", autoComplete: "new-password" }
   ];
@@ -25,13 +25,6 @@ function RegisterInline({ onUsuarioCreado }) {
     setErrores({});
     setMensajeExito("");
     setCargando(true);
-
-    // Validación básica de contraseña
-    if (valores.password.length < 6) {
-      setErrores({ password: "La contraseña debe tener al menos 6 caracteres" });
-      setCargando(false);
-      return;
-    }
 
     try {
       const url = window.location.hostname === "localhost"
@@ -46,7 +39,7 @@ function RegisterInline({ onUsuarioCreado }) {
         body: JSON.stringify({
           nombre: valores.nombre,
           apellido: valores.apellido,
-          email: valores.email,
+          telefono: valores.telefono,
           password: valores.password,
           username: valores.username,
         }),

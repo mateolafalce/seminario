@@ -70,7 +70,13 @@ export function useUsuarios() {
           "Content-Type": "application/json",
           "Authorization": `Bearer ${localStorage.getItem("accessToken")}`
         },
-        body: JSON.stringify(usuarioData)
+        body: JSON.stringify({
+          nombre: usuarioData.nombre,
+          apellido: usuarioData.apellido,
+          telefono: usuarioData.telefono,
+          habilitado: usuarioData.habilitado,
+          categoria: usuarioData.categoria,
+        }),
       });
       if (response.status === 401) {
         logout();

@@ -4,7 +4,6 @@ import { useNavigate, useLocation } from 'react-router-dom';
 import AuthForm from '../components/common/AuthForm/AuthForm';
 import MessageAlert from '../components/common/Alert/MessageAlert';
 
-// esta es una linea nueva que se uso para las ip y conectarse con el movil o cualquier dispositivo en la red
 const BACKEND_URL = `http://${window.location.hostname}:8000`;
 
 function Register() {
@@ -20,7 +19,7 @@ function Register() {
   const campos = [
     { nombre: "nombre", etiqueta: "Nombre", tipo: "text", placeholder: "Tu nombre" },
     { nombre: "apellido", etiqueta: "Apellido", tipo: "text", placeholder: "Tu apellido" },
-    { nombre: "email", etiqueta: "Email", tipo: "email", placeholder: "correo@ejemplo.com", autoComplete: "email" },
+    { nombre: "telefono", etiqueta: "Teléfono", tipo: "text", placeholder: "Ej: 1122334455" }, // Cambiado
     { nombre: "username", etiqueta: "Nombre de usuario", tipo: "text", placeholder: "Nombre de usuario", autoComplete: "username" },
     { nombre: "password", etiqueta: "Contraseña", tipo: "password", placeholder: "Contraseña", autoComplete: "new-password" },
     { nombre: "repeatPassword", etiqueta: "Repetir Contraseña", tipo: "password", placeholder: "Repite tu contraseña", autoComplete: "new-password" },
@@ -38,10 +37,6 @@ function Register() {
     }
 
     try {
-      // antes iba: const response = await fetch('http://127.0.0.1:8000/users_b/register', {
-      // antes: const response = await fetch(`${BACKEND_URL}/users_b/register`, {
-      // ahora con /api:
-      // En producción (nginx), usar ruta relativa para que funcione con HTTPS y proxy_pass
       const url = window.location.hostname === "localhost"
         ? `${BACKEND_URL}/api/users_b/register`
         : "/api/users_b/register";
@@ -51,7 +46,7 @@ function Register() {
         body: JSON.stringify({
           nombre: valores.nombre,
           apellido: valores.apellido,
-          email: valores.email,
+          telefono: valores.telefono, 
           password: valores.password,
           username: valores.username,
         }),
