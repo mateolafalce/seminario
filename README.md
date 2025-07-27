@@ -198,6 +198,7 @@ Una vez hecho esto, los cambios hechos se revertiran.
    * [x] Register
    * [x] Gestionar Usuarios
    * [x] Que me autocomplete la contraseña cuando selecciono el nombre de usuario
+   * [ ] Una vez que el token expira y nos volvemos a conectar, desloguarnos automaticamente
 * Reserva de canchas
   * [x] Crear la entidad Reserva
   * [x] Implementar la logica en el backend
