@@ -4,7 +4,7 @@ from jose import jwt, JWTError
 from passlib.context import CryptContext
 from datetime import datetime, timedelta
 from routers.defs import *
-from db.models.user import User,UserDB
+from db.models.user import User, UserDB
 from db.client import db_client
 from routers.Security.auth import current_user
 from pydantic import BaseModel
@@ -14,9 +14,12 @@ from datetime import datetime
 import pytz
 from fastapi import Body
 
-router = APIRouter(prefix="/users_b",
-                    tags=["usuarios_b"],
-                    responses={status.HTTP_400_BAD_REQUEST:{"message":"No encontrado"}})
+router = APIRouter(
+    prefix="/users_b",
+    tags=["usuarios_b"],
+    responses={
+        status.HTTP_400_BAD_REQUEST: {
+            "message": "No encontrado"}})
 ALGORITHM = "HS256"
 ACCESS_TOKEN_DURATION = 50
 SECRET = "201d573bd7d1344d3a3bfce1550b69102fd11be3db6d379508b6cccc58ea230b"
@@ -24,12 +27,13 @@ crypt = CryptContext(schemes=["bcrypt"])
 
 # TODO: validar que un admin no pueda borrarse a si mismo xd
 
+
 @router.post("/register", status_code=status.HTTP_201_CREATED)
 async def register(user: UserDB):
     existing_user = search_user_db("username", user.username)
     if existing_user:
         raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST, 
+            status_code=status.HTTP_400_BAD_REQUEST,
             detail="El nombre de usuario ya existe"
         )
 
@@ -61,6 +65,7 @@ async def register(user: UserDB):
         "token_type": "bearer"
     }
 
+
 def check_admin(user_id: str):
     try:
         admin = db_client.admins.find_one({"user": ObjectId(user_id)})
@@ -68,6 +73,7 @@ def check_admin(user_id: str):
     except Exception as e:
         print(f"Error al verificar el administrador: {e}")
         return False
+
 
 @router.post("/login")
 async def login(form: OAuth2PasswordRequestForm = Depends()):
@@ -80,14 +86,14 @@ async def login(form: OAuth2PasswordRequestForm = Depends()):
 
     if user_db_data is None:
         raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST, 
+            status_code=status.HTTP_400_BAD_REQUEST,
             detail="Usuario o contraseña incorrectos"
         )
-    
+
     # Verificar contraseña
     if not crypt.verify(form.password, user_db_data["password"]):
         raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST, 
+            status_code=status.HTTP_400_BAD_REQUEST,
             detail="Usuario o contraseña incorrectos"
         )
 
@@ -98,13 +104,13 @@ async def login(form: OAuth2PasswordRequestForm = Depends()):
             {"$set": {"ultima_conexion": fecha_argentina}}
         )
     )
-    
+
     # Generar token JWT
     access_token_expires = timedelta(minutes=ACCESS_TOKEN_DURATION)
     access_token = jwt.encode(
         {
-            "sub": user_db_data["username"], 
-            "id": str(user_db_data["_id"]),  
+            "sub": user_db_data["username"],
+            "id": str(user_db_data["_id"]),
             "exp": datetime.utcnow() + access_token_expires
         },
         SECRET,
@@ -124,12 +130,17 @@ async def login(form: OAuth2PasswordRequestForm = Depends()):
         "habilitado": user_db_data["habilitado"]
     }
 
+
 @router.get("/me")
 async def me(user: User = Depends(current_user)):
     return user
 
+
 @router.get("/admin/users")
-async def get_all_users(user: dict = Depends(current_user), page: int = 1, limit: int = 10):
+async def get_all_users(
+        user: dict = Depends(current_user),
+        page: int = 1,
+        limit: int = 10):
     # Verificar si el usuario es admin
     is_admin = await asyncio.to_thread(
         lambda: db_client.admins.find_one({"user": ObjectId(user['id'])})
@@ -142,27 +153,29 @@ async def get_all_users(user: dict = Depends(current_user), page: int = 1, limit
 
     # Lógica de paginación
     skip = (page - 1) * limit
-    
+
     # Obtener el total de usuarios y los usuarios de la página actual
     total_users = await asyncio.to_thread(lambda: db_client.users.count_documents({}))
     users_cursor = await asyncio.to_thread(
         lambda: db_client.users.find({}, {"password": 0}).skip(skip).limit(limit)
     )
-    
+
     users_list = []
     for u in users_cursor:
         u["id"] = str(u["_id"])
         del u["_id"]
-        
+
         # Manejar el campo 'categoria' para que sea serializable
-        if "categoria" in u and u["categoria"] is not None and isinstance(u["categoria"], ObjectId):
+        if "categoria" in u and u["categoria"] is not None and isinstance(
+                u["categoria"], ObjectId):
             # Buscar el nombre de la categoría correspondiente al ObjectId
-            categoria_obj = db_client.categorias.find_one({"_id": u["categoria"]})
+            categoria_obj = db_client.categorias.find_one(
+                {"_id": u["categoria"]})
             u["categoria"] = categoria_obj["nombre"] if categoria_obj else "Sin categoría"
         else:
             # Asignar un valor por defecto si no tiene categoría
             u["categoria"] = "Sin categoría"
-            
+
         users_list.append(u)
 
     return {
@@ -177,30 +190,35 @@ class BuscarClienteRequest(BaseModel):
     nombre: str
 
 # Lo busca por username
+
+
 @router.post("/buscar")
-async def buscar_clientes(request: BuscarClienteRequest, user: dict = Depends(current_user)):
+async def buscar_clientes(
+        request: BuscarClienteRequest,
+        user: dict = Depends(current_user)):
     # Obtener el ID del usuario correctamente (tanto si es dict como User)
     user_id = user.get("id") if isinstance(user, dict) else user.id
-    
+
     # Verificar si el usuario es admin (operaciones síncronas en hilo separado)
     user_db_data = await asyncio.to_thread(
         lambda: db_client.users.find_one({"_id": ObjectId(user_id)})
     )
     if not user_db_data:
         raise HTTPException(status_code=404, detail="Usuario no encontrado")
-    
+
     admin_data = await asyncio.to_thread(
         lambda: db_client.admins.find_one({"user": user_db_data["_id"]})
     )
     if not admin_data:
-        raise HTTPException(status_code=403, detail="Solo los admin pueden buscar clientes")
+        raise HTTPException(status_code=403,
+                            detail="Solo los admin pueden buscar clientes")
 
     try:
         # Buscar clientes (en hilo separado)
         clientes = await asyncio.to_thread(
             lambda: list(db_client.users.find({"username": {"$regex": f"^{request.nombre}", "$options": "i"}}))
         )
-        
+
         # Procesar resultados
         clientes_procesados = []
         for cliente in clientes:
@@ -208,7 +226,8 @@ async def buscar_clientes(request: BuscarClienteRequest, user: dict = Depends(cu
 
             # Si tiene categoría, buscamos su nombre
             if cliente.get("categoria"):
-                categoria_obj = db_client.categorias.find_one({"_id": cliente["categoria"]})
+                categoria_obj = db_client.categorias.find_one(
+                    {"_id": cliente["categoria"]})
                 if categoria_obj:
                     categoria_nombre = categoria_obj.get("nombre")
 
@@ -224,12 +243,13 @@ async def buscar_clientes(request: BuscarClienteRequest, user: dict = Depends(cu
                 "categoria": categoria_nombre if categoria_nombre else None,
             })
 
-
         return {"clientes": clientes_procesados}
 
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Error al buscar clientes: {str(e)}")
-        
+        raise HTTPException(status_code=500,
+                            detail=f"Error al buscar clientes: {str(e)}")
+
+
 class ModificarUsuarioRequest(BaseModel):
     identificador: str
     nombre: str
@@ -238,8 +258,11 @@ class ModificarUsuarioRequest(BaseModel):
     habilitado: bool
     categoria: str
 
+
 @router.post("/modificar")
-async def modificar_usuario(data: ModificarUsuarioRequest, user: dict = Depends(current_user)):
+async def modificar_usuario(
+        data: ModificarUsuarioRequest,
+        user: dict = Depends(current_user)):
     try:
         # Convertir el ID del usuario a modificar
         user_id = ObjectId(data.identificador)
@@ -249,16 +272,19 @@ async def modificar_usuario(data: ModificarUsuarioRequest, user: dict = Depends(
     # Verificar que el usuario actual es admin
     def operaciones_sincronas():
         # Obtener datos del usuario que hace la solicitud
-        current_user_data = db_client.users.find_one({"_id": ObjectId(user["id"])})
+        current_user_data = db_client.users.find_one(
+            {"_id": ObjectId(user["id"])})
         if not current_user_data:
             raise ValueError("Usuario no encontrado")
 
         # Verificar si es admin
-        is_admin = db_client.admins.find_one({"user": current_user_data["_id"]})
+        is_admin = db_client.admins.find_one(
+            {"user": current_user_data["_id"]})
         if not is_admin:
             raise ValueError("Solo los admin pueden modificar usuarios")
 
-        categoria_obj = db_client.categorias.find_one({"nombre": data.categoria})
+        categoria_obj = db_client.categorias.find_one(
+            {"nombre": data.categoria})
         if not categoria_obj:
             raise ValueError(f"Categoría '{data.categoria}' no encontrada")
 
@@ -277,14 +303,14 @@ async def modificar_usuario(data: ModificarUsuarioRequest, user: dict = Depends(
 
         if result.matched_count == 0:
             raise ValueError("Usuario a modificar no encontrado")
-        
+
         return True
 
     try:
         # Ejecutar operaciones en hilo separado
         await asyncio.to_thread(operaciones_sincronas)
         return {"message": "Usuario actualizado correctamente"}
-    
+
     except ValueError as e:
         raise HTTPException(
             status_code=400 if "no encontrado" in str(e).lower() else 403,
@@ -296,11 +322,15 @@ async def modificar_usuario(data: ModificarUsuarioRequest, user: dict = Depends(
             detail=f"Error al modificar usuario: {str(e)}"
         )
 
+
 class EliminarUsuarioRequest(BaseModel):
     identificador: str
 
+
 @router.post("/eliminar")
-async def eliminar_usuario(data: EliminarUsuarioRequest, user: dict = Depends(current_user)):
+async def eliminar_usuario(
+        data: EliminarUsuarioRequest,
+        user: dict = Depends(current_user)):
     try:
         # Convertir el ID del usuario a eliminar
         user_id = ObjectId(data.identificador)
@@ -309,11 +339,13 @@ async def eliminar_usuario(data: EliminarUsuarioRequest, user: dict = Depends(cu
 
     def operaciones_sincronas():
         # Verificar que el usuario que hace la solicitud existe y es admin
-        current_user_data = db_client.users.find_one({"_id": ObjectId(user["id"])})
+        current_user_data = db_client.users.find_one(
+            {"_id": ObjectId(user["id"])})
         if not current_user_data:
             raise ValueError("Usuario no encontrado")
 
-        is_admin = db_client.admins.find_one({"user": current_user_data["_id"]})
+        is_admin = db_client.admins.find_one(
+            {"user": current_user_data["_id"]})
         if not is_admin:
             raise ValueError("Solo los admin pueden eliminar usuarios")
 
@@ -324,16 +356,16 @@ async def eliminar_usuario(data: EliminarUsuarioRequest, user: dict = Depends(cu
         result = db_client.users.delete_one({"_id": user_id})
         if result.deleted_count == 0:
             raise ValueError("Usuario no encontrado o ya eliminado")
-        
+
         db_client.admins.delete_one({"user": user_id})
-        
+
         return True
 
     try:
         # Ejecutar operaciones en hilo separado
         await asyncio.to_thread(operaciones_sincronas)
         return {"message": "Usuario eliminado correctamente"}
-    
+
     except ValueError as e:
         status_code = 404 if "no encontrado" in str(e).lower() else 403
         raise HTTPException(status_code=status_code, detail=str(e))
@@ -343,7 +375,8 @@ async def eliminar_usuario(data: EliminarUsuarioRequest, user: dict = Depends(cu
             detail=f"Error al eliminar usuario: {str(e)}"
         )
 
-#parte nueva
+# parte nueva
+
 
 @router.put("/{user_id}")
 async def editar_usuario(
@@ -353,10 +386,12 @@ async def editar_usuario(
 ):
     # Solo admin puede editar
     def operaciones_sincronas():
-        current_user_data = db_client.users.find_one({"_id": ObjectId(user["id"])})
+        current_user_data = db_client.users.find_one(
+            {"_id": ObjectId(user["id"])})
         if not current_user_data:
             raise ValueError("Usuario no encontrado")
-        is_admin = db_client.admins.find_one({"user": current_user_data["_id"]})
+        is_admin = db_client.admins.find_one(
+            {"user": current_user_data["_id"]})
         if not is_admin:
             raise ValueError("Solo los admin pueden modificar usuarios")
 
@@ -364,9 +399,11 @@ async def editar_usuario(
         categoria_nombre = body.get("categoria")
         categoria_obj = None
         if categoria_nombre:
-            categoria_obj = db_client.categorias.find_one({"nombre": categoria_nombre})
+            categoria_obj = db_client.categorias.find_one(
+                {"nombre": categoria_nombre})
             if not categoria_obj:
-                raise ValueError(f"Categoría '{categoria_nombre}' no encontrada")
+                raise ValueError(
+                    f"Categoría '{categoria_nombre}' no encontrada")
 
         update_data = {
             "nombre": body.get("nombre"),
@@ -393,7 +430,9 @@ async def editar_usuario(
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Error al modificar usuario: {str(e)}")
+        raise HTTPException(status_code=500,
+                            detail=f"Error al modificar usuario: {str(e)}")
+
 
 @router.delete("/{user_id}")
 async def eliminar_usuario(
@@ -401,10 +440,12 @@ async def eliminar_usuario(
     user: dict = Depends(current_user)
 ):
     def operaciones_sincronas():
-        current_user_data = db_client.users.find_one({"_id": ObjectId(user["id"])})
+        current_user_data = db_client.users.find_one(
+            {"_id": ObjectId(user["id"])})
         if not current_user_data:
             raise ValueError("Usuario no encontrado")
-        is_admin = db_client.admins.find_one({"user": current_user_data["_id"]})
+        is_admin = db_client.admins.find_one(
+            {"user": current_user_data["_id"]})
         if not is_admin:
             raise ValueError("Solo los admin pueden eliminar usuarios")
         if str(current_user_data["_id"]) == user_id:
@@ -419,6 +460,9 @@ async def eliminar_usuario(
         await asyncio.to_thread(operaciones_sincronas)
         return {"success": True}
     except ValueError as e:
-        raise HTTPException(status_code=403 if "eliminarte" in str(e) else 404, detail=str(e))
+        raise HTTPException(
+            status_code=403 if "eliminarte" in str(e) else 404,
+            detail=str(e))
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Error al eliminar usuario: {str(e)}")
+        raise HTTPException(status_code=500,
+                            detail=f"Error al eliminar usuario: {str(e)}")

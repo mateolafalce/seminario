@@ -1,4 +1,4 @@
-from pydantic import BaseModel 
+from pydantic import BaseModel
 from typing import Optional
 
 
@@ -8,6 +8,7 @@ class User(BaseModel):
     apellido: str
     username: str
     email: str
+
 
 class UserDB(User):
     password: str

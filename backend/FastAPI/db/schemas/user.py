@@ -8,6 +8,7 @@ def user_schema(user) -> dict:
         "email": user["email"]
     }
 
+
 def user_schema_db(user) -> dict:
     if user is None:
         return None
@@ -19,7 +20,7 @@ def user_schema_db(user) -> dict:
         "email": user["email"],
         "habilitado": user["habilitado"],
         "password": user["password"],
-        }
+    }
 
 
 def users_schema(users) -> list:
