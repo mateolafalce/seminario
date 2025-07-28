@@ -204,7 +204,7 @@ Una vez hecho esto, los cambios hechos se revertiran.
   * [x] Implementar la logica en el backend
   * [x] Implementar el frontend de la reserva
   * [x] Preguntar por confirmacion de cancha
-  * [ ] Cancelar Reserva (No se borran, cambian de estado)
+  * [x] Cancelar Reserva (No se borran, cambian de estado)
   * [x] Implementar logica para poder reservar con un rango de 1 semana
   * [ ] Cachear el contenido de la peticion HTTP para no sobrecargar el servidor
 * ABML de Preferencias del usuario
