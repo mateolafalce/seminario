@@ -206,7 +206,6 @@ Una vez hecho esto, los cambios hechos se revertiran.
   * [x] Preguntar por confirmacion de cancha
   * [x] Cancelar Reserva (No se borran, cambian de estado)
   * [x] Implementar logica para poder reservar con un rango de 1 semana
-  * [ ] Cachear el contenido de la peticion HTTP para no sobrecargar el servidor
 * ABML de Preferencias del usuario
   * [x] Crear la entidad Preferencia
   * [x] Implementar la logica en el backend
@@ -249,6 +248,10 @@ Una vez hecho esto, los cambios hechos se revertiran.
 * Seguridad
   * [ ] Asegurarse de la autenticacion en cada endpoint
   * [ ] Asegurarnos que las contraseñas cumplan cierto criterio de longitud y caracteres
+* Performance
+  * [ ] Cachear imagen del home
+  * [ ] Cachear Turnos
+  * [ ] Cachear Reservas
 
 ## Diagrama de clases
 
