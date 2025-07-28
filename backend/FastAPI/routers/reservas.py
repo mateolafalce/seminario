@@ -40,6 +40,8 @@ def clean_mongo_doc(doc):
         doc["usuario"] = str(doc["usuario"])
     if "hora_inicio" in doc:
         doc["hora_inicio"] = str(doc["hora_inicio"])
+    if "estado" in doc:
+        doc["estado"] = str(doc["estado"])
     return doc
 
 
@@ -91,8 +93,7 @@ async def reservar(reserva: Reserva, user: dict = Depends(current_user)):
                 raise ValueError("Horario inválido")
             horario_id = horario_doc["_id"]
 
-            # Validar que el usuario no tenga una reserva en el mismo horario y
-            # fecha
+            # Validar que el usuario no tenga una reserva en el mismo horario y fecha
             reserva_existente = db_client.reservas.find_one({
                 "usuario": ObjectId(user["id"]),
                 "fecha": reserva.fecha,
@@ -120,11 +121,18 @@ async def reservar(reserva: Reserva, user: dict = Depends(current_user)):
                 raise ValueError(
                     "No hay cupo disponible para esta cancha en ese horario")
 
+            # Buscar el estado "Reservada" en la colección estadoreserva
+            estado_doc = db_client.estadoreserva.find_one({"nombre": "Reservada"})
+            if not estado_doc:
+                raise ValueError('No se encontró el estado "Reservada"')
+            estado_id = estado_doc["_id"]
+
             nueva_reserva = {
                 "cancha": cancha_id,
                 "fecha": reserva.fecha,
                 "hora_inicio": horario_id,
                 "usuario": ObjectId(user["id"]),
+                "estado": estado_id  
             }
 
             result = db_client.reservas.insert_one(nueva_reserva)
@@ -202,17 +210,27 @@ async def cancelar_reserva(
 
     ahora_dt = datetime.now(argentina_tz)
 
-    # Se comprueba si la diferencia entre la hora de la reserva y la hora
-    # actual es de al menos 1 hora.
+    # Se comprueba si la diferencia entre la hora de la reserva y la hora actual es de al menos 1 hora.
     if (reserva_dt - ahora_dt) >= timedelta(hours=1):
-        # Si la condición se cumple, se procede a eliminar la reserva.
-        result = await asyncio.to_thread(lambda: db_client.reservas.delete_one({"_id": reserva_oid}))
+        # Buscar el estado "Cancelada" en la colección estadoreserva
+        estado_cancelada = await asyncio.to_thread(
+            lambda: db_client.estadoreserva.find_one({"nombre": "Cancelada"})
+        )
+        if not estado_cancelada:
+            raise HTTPException(status_code=500, detail='No se encontró el estado "Cancelada"')
+        estado_cancelada_id = estado_cancelada["_id"]
 
-        if result.deleted_count == 1:
+        # Actualizar el estado de la reserva a "Cancelada"
+        result = await asyncio.to_thread(
+            lambda: db_client.reservas.update_one(
+                {"_id": reserva_oid},
+                {"$set": {"estado": estado_cancelada_id}}
+            )
+        )
+
+        if result.modified_count == 1:
             return {"msg": "Reserva cancelada con éxito"}
         else:
-            # Este caso es poco probable si la búsqueda inicial tuvo éxito,
-            # pero es una buena práctica manejarlo.
             raise HTTPException(status_code=500,
                                 detail="Error al procesar la cancelación.")
     else:
