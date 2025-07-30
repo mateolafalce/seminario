@@ -160,6 +160,12 @@ async def reservar(reserva: Reserva, user: dict = Depends(current_user)):
 async def get_mis_reservas(user: dict = Depends(current_user)):
     user_id = ObjectId(user["id"])
 
+    argentina_tz = pytz.timezone("America/Argentina/Buenos_Aires")
+    ahora = datetime.now(argentina_tz)
+
+    # Obtener todos los horarios para mapear el string de hora
+    horarios_dict = {str(h["_id"]): h["hora"] for h in db_client.horarios.find({}, {"_id": 1, "hora": 1})}
+
     pipeline = [
         {"$match": {"usuario": user_id}},
         {"$lookup": {"from": "canchas", "localField": "cancha", "foreignField": "_id", "as": "cancha_info"}},
@@ -176,8 +182,13 @@ async def get_mis_reservas(user: dict = Depends(current_user)):
 
     reservas_list = []
     for r in reservas_cursor:
-        r["_id"] = str(r["_id"])
-        reservas_list.append(r)
+        # Construir datetime de la reserva
+        fecha_str = r["fecha"]
+        hora_inicio_str = r["horario"].split('-')[0]
+        reserva_dt = argentina_tz.localize(datetime.strptime(f"{fecha_str} {hora_inicio_str}", "%d-%m-%Y %H:%M"))
+        if reserva_dt >= ahora:
+            r["_id"] = str(r["_id"])
+            reservas_list.append(r)
 
     return reservas_list
 
@@ -251,9 +262,17 @@ async def obtener_cantidad_reservas(fecha: str):
             detail="Formato de fecha inválido. Use DD-MM-YYYY.")
 
     pipeline = [
-        {
-            "$match": {"fecha": fecha}  # Filtrar por la fecha proporcionada
-        },
+        {"$match": {"fecha": fecha}},
+        # Traer info del estado
+        {"$lookup": {
+            "from": "estadoreserva",
+            "localField": "estado",
+            "foreignField": "_id",
+            "as": "estado_info"
+        }},
+        {"$unwind": "$estado_info"},
+        # Filtrar solo reservas que NO estén canceladas
+        {"$match": {"estado_info.nombre": {"$ne": "Cancelada"}}},
         {
             "$group": {
                 "_id": {"cancha": "$cancha", "hora_inicio": "$hora_inicio"},

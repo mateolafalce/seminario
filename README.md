@@ -64,7 +64,7 @@ cd frontend
 ```
 
 ```bash
-npm install react-router-dom
+npm install react-router-dom three @react-three/fiber @react-three/drei react-icons
 ```
 
 ```bash
@@ -206,7 +206,8 @@ Una vez hecho esto, los cambios hechos se revertiran.
   * [x] Preguntar por confirmacion de cancha
   * [x] Cancelar Reserva (No se borran, cambian de estado)
   * [x] Implementar logica para poder reservar con un rango de 1 semana
-  * [ ] Implemnetar logica para que solo se puedan ver las reservas del futuro, no del pasado
+  * [x] Implemnetar logica para que solo se puedan ver las reservas del futuro, no del pasado
+  * [x] Al momento de cancelar una reserva, se deria liberar la reserva para ese dia :o
   * [ ] Setear limite de reservas x usuario
 * ABML de Preferencias del usuario
   * [x] Crear la entidad Preferencia
