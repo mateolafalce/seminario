@@ -226,7 +226,7 @@ Una vez hecho esto, los cambios hechos se revertiran.
   * [ ] Validar que no pedimos toda la BD en las consultas de datos
 * Frontend General (Nico)
   * [x] Hacer el Navbar
-  * [ ] Footer con links importantes
+  * [x] Footer con links importantes
   * [ ] Cambiar los alert por toast
 * Notificaciones
   * [ ] Recibir aprovacion de WSP y del cliente (?)
