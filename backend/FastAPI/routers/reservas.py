@@ -262,9 +262,17 @@ async def obtener_cantidad_reservas(fecha: str):
             detail="Formato de fecha inválido. Use DD-MM-YYYY.")
 
     pipeline = [
-        {
-            "$match": {"fecha": fecha}  # Filtrar por la fecha proporcionada
-        },
+        {"$match": {"fecha": fecha}},
+        # Traer info del estado
+        {"$lookup": {
+            "from": "estadoreserva",
+            "localField": "estado",
+            "foreignField": "_id",
+            "as": "estado_info"
+        }},
+        {"$unwind": "$estado_info"},
+        # Filtrar solo reservas que NO estén canceladas
+        {"$match": {"estado_info.nombre": {"$ne": "Cancelada"}}},
         {
             "$group": {
                 "_id": {"cancha": "$cancha", "hora_inicio": "$hora_inicio"},
