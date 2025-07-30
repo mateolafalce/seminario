@@ -5,6 +5,7 @@ import HeroSection from '../components/home/HeroSection';
 import FeaturesSection from '../components/home/FeaturesSection';
 import CTASection from '../components/home/CTASection';
 import "../index.css";
+import Footer from "../components/common/Footer/Footer";
 
 export default function HomePage() {
   const navigate = useNavigate();
@@ -28,6 +29,8 @@ export default function HomePage() {
         isAuthenticated={isAuthenticated} 
         navigationHandlers={navigationHandlers}
       />
+
+      <Footer/>
     </div>
   );
 }
