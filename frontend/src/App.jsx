@@ -2,6 +2,8 @@ import './index.css';
 import { BrowserRouter as Router, Routes, Route, useNavigate } from 'react-router-dom';
 import React, { useState, useEffect, useContext } from 'react';
 import Login from './pages/Login';
+import { ToastContainer } from 'react-toastify';
+import 'react-toastify/dist/ReactToastify.css';
 
 import Register from './pages/Register';
 import Navbar from './components/common/Navbar/Navbar';
@@ -89,6 +91,7 @@ function AppWithTimeout() {
           <Route path="/unauthorized" element={<Unauthorized />} />
         </Routes>
       </div>
+      <ToastContainer position="top-right" autoClose={3000} />
     </>
   );
 }
