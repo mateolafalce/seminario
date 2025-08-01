@@ -3,7 +3,8 @@ import { AuthContext } from '../context/AuthContext';
 import { useNavigate, useLocation } from 'react-router-dom';
 import AuthForm from '../components/common/AuthForm/AuthForm';
 import MessageAlert from '../components/common/Alert/MessageAlert';
-import { toast } from 'react-toastify'
+import MiToast from "../components/common/Toast/MiToast";
+import { toast } from 'react-toastify';
 
 const BACKEND_URL = `http://${window.location.hostname}:8000`;
 
@@ -62,11 +63,10 @@ function Register() {
       } else {
         const errorData = await response.json();
         setErrores({ general: errorData.detail || 'Error al registrar usuario' });
-        toast.error ('Error al registrar usuario')
       }
     } catch (error) {
       setErrores({ general: 'Error de conexión con el servidor' });
-      toast.error("Error de conexión")
+      toast(<MiToast mensaje="Error" />);
     } finally {
       setCargando(false);
     }

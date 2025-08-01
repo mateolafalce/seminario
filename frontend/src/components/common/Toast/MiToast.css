@@ -1,0 +1,27 @@
+.mi-toast {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 20px;
+  border: 4px solid #0d1b2a;
+  border-top-width: 8px;
+  border-radius: 12px;
+  background: repeating-linear-gradient(
+    90deg,
+    #ffffff 0,
+    #ffffff 10px,
+    #e5ff00 10px,
+    #e5ff00 12px
+  );
+}
+
+.mi-toast-icon {
+  width: 40px;
+  height: 40px;
+  background: #e5ff00;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.5rem;
+}
