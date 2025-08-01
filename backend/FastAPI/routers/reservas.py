@@ -87,17 +87,30 @@ async def reservar(reserva: Reserva, user: dict = Depends(current_user)):
 
         def operaciones_sincronas():
             # Validar si el horario existe
-            horario_doc = db_client.horarios.find_one(
-                {"hora": reserva.horario})
+            horario_doc = db_client.horarios.find_one({"hora": reserva.horario})
             if not horario_doc:
                 raise ValueError("Horario inválido")
             horario_id = horario_doc["_id"]
 
-            # Validar que el usuario no tenga una reserva en el mismo horario y fecha
+            # --- VALIDACIÓN: máximo 2 reservas activas ---
+            estado_reservada = db_client.estadoreserva.find_one({"nombre": "Reservada"})
+            if not estado_reservada:
+                raise ValueError('No se encontró el estado "Reservada"')
+            estado_reservada_id = estado_reservada["_id"]
+
+            reservas_activas = db_client.reservas.count_documents({
+                "usuario": ObjectId(user["id"]),
+                "estado": estado_reservada_id
+            })
+            if reservas_activas >= 2:
+                raise ValueError("No puedes tener más de 2 reservas activas.")
+
+            # Validar que el usuario no tenga una reserva en el mismo horario y fecha con estado "Reservada"
             reserva_existente = db_client.reservas.find_one({
                 "usuario": ObjectId(user["id"]),
                 "fecha": reserva.fecha,
-                "hora_inicio": ObjectId(horario_id)
+                "hora_inicio": ObjectId(horario_id),
+                "estado": estado_reservada_id
             })
             if reserva_existente:
                 raise ValueError("Ya tenés una reserva en ese horario y fecha")
@@ -107,6 +120,31 @@ async def reservar(reserva: Reserva, user: dict = Depends(current_user)):
             if not cancha_doc:
                 raise ValueError("Cancha inválida")
             cancha_id = cancha_doc["_id"]
+
+            # --- Si existe una reserva cancelada, reactivar ---
+            estado_cancelada = db_client.estadoreserva.find_one({"nombre": "Cancelada"})
+            if not estado_cancelada:
+                raise ValueError('No se encontró el estado "Cancelada"')
+            estado_cancelada_id = estado_cancelada["_id"]
+
+            reserva_cancelada = db_client.reservas.find_one({
+                "usuario": ObjectId(user["id"]),
+                "fecha": reserva.fecha,
+                "hora_inicio": ObjectId(horario_id),
+                "cancha": cancha_id,
+                "estado": estado_cancelada_id
+            })
+            if reserva_cancelada:
+                result = db_client.reservas.update_one(
+                    {"_id": reserva_cancelada["_id"]},
+                    {"$set": {"estado": estado_reservada_id}}
+                )
+                if result.modified_count == 1:
+                    reserva_cancelada["estado"] = estado_reservada_id
+                    reserva_cancelada["_id"] = str(reserva_cancelada["_id"])
+                    return reserva_cancelada
+                else:
+                    raise ValueError("No se pudo reactivar la reserva cancelada.")
 
             # Validar disponibilidad
             filtro = {
@@ -121,18 +159,12 @@ async def reservar(reserva: Reserva, user: dict = Depends(current_user)):
                 raise ValueError(
                     "No hay cupo disponible para esta cancha en ese horario")
 
-            # Buscar el estado "Reservada" en la colección estadoreserva
-            estado_doc = db_client.estadoreserva.find_one({"nombre": "Reservada"})
-            if not estado_doc:
-                raise ValueError('No se encontró el estado "Reservada"')
-            estado_id = estado_doc["_id"]
-
             nueva_reserva = {
                 "cancha": cancha_id,
                 "fecha": reserva.fecha,
                 "hora_inicio": horario_id,
                 "usuario": ObjectId(user["id"]),
-                "estado": estado_id  
+                "estado": estado_reservada_id
             }
 
             result = db_client.reservas.insert_one(nueva_reserva)
@@ -163,11 +195,14 @@ async def get_mis_reservas(user: dict = Depends(current_user)):
     argentina_tz = pytz.timezone("America/Argentina/Buenos_Aires")
     ahora = datetime.now(argentina_tz)
 
-    # Obtener todos los horarios para mapear el string de hora
-    horarios_dict = {str(h["_id"]): h["hora"] for h in db_client.horarios.find({}, {"_id": 1, "hora": 1})}
+    # Obtener el estado "Reservada"
+    estado_reservada = db_client.estadoreserva.find_one({"nombre": "Reservada"})
+    if not estado_reservada:
+        raise HTTPException(status_code=500, detail='No se encontró el estado "Reservada"')
+    estado_reservada_id = estado_reservada["_id"]
 
     pipeline = [
-        {"$match": {"usuario": user_id}},
+        {"$match": {"usuario": user_id, "estado": estado_reservada_id}},
         {"$lookup": {"from": "canchas", "localField": "cancha", "foreignField": "_id", "as": "cancha_info"}},
         {"$unwind": "$cancha_info"},
         {"$lookup": {"from": "horarios", "localField": "hora_inicio", "foreignField": "_id", "as": "horario_info"}},
