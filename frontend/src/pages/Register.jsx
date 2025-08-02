@@ -66,7 +66,7 @@ function Register() {
       }
     } catch (error) {
       setErrores({ general: 'Error de conexión con el servidor' });
-      toast(<MiToast mensaje="Error" />);
+      toast(<MiToast mensaje="Error del servidor" color="var(--color-red-400)"/>);
     } finally {
       setCargando(false);
     }

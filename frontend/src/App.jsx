@@ -93,14 +93,15 @@ function AppWithTimeout() {
       </div>
       <ToastContainer 
         position="top-right"
-        autoClose={2000}
-        hideProgressBar={false}
+        autoClose={200000}
+        hideProgressBar={true}
         newestOnTop={true}
         closeOnClick
         rtl={false}
         draggable
         pauseOnHover
         toastClassName="mi-toast"
+        style={{ top: "60px" }} // aparece debajo del header
       />
     </>
   );

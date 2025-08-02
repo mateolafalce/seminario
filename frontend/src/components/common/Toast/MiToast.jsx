@@ -2,6 +2,7 @@ import React from "react";
 import { motion } from "framer-motion";
 import { FaCheck } from "react-icons/fa";
 import "./MiToast.css";
+import { GiTennisBall } from "react-icons/gi"; 
 
 const animation = {
   initial: { opacity: 0, y: -100, rotate: -15 },
@@ -24,13 +25,13 @@ const animation = {
   }
 };
 
-const MiToast = ({ mensaje }) => {
+const MiToast = ({ mensaje, color }) => {
   return (
-    <div className="mi-toast">
+    <div className="mi-toast-container">
       <div className="mi-toast-icon">
-        🎾
+        <GiTennisBall size={40} color={color} />
       </div>
-      <span>{mensaje}</span>
+      <span className="text-white">{mensaje}</span>
     </div>
   );
 };
