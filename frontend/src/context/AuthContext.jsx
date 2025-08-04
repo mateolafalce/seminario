@@ -1,7 +1,7 @@
 import React, { createContext, useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { createApi } from '../utils/api'; // Importamos nuestra nueva función
-
+import MiToast from '../components/common/Toast/MiToast';
 export const AuthContext = createContext();
 
 // Función para decodificar el JWT y verificar expiración
@@ -62,8 +62,10 @@ export const AuthProvider = ({ children }) => {
   // Función que se ejecutará cuando la API devuelva un 401
   const handleUnauthorized = () => {
     logout();
-    alert("Tu sesión ha expirado. Por favor, inicia sesión de nuevo.");
-    navigate('/login', { replace: true });
+    toast(<MiToast mensaje="Tu sesión ha expirado. Por favor, inicia sesión de nuevo." tipo="warning" />);
+    setTimeout(() => {
+      navigate('/login', { replace: true });
+    }, 2000);
   };
 
   // Creamos una instancia de nuestro fetch wrapper y la pasamos al contexto

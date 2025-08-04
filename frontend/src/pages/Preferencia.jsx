@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { generarHorarios } from '../components/usuarios/ReservaTabla';
 import Button from '../components/common/Button/Button';
+import MiToast from "../components/common/Toast/MiToast";
 
 // esta es una linea nueva que se uso para las ip y conectarse con el movil o cualquier dispositivo en la red
 const BACKEND_URL = `http://${window.location.hostname}:8000`;
@@ -68,7 +69,7 @@ export default function PreferenciasUsuario() {
     e.preventDefault();
 
     if (preferencias.dias.length === 0 || preferencias.horarios.length === 0 || preferencias.canchas.length === 0) {
-      alert("Debes seleccionar al menos un día, un horario y una cancha.");
+      toast(<MiToast mensaje="Debes seleccionar al menos un día, un horario y una cancha." color="--var-color-red-400"/>);
       return;
     }
 
@@ -89,7 +90,15 @@ export default function PreferenciasUsuario() {
     });
 
     if (response.ok) {
-      alert(isEditing ? "Preferencia actualizada con éxito" : "Preferencias guardadas con éxito");
+      toast(
+        <MiToast 
+          mensaje={isEditing 
+            ? "Preferencia actualizada con éxito" 
+            : "Preferencias guardadas con éxito"
+          } 
+          color="var(--color-green-400)" 
+        />
+      );
       setPreferencias({ dias: [], horarios: [], canchas: [] });
       setPreferenciaEditar(null); // Salir del modo edición
       
@@ -102,7 +111,12 @@ export default function PreferenciasUsuario() {
         .then(data => setPreferenciasGuardadas(data));
     } else {
       const errorData = await response.json();
-      alert(`Error: ${errorData.detail || 'Error desconocido'}`);
+      toast(
+        <MiToast 
+          mensaje={`Error: ${errorData.detail || 'Error desconocido'}`} 
+          color="var(--color-red-400)" 
+        />
+      );
     }
   };
 
@@ -138,11 +152,16 @@ export default function PreferenciasUsuario() {
     });
 
     if (response.ok) {
-      alert("Preferencia eliminada con éxito.");
+      toast(<MiToast mensaje="Preferencia eliminada con éxito." color="[#e5ff00]"/>);
       setPreferenciasGuardadas(prev => prev.filter(p => p.id !== id));
     } else {
       const errorData = await response.json();
-      alert(`Error al eliminar la preferencia: ${errorData.detail || 'Error desconocido'}`);
+      toast(
+        <MiToast 
+          mensaje={`Error: ${errorData.detail || 'Error desconocido'}`} 
+          color="var(--color-red-400)" 
+        />
+      );
     }
   };
 

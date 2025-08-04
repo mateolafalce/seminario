@@ -25,13 +25,22 @@ const animation = {
   }
 };
 
-const MiToast = ({ mensaje, color }) => {
+const MiToast = ({ mensaje, color, info="info" }) => { //se debe cambiar en los toast el color por tipo
+  const colores = {
+    success: "var(--color-green-400)",
+    error: "var(--color-red-400)",
+    warning: "var(--color-yellow-400)",
+    info: "var(--color-blue-400)"
+  };
+  
+  const colorFinal = color || colores[tipo] || colores.info;
+
   return (
     <div className="mi-toast-container">
       <div className="mi-toast-icon">
-        <GiTennisBall size={40} color={color} />
+        <GiTennisBall size={40} color={colorFinal} />
       </div>
-      <span className="text-white">{mensaje}</span>
+      <span className="text-[#e5ff00] mi-toast-span">{mensaje}</span>
     </div>
   );
 };

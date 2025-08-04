@@ -4,6 +4,7 @@ import { AuthContext } from "../../../context/AuthContext";
 import ListarCanchas from "./ListarCanchas";
 import EditarCanchaModal from "./EditarCanchaModal";
 import Modal from "../../common/Modal/Modal";
+import MiToast from "../../common/Toast/MiToast";
 
 function VerCanchasInline({ refresh }) {
   const { handleUnauthorized } = useContext(AuthContext);
@@ -54,10 +55,20 @@ function VerCanchasInline({ refresh }) {
         setCanchasKey(k => k + 1); // Refresca la lista
       } else {
         const err = await response.json();
-        alert(err.detail || "No se pudo eliminar la cancha");
+        toast(
+          <MiToast 
+            mensaje={err.detail || "No se pudo eliminar la cancha"} 
+            tipo="error" 
+          />
+        );
       }
     } catch (e) {
-      alert(e.message || "Error de conexión");
+      toast(
+        <MiToast 
+          mensaje={e.message || "Error de conexión"} 
+          tipo="error" 
+        />
+      );
     }
   };
 

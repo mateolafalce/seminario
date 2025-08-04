@@ -1,18 +1,20 @@
 .mi-toast {
+  display: flex;
+  flex-direction: column;
   position: relative;
   background:
     repeating-linear-gradient(
       0deg,
       var(--color-gray-700),
-      var(--color-gray-700) 2px,
-      rgb(0,0,0,0.2) 5px,
+      var(--color-gray-700),
+      rgb(0,0,0,0.2) 1px,
       rgb(0,0,0,0.2) 20px
     ),
     repeating-linear-gradient(
       90deg,
       var(--color-gray-700),
-      var(--color-gray-700) 2px,
-      rgb(0,0,0,0.2) 5px,
+      var(--color-gray-700),
+      rgb(0,0,0,0.2) 1px,
       rgb(0,0,0,0.2) 20px
     ),
     transparent;
@@ -31,7 +33,7 @@
 .mi-toast::after {
   content: "";
   position: absolute;
-  top: -8px;          /* sobresale por encima */
+  top: -9px;          /* sobresale por encima */
   width: 8px;
   height: calc(100% + 10px);
   background: var(--color-gray-700); /* azul para los postes */
@@ -56,20 +58,35 @@
   padding: 12px 20px;
   background: transparent;
   background-size: 12px 12px; /* tamaño del cuadro */
-  background-color: #ffffff00; /* color base */
+  
+  border-radius: 50px;
+  display: flex;  
+  justify-content: space-between;
 }
 
 .mi-toast-icon {
   width: 40px;
   height: 40px;
-  background: transparent;
+  background: var(--color-gray-800);
   border-radius: 50%;
   display: flex;
   align-items: center;
   justify-content: center;
   font-size: 1.5rem;
+  animation: girar 4s infinite linear;
 }
 
-.mi-toast span {
-  color: #E5FF00;
+@keyframes girar {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.mi-toast-span {
+  background-color: var(--color-gray-800);
+  padding: 10px;
+  border-radius: 50px;
 }

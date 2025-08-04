@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useContext } from 'react';
 import { AuthContext } from '../context/AuthContext';
 import Button from '../components/common/Button/Button';
+import MiToast from '../components/common/Toast/MiToast';
 
 function MisReservas() {
   const [reservas, setReservas] = useState([]);
@@ -44,14 +45,15 @@ function MisReservas() {
 
       const data = await response.json();
       if (response.ok) {
-        alert(data.msg);
+        toast(<MiToast mensaje={data.msg} color="[#e5ff00]"/>);
+        {/*alert(data.msg); //revisar si aparece*/}
         setReservas(prev => prev.filter(r => r._id !== reservaId));
       } else {
-        alert(`Error: ${data.detail}`);
+        toast(<MiToast mensaje={`Error: ${data.detail}`} color="var(--color-red-400)"/>);
       }
     } catch (error) {
       if (error.message !== 'Sesión expirada') {
-        alert("Error de conexión al intentar cancelar la reserva.");
+        toast(<MiToast mensaje="Error de conexión al intentar cancelar la reserva." color="var(--color-red-400)"/>);
       }
     }
   };
