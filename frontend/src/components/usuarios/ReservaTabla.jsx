@@ -1,5 +1,7 @@
 import { useState, useContext, useEffect } from 'react'
 import { AuthContext } from "../../context/AuthContext";
+import { toast } from 'react-toastify';
+import MiToast from '../common/Toast/MiToast';
 
 const BACKEND_URL = `http://${window.location.hostname}:8000`;
 
@@ -131,7 +133,13 @@ function ReservaTabla() {
       }
 
       const data = await response.json();
-      alert(`Reserva exitosa: ${data.msg}`);
+      
+      toast(
+        <MiToast 
+          mensaje={`Reserva exitosa: ${data.msg}`} 
+          color="var(--color-green-400)" 
+        />
+      );
 
       setCantidades(prev => {
         const key = `${cancha}-${hora}`
@@ -142,7 +150,13 @@ function ReservaTabla() {
       })
 
     } catch (err) {
-      alert(`Error al reservar turno: ${err.message}`)
+      toast(
+        <MiToast 
+          mensaje={`Error al reservar turno: ${err.message}`} 
+          color="var(--color-red-400)" 
+        />
+      );
+
       setSelected(null);
     }
   }
@@ -211,7 +225,7 @@ function ReservaTabla() {
                     disabled={!isAuthenticated || isFull || isPast}
                     onClick={() => {
                       if (!isAuthenticated) {
-                        alert('Debes iniciar sesión para reservar')
+                        toast(<MiToast mensaje="Debes iniciar sesión para reservar" color="--var-red-400"/>);
                       } else if (!isFull && !isPast) {
                         handleClick(cancha, hora)
                       }

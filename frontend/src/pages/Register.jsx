@@ -3,6 +3,8 @@ import { AuthContext } from '../context/AuthContext';
 import { useNavigate, useLocation } from 'react-router-dom';
 import AuthForm from '../components/common/AuthForm/AuthForm';
 import MessageAlert from '../components/common/Alert/MessageAlert';
+import MiToast from "../components/common/Toast/MiToast";
+import { toast } from 'react-toastify';
 
 const BACKEND_URL = `http://${window.location.hostname}:8000`;
 
@@ -64,6 +66,7 @@ function Register() {
       }
     } catch (error) {
       setErrores({ general: 'Error de conexión con el servidor' });
+      toast(<MiToast mensaje="Error del servidor" color="var(--color-red-400)"/>);
     } finally {
       setCargando(false);
     }

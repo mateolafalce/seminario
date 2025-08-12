@@ -1,6 +1,8 @@
 import { useState, useContext } from 'react';
 import { AuthContext } from '../context/AuthContext'
 import Button from '../components/common/Button/Button';
+import MiToast from '../components/common/Toast/MiToast';
+import { toast } from "react-toastify";
 
 const categoria = ['2da','3ra','4ta', '5ta','6ta', '7ta', '8ta'];
 
@@ -32,14 +34,16 @@ function BuscarCliente() {
     });
 
     if (response.status === 401) {
-      alert('Tu sesión ha expirado. Por favor, volvé a iniciar sesión.');
-      window.location.href = '/login';
+      toast(<MiToast mensaje="Tu sesión ha expirado. Por favor, volvé a iniciar sesión." color="var(--color-red-400)"/>);
+      setTimeout(() => {
+        window.location.href = '/login';
+      }, 3000);
     } else if (response.ok) {
       const data = await response.json();
       setResultados(data.clientes || []); 
     } else {
       const errorText = await response.text();
-      alert(errorText || 'Error en la solicitud')
+      toast(<MiToast mensaje={errorText || 'Error en la solicitud'} color="var(--color-red-400)" />);
     } 
   };
 
@@ -58,13 +62,15 @@ function BuscarCliente() {
     });
 
     if (response.status === 401) {
-      alert('Tu sesión ha expirado. Por favor, volvé a iniciar sesión.');
-      window.location.href = '/login';
+      toast(<MiToast mensaje="Tu sesión ha expirado. Por favor, volvé a iniciar sesión." color="var(--color-red-400)"/>);
+      setTimeout(() => {
+        window.location.href = '/login';
+      }, 3000);
     } else if (response.ok) {
       setResultados(prev => prev.filter(e => e._id !== id));
     } else {
       const errorText = await response.text();
-      alert(errorText || 'Error en la solicitud')
+      toast(<MiToast mensaje={errorText || 'Error en la solicitud'} color="var(--color-red-400)" />);
     }
   };
 
@@ -102,15 +108,17 @@ function BuscarCliente() {
     });
 
     if (response.status === 401) {
-       alert('Tu sesión ha expirado. Por favor, volvé a iniciar sesión.');
-      window.location.href = '/login';
+      toast(<MiToast mensaje="Tu sesión ha expirado. Por favor, volvé a iniciar sesión." color="var(--color-red-400)"/>);
+      setTimeout(() => {
+        window.location.href = '/login';
+      }, 3000);
     } else if (response.ok) {
-      alert('Cliente actualizado correctamente');
+      toast(<MiToast mensaje="Cliente actualizado correctamente" color="[#e5ff00]"/>);
       setClienteEditar(null);
       handleSubmit(e);
     } else {
       const errorText = await response.text();
-      alert(errorText || 'Error en la solicitud')
+      toast(<MiToast mensaje={errorText || 'Error en la solicitud'} color="var(--color-red-400)" />);
     }
   };
 

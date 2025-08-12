@@ -36,6 +36,8 @@ cd backend/FastAPI/
 
 ```bash
 python3 -m venv .venv && source .venv/bin/activate
+´´´´version para windows ##revisar que parece que no conecta correctamente
+python -m venv .venv && .venv\Scripts\activate 
 ```
 
 Descargar algunas dependencias
@@ -64,7 +66,8 @@ cd frontend
 ```
 
 ```bash
-npm install react-router-dom three @react-three/fiber @react-three/drei react-icons
+npm install react-router-dom three @react-three/fiber @react-three/drei react-icons framer-motion react-toastify
+
 ```
 
 ```bash

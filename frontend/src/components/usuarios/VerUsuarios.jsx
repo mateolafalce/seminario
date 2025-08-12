@@ -4,6 +4,8 @@ import IconoAvatar from '../../assets/icons/iconoAvatar';
 import { useNavigate } from 'react-router-dom';
 import { AuthContext } from '../../context/AuthContext';
 import Button from '../common/Button/Button';
+import MiToast from '../common/Toast/MiToast';
+import { toast } from "react-toastify";
 
 // esta es una linea nueva que se uso para las ip y conectarse con el movil o cualquier dispositivo en la red
 const BACKEND_URL = `http://${window.location.hostname}:8000`;
@@ -108,12 +110,22 @@ function VerUsuarios({ show, onHide }) {
     });
 
     if (response.ok) {
-      alert('Usuario actualizado correctamente');
+      toast(
+        <MiToast 
+          mensaje="Usuario actualizado correctamente" 
+          tipo="succes" 
+        />
+      );
       setUsuarioEditar(null);
       fetchUsers(currentPage); // Refrescar la lista
     } else {
       const errorData = await response.json();
-      alert(`Error al modificar: ${errorData.detail || 'Error desconocido'}`);
+      toast(
+        <MiToast 
+          mensaje={`Error al modificar: ${errorData.detail || 'Error desconocido'}`} 
+          tipo="error" 
+        />
+      );
     }
   };
 
