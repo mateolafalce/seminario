@@ -2,6 +2,7 @@ import React, { createContext, useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { createApi } from '../utils/api'; // Importamos nuestra nueva función
 import MiToast from '../components/common/Toast/MiToast';
+import { toast } from "react-toastify";
 export const AuthContext = createContext();
 
 // Función para decodificar el JWT y verificar expiración

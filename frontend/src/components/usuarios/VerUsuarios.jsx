@@ -5,6 +5,7 @@ import { useNavigate } from 'react-router-dom';
 import { AuthContext } from '../../context/AuthContext';
 import Button from '../common/Button/Button';
 import MiToast from '../common/Toast/MiToast';
+import { toast } from "react-toastify";
 
 // esta es una linea nueva que se uso para las ip y conectarse con el movil o cualquier dispositivo en la red
 const BACKEND_URL = `http://${window.location.hostname}:8000`;

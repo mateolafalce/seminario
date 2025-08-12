@@ -1,7 +1,7 @@
 .mi-toast {
-  display: flex;
+  display: flex !important;
   flex-direction: column;
-  position: relative;
+  position: relative !important;
   background:
     repeating-linear-gradient(
       0deg,
@@ -17,15 +17,15 @@
       rgb(0,0,0,0.2) 1px,
       rgb(0,0,0,0.2) 20px
     ),
-    transparent;
-  padding: 16px 24px;
-  color: #fff;
+    transparent !important;
+  padding: 16px 24px !important;
+  color: #fff !important;
   font-weight: bold;
   background-position: 0 -5px; /* mueve el patrón hacia arriba */
    /* borde superior normal */
   border-top: 8px solid #ffffff;
   border-bottom: none;
-  border-radius: 10px 10px 0 0;
+  border-radius: 10px 10px 0 0 !important;
 }
 
 /* postes laterales por encima */
@@ -54,11 +54,10 @@
 .mi-toast-container {
   display: flex;
   align-items: center;
-  gap: 10px;
-  padding: 12px 20px;
+  gap: 5px;
+  padding: 12px 5px;
   background: transparent;
   background-size: 12px 12px; /* tamaño del cuadro */
-  
   border-radius: 50px;
   display: flex;  
   justify-content: space-between;
@@ -87,6 +86,6 @@
 
 .mi-toast-span {
   background-color: var(--color-gray-800);
-  padding: 10px;
+  padding: 20px;
   border-radius: 50px;
 }

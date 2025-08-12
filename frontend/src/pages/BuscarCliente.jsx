@@ -2,6 +2,7 @@ import { useState, useContext } from 'react';
 import { AuthContext } from '../context/AuthContext'
 import Button from '../components/common/Button/Button';
 import MiToast from '../components/common/Toast/MiToast';
+import { toast } from "react-toastify";
 
 const categoria = ['2da','3ra','4ta', '5ta','6ta', '7ta', '8ta'];
 

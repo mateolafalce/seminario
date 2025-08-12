@@ -5,6 +5,7 @@ import ListarCanchas from "./ListarCanchas";
 import EditarCanchaModal from "./EditarCanchaModal";
 import Modal from "../../common/Modal/Modal";
 import MiToast from "../../common/Toast/MiToast";
+import { toast } from "react-toastify";
 
 function VerCanchasInline({ refresh }) {
   const { handleUnauthorized } = useContext(AuthContext);

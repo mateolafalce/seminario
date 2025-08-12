@@ -93,7 +93,7 @@ function AppWithTimeout() {
       </div>
       <ToastContainer 
         position="top-right"
-        autoClose={200000}
+        autoClose={5000}
         hideProgressBar={true}
         newestOnTop={true}
         closeOnClick

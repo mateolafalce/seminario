@@ -2,6 +2,7 @@ import React, { useState, useEffect, useContext } from 'react';
 import { AuthContext } from '../context/AuthContext';
 import Button from '../components/common/Button/Button';
 import MiToast from '../components/common/Toast/MiToast';
+import { toast } from "react-toastify";
 
 function MisReservas() {
   const [reservas, setReservas] = useState([]);

@@ -2,6 +2,8 @@ import { useEffect, useState } from "react";
 import { generarHorarios } from '../components/usuarios/ReservaTabla';
 import Button from '../components/common/Button/Button';
 import MiToast from "../components/common/Toast/MiToast";
+import { toast } from "react-toastify";
+
 
 // esta es una linea nueva que se uso para las ip y conectarse con el movil o cualquier dispositivo en la red
 const BACKEND_URL = `http://${window.location.hostname}:8000`;
@@ -202,6 +204,7 @@ export default function PreferenciasUsuario() {
               className="mt-4 px-6 py-2"
               variant="bold"
               disabled={!preferenciaEditar && preferenciasGuardadas.length >= 7}
+              
             />
             {preferenciaEditar && (
               <Button
