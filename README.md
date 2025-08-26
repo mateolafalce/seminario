@@ -250,9 +250,6 @@ Una vez hecho esto, los cambios hechos se revertiran.
 * Seguridad
   * [ ] Asegurarse de la autenticacion en cada endpoint
   * [ ] Asegurarnos que las contraseñas cumplan cierto criterio de longitud y caracteres
-* Modulo de estadisticas (100% opcional)
-  * [ ] Mostrar cuantas personas reservaron
-  * [ ] Mostrar trafico segmentado x hora (?)
 
 ## Diagrama de clases
 
