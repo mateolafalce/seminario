@@ -233,17 +233,14 @@ Una vez hecho esto, los cambios hechos se revertiran.
   * [x] Hacer el Navbar
   * [x] Footer con links importantes
   * [ ] Cambiar los alert por toast
-* Notificaciones
-  * [ ] Recibir aprovacion de WSP y del cliente (?)
+* Notificaciones por mail
+  * [ ] Recibir aprobacion de emial
   * [ ] Implemnetar estructura de la BD
   * [ ] Notificar posible matcheo
 * Home (javi)
   * [x] Fletar "¡Regístrate o inicia sesión para comenzar!" cuando estamos logueados
   * [x] Hacer que las imagenes vayan pasando solas cada x tiempo (mantener la posibilidad de pasarlas a mano)
   * [x] Solucionar Login y register duplicados, al momento de ingresar al home (no logueado)
-* Modulo de estadisticas (100% opcional)
-  * [ ] Mostrar cuantas personas reservaron
-  * [ ] Mostrar trafico segmentado x hora (?)
 * DevOps - CI/CD
   * [x] Actualizar el repo cada 1 hora
 * Modulo de canchas (gestionado por el admin)
@@ -254,10 +251,9 @@ Una vez hecho esto, los cambios hechos se revertiran.
 * Seguridad
   * [ ] Asegurarse de la autenticacion en cada endpoint
   * [ ] Asegurarnos que las contraseñas cumplan cierto criterio de longitud y caracteres
-* Performance
-  * [ ] Cachear imagen del home
-  * [ ] Cachear Turnos
-  * [ ] Cachear Reservas
+* Modulo de estadisticas (100% opcional)
+  * [ ] Mostrar cuantas personas reservaron
+  * [ ] Mostrar trafico segmentado x hora (?)
 
 ## Diagrama de clases
 
