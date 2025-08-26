@@ -5,7 +5,7 @@ def user_schema(user) -> dict:
         "apellido": user["apellido"],
         "username": user["username"],
         "habilitado": user["habilitado"],
-        "telefono": user["telefono"]  
+        "email": user["email"]  
     }
 
 
@@ -17,7 +17,7 @@ def user_schema_db(user) -> dict:
         "nombre": user["nombre"],
         "apellido": user["apellido"],
         "username": user["username"],
-        "telefono": user["telefono"], 
+        "email": user["email"], 
         "habilitado": user["habilitado"],
         "password": user["password"],
     }

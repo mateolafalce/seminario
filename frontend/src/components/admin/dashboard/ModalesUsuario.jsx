@@ -16,8 +16,8 @@ const ModalesUsuario = ({ modales, onEditar, onEliminar }) => {
   // Actualiza el usuario a editar cuando cambia el modal
   useEffect(() => {
     if (modales.usuarioSeleccionado && modales.modalEditar) {
-      const { id, nombre, apellido, telefono, categoria, habilitado } = modales.usuarioSeleccionado;
-      setUsuarioEditar({ id, nombre, apellido, telefono: telefono || "", categoria: categoria || "", habilitado });
+      const { id, nombre, apellido, email, categoria, habilitado } = modales.usuarioSeleccionado;
+      setUsuarioEditar({ id, nombre, apellido, email: email || "", categoria: categoria || "", habilitado });
     }
   }, [modales.usuarioSeleccionado, modales.modalEditar]);
 
@@ -74,11 +74,11 @@ const ModalesUsuario = ({ modales, onEditar, onEliminar }) => {
                 />
               ))}
               <input
-                type="text"
-                value={usuarioEditar?.telefono || ''}
-                onChange={e => setUsuarioEditar({ ...usuarioEditar, telefono: e.target.value })}
+                type="email"
+                value={usuarioEditar?.email || ''}
+                onChange={e => setUsuarioEditar({ ...usuarioEditar, email: e.target.value })}
                 className="w-full px-4 py-3 rounded-lg border border-gray-600 bg-gray-900 text-white focus:outline-none focus:ring-2 focus:ring-[#E5FF00]"
-                placeholder="Teléfono"
+                placeholder="Email"
                 required
               />
               <select

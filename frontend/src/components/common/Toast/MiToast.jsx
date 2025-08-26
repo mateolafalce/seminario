@@ -25,7 +25,7 @@ const animation = {
   }
 };
 
-const MiToast = ({ mensaje, color, info="info" }) => { //se debe cambiar en los toast el color por tipo
+const MiToast = ({ mensaje, color, tipo = "info" }) => {
   const colores = {
     success: "var(--color-green-400)",
     error: "var(--color-red-400)",

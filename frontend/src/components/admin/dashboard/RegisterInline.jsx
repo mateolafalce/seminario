@@ -16,7 +16,7 @@ function RegisterInline({ onUsuarioCreado }) {
   const campos = [
     { nombre: "nombre", etiqueta: "Nombre", tipo: "text", placeholder: "Nombre completo" },
     { nombre: "apellido", etiqueta: "Apellido", tipo: "text", placeholder: "Apellido" },
-    { nombre: "telefono", etiqueta: "Teléfono", tipo: "text", placeholder: "Ej: 1122334455" },
+    { nombre: "email", etiqueta: "Email", tipo: "email", placeholder: "email@ejemplo.com" },
     { nombre: "username", etiqueta: "Nombre de usuario", tipo: "text", placeholder: "Nombre de usuario", autoComplete: "username" },
     { nombre: "password", etiqueta: "Contraseña", tipo: "password", placeholder: "Contraseña", autoComplete: "new-password" }
   ];
@@ -39,7 +39,7 @@ function RegisterInline({ onUsuarioCreado }) {
         body: JSON.stringify({
           nombre: valores.nombre,
           apellido: valores.apellido,
-          telefono: valores.telefono,
+          email: valores.email,
           password: valores.password,
           username: valores.username,
         }),

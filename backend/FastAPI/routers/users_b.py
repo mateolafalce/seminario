@@ -269,6 +269,9 @@ async def modificar_usuario(
     except Exception:
         raise HTTPException(status_code=400, detail="ID inválido")
 
+    print(f"Intentando modificar usuario con datos: {data}")
+    print(f"Usuario actual: {user}")
+    
     # Verificar que el usuario actual es admin
     def operaciones_sincronas():
         # Obtener datos del usuario que hace la solicitud
@@ -283,18 +286,26 @@ async def modificar_usuario(
         if not is_admin:
             raise ValueError("Solo los admin pueden modificar usuarios")
 
-        categoria_obj = db_client.categorias.find_one(
-            {"nombre": data.categoria})
-        if not categoria_obj:
-            raise ValueError(f"Categoría '{data.categoria}' no encontrada")
+        # Buscar categoría por nombre si existe y no es "Sin categoría"
+        categoria_obj = None
+        if data.categoria and data.categoria not in ["Sin categoría", ""]:
+            categoria_obj = db_client.categorias.find_one(
+                {"nombre": data.categoria})
+            if not categoria_obj:
+                raise ValueError(f"Categoría '{data.categoria}' no encontrada")
 
         update_data = {
             "nombre": data.nombre,
             "apellido": data.apellido,
             "email": data.email,
             "habilitado": data.habilitado,
-            "categoria": categoria_obj["_id"],
         }
+        
+        # Solo actualizar categoría si se encontró una válida
+        if categoria_obj:
+            update_data["categoria"] = categoria_obj["_id"]
+        elif data.categoria in ["Sin categoría", ""]:
+            update_data["categoria"] = None
 
         result = db_client.users.update_one(
             {"_id": user_id},
@@ -325,6 +336,19 @@ async def modificar_usuario(
 
 class EliminarUsuarioRequest(BaseModel):
     identificador: str
+
+
+@router.get("/categorias")
+async def obtener_categorias(user: dict = Depends(current_user)):
+    """Endpoint para obtener todas las categorías disponibles"""
+    try:
+        categorias = await asyncio.to_thread(
+            lambda: list(db_client.categorias.find({}, {"_id": 0, "nombre": 1}))
+        )
+        return {"categorias": [cat["nombre"] for cat in categorias]}
+    except Exception as e:
+        print(f"Error al obtener categorías: {e}")
+        return {"categorias": []}
 
 
 @router.post("/eliminar")
@@ -410,7 +434,7 @@ async def editar_usuario(
         update_data = {
             "nombre": body.get("nombre"),
             "apellido": body.get("apellido"),
-            "telefono": body.get("telefono"),
+            "email": body.get("email"),
             "habilitado": body.get("habilitado"),
         }
         if categoria_obj:

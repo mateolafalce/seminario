@@ -21,7 +21,7 @@ function Register() {
   const campos = [
     { nombre: "nombre", etiqueta: "Nombre", tipo: "text", placeholder: "Tu nombre" },
     { nombre: "apellido", etiqueta: "Apellido", tipo: "text", placeholder: "Tu apellido" },
-    { nombre: "telefono", etiqueta: "Teléfono", tipo: "text", placeholder: "Ej: 1122334455" }, // Cambiado
+    { nombre: "email", etiqueta: "Email", tipo: "email", placeholder: "tu@email.com" },
     { nombre: "username", etiqueta: "Nombre de usuario", tipo: "text", placeholder: "Nombre de usuario", autoComplete: "username" },
     { nombre: "password", etiqueta: "Contraseña", tipo: "password", placeholder: "Contraseña", autoComplete: "new-password" },
     { nombre: "repeatPassword", etiqueta: "Repetir Contraseña", tipo: "password", placeholder: "Repite tu contraseña", autoComplete: "new-password" },
@@ -48,7 +48,7 @@ function Register() {
         body: JSON.stringify({
           nombre: valores.nombre,
           apellido: valores.apellido,
-          telefono: valores.telefono, 
+          email: valores.email, 
           password: valores.password,
           username: valores.username,
         }),

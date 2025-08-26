@@ -202,6 +202,7 @@ Una vez hecho esto, los cambios hechos se revertiran.
    * [x] Gestionar Usuarios
    * [x] Que me autocomplete la contraseña cuando selecciono el nombre de usuario
    * [x] Una vez que el token expira y nos volvemos a conectar, desloguarnos automaticamente
+   * [x] Setear el mail en cada usuario (borrar el telefono bd/back/front)
 * Reserva de canchas
   * [x] Crear la entidad Reserva
   * [x] Implementar la logica en el backend
@@ -224,17 +225,15 @@ Una vez hecho esto, los cambios hechos se revertiran.
   * [ ] Implementar la logica en el backend
   * [ ] Implementar el frontend respectivo
 * Modulo del Admin (Mateo)
-  * [x] Listar Usuarios (muestra de a 10)  y luego permitir modificarlo
+  * [x] Listar Usuarios (de a 10) y luego permitir modificarlo
   * [x] Buscar Usuario por nombre de usuario para gestionar usuario
   * [x] Alta de un cliente
-  * [ ] Buscar Usuario por dni para gestionar usuario
-  * [ ] Validar que no pedimos toda la BD en las consultas de datos
 * Frontend General (Nico)
   * [x] Hacer el Navbar
   * [x] Footer con links importantes
   * [ ] Cambiar los alert por toast
 * Notificaciones por mail
-  * [ ] Recibir aprobacion de emial
+  * [ ] Recibir aprobacion de email
   * [ ] Implemnetar estructura de la BD
   * [ ] Notificar posible matcheo
 * Home (javi)

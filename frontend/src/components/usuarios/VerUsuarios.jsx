@@ -189,6 +189,14 @@ function VerUsuarios({ show, onHide }) {
                         <div className="flex-grow text-center">
                           <h5 className="text-base font-semibold text-white">{user.nombre} {user.apellido}</h5>
                           <h6 className="text-sm text-gray-300">@{user.username}</h6>
+                          {user.email && (
+                            <p className="text-xs text-gray-400 flex items-center justify-center gap-1 mt-1">
+                              <svg className="w-3 h-3" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" d="M3 8l7.89 4.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+                              </svg>
+                              {user.email}
+                            </p>
+                          )}
                           <p className={`text-xs font-bold ${user.habilitado ? 'text-green-400' : 'text-red-400'}`}>
                             {user.habilitado ? 'Habilitado' : 'No Habilitado'} - {user.categoria}
                           </p>
