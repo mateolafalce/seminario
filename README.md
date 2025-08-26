@@ -223,8 +223,8 @@ $$
 Donde:
 
 - $S(i,j) = 1 - \frac{d(i,j)}{d_{\max}}$ es la similitud de preferencias, con $d(i,j)$ una distancia euclidiana entre las preferencias de usuario $i$ y $j$, y $d_{\max}$ la distancia máxima posible (normaliza $S$ entre 0 y 1).
-- $J(i,j) = 1$ si los usuarios han jugado juntos alguna vez, y 0 si no.
-- $alpha$ y $beta$ son pesos que balancean la importancia de la similitud versus la historia de haber jugado juntos, por lo tanto:
+- $J(i,j) = \frac{g(i,j)}{g(i)}$, donde la funcion $g(i, j)$ nos indica la cantidad de partidos del usuario $i$ con el usuario $j$, y $g(i)$ nos indica la totalidad de los partidos jugados por el usuario $i$  
+- $\alpha$ y $\beta$ son pesos que balancean la importancia de la similitud versus la historia de haber jugado juntos, por lo tanto:
  
 $$
 \alpha + \beta = 1
