@@ -43,7 +43,7 @@ python -m venv .venv && .venv\Scripts\activate
 Descargar algunas dependencias
 
 ```bash
-pip install uvicorn && pip install "fastapi[all]" && pip install python-jose && pip install passlib && pip install pymongo && pip install pytz
+pip install -r requirements.txt
 ```
 
 Ejecutar el servidor
@@ -66,7 +66,7 @@ cd frontend
 ```
 
 ```bash
-npm install react-router-dom three @react-three/fiber @react-three/drei react-icons framer-motion react-toastify
+npm install
 
 ```
 
@@ -242,7 +242,7 @@ Una vez hecho esto, los cambios hechos se revertiran.
   * [x] Hacer que las imagenes vayan pasando solas cada x tiempo (mantener la posibilidad de pasarlas a mano)
   * [x] Solucionar Login y register duplicados, al momento de ingresar al home (no logueado)
 * DevOps - CI/CD
-  * [x] Actualizar el repo cada 1 hora
+  * [x] Actualizar el repo cada 1 hora y prepararlo ante posible cambios de dependencias
 * Modulo de canchas (gestionado por el admin)
   * [x] Modelar la BD 
   * [x] Implementar el backend para el ABML
