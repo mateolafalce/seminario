@@ -4,3 +4,4 @@ python-jose
 passlib
 pymongo
 apscheduler
+resend

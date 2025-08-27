@@ -30,8 +30,7 @@ async def startup_event():
         print(f"Se actualizaron {actualizadas} reservas a estado 'Completada' al iniciar la aplicación")
     except Exception as e:
         print(f"Error al actualizar reservas en startup: {e}")
-
-    #start_scheduler()
+    start_scheduler()
 
 @app.on_event("shutdown")
 async def shutdown_event():

@@ -5,10 +5,12 @@ from typing import List, Dict, Tuple
 from collections import defaultdict
 import math
 import random
-
 from bson import ObjectId
-
 from db.client import db_client
+from dotenv import load_dotenv
+import os
+
+load_dotenv()
 
 # Esta funcion me indicara a cuantas personas voy a tener
 # que notificar. 3/5 seran seleccionados por mayor puntaje resultante de
