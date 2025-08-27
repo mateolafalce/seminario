@@ -232,8 +232,7 @@ $$
 
 Con esta fórmula, se puede calcular el puntaje $A$ para cada par de usuarios, y luego obtener un top $x$ de usuarios con puntajes más altos para un usuario dado. Este puntaje se puede graficar como matriz de calor o top ranking para visualizar semejanzas y relaciones.
 
-Este algoritmo esta instirado en [k-nearest neighbors algorithm](https://en.wikipedia.org/wiki/K-nearest_neighbors_algorithm).
-
+Este algoritmo esta inspirado en [k-nearest neighbors algorithm](https://en.wikipedia.org/wiki/K-nearest_neighbors_algorithm).
 
 # Roadmap
 
