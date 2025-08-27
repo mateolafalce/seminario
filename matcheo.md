@@ -58,7 +58,7 @@ El objetivo es minimizar $L$ respecto a $\beta$ (y $\alpha = 1 - \beta$).
 
 ¿Por que optimizar $\beta$?
 
-Se optimiza este peso ya que el unico dato "verdadero" $\{0,1\}$ que tenemos despues de una reserva es saber con quien jugo ese dia.
+Se optimiza este peso ya que el unico dato "verdadero" $\{0,1\}$ que tenemos. Una vez que se concreta la reserva queda registrado en la BD si efectivamente $j$ jugo con $i$.
 
 Finalmente calculamos el gradiente y actualizamos los pesos (backpropagation)
 
