@@ -16,16 +16,13 @@ from datetime import datetime
 from typing import List, Dict
 from fastapi.responses import JSONResponse
 import asyncio
-import pytz  # Importante: añade esta importación
-
-# Define la clase Reserva que falta
-
+import pytz  
+from datetime import datetime, timedelta
 
 class Reserva(BaseModel):
     cancha: str
     horario: str
-    fecha: str  # DD-MM-YYYY format
-
+    fecha: str 
 
 router = APIRouter(prefix="/reservas",
                    tags=["reservas"],
@@ -347,3 +344,63 @@ async def obtener_cantidad_reservas(fecha: str):
             status_code=500,
             detail=f"Error al obtener cantidad de reservas: {str(e)}"
         )
+
+async def actualizar_reservas_completadas():
+    """Actualiza las reservas que ya pasaron de 'Reservada' a 'Completada'"""
+    argentina_tz = pytz.timezone("America/Argentina/Buenos_Aires")
+    ahora = datetime.now(argentina_tz)
+    
+    # Obtener estados
+    estado_reservada = db_client.estadoreserva.find_one({"nombre": "Reservada"})
+    estado_completada = db_client.estadoreserva.find_one({"nombre": "Completada"})
+    
+    if not estado_reservada or not estado_completada:
+        return
+    
+    # Pipeline para encontrar reservas que ya pasaron
+    pipeline = [
+        {"$match": {"estado": estado_reservada["_id"]}},
+        {"$lookup": {
+            "from": "horarios",
+            "localField": "hora_inicio",
+            "foreignField": "_id",
+            "as": "horario_info"
+        }},
+        {"$unwind": "$horario_info"},
+        {"$addFields": {
+            "hora_fin": {
+                "$arrayElemAt": [
+                    {"$split": ["$horario_info.hora", "-"]}, 1
+                ]
+            }
+        }}
+    ]
+    
+    reservas_a_actualizar = []
+    reservas = list(db_client.reservas.aggregate(pipeline))
+    
+    for reserva in reservas:
+        fecha_str = reserva["fecha"]
+        hora_fin_str = reserva["hora_fin"]
+        
+        reserva_fin_dt = argentina_tz.localize(
+            datetime.strptime(f"{fecha_str} {hora_fin_str}", "%d-%m-%Y %H:%M")
+        )
+        
+        if reserva_fin_dt <= ahora:
+            reservas_a_actualizar.append(reserva["_id"])
+    
+    # Actualizar en lote
+    if reservas_a_actualizar:
+        db_client.reservas.update_many(
+            {"_id": {"$in": reservas_a_actualizar}},
+            {"$set": {"estado": estado_completada["_id"]}}
+        )
+    
+    return len(reservas_a_actualizar)
+
+@router.post("/actualizar-estados")
+async def trigger_actualizar_estados():
+    """Endpoint para activar manualmente la actualización de estados"""
+    actualizadas = await asyncio.to_thread(actualizar_reservas_completadas)
+    return {"msg": f"Se actualizaron {actualizadas} reservas a estado 'Completada'"}

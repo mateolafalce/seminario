@@ -1,6 +1,6 @@
 uvicorn
-fastapi[all] 
-python-jose 
+fastapi[all]
+python-jose
 passlib
 pymongo
-pytz
+apscheduler

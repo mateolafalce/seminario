@@ -1,6 +1,8 @@
 from fastapi import FastAPI
 from routers import users_b, admin_users, reservas, preferencias, canchas
 from fastapi.middleware.cors import CORSMiddleware
+from db.client import db_client
+from services.scheduler import start_scheduler, shutdown_scheduler
 
 app = FastAPI()
 
@@ -17,3 +19,11 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+@app.on_event("startup")
+async def startup_event():
+    start_scheduler()
+
+@app.on_event("shutdown")
+async def shutdown_event():
+    shutdown_scheduler()

@@ -11,7 +11,7 @@ const centerLinks = [
   
   { label: "Turnos", path: "/reserva", show: ({ isAuthenticated }) => isAuthenticated },
   { label: "Mis Reservas", path: "/mis-reservas", show: ({ isAuthenticated }) => isAuthenticated },
-  { label: "Preferencias", path: "/preferencias", show: ({ isAuthenticated, isAdmin }) => isAuthenticated && !isAdmin },
+  { label: "Preferencias", path: "/preferencias", show: ({ isAuthenticated }) => isAuthenticated },
   { label: "Admin", path: "/Admin", show: ({ isAuthenticated, isAdmin }) => isAuthenticated && isAdmin },
   { label: "Admin-Dashboard", path: "/admin/dashboard", show: ({ isAuthenticated, isAdmin }) => isAuthenticated && isAdmin },
 ];
