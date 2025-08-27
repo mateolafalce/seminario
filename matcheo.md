@@ -1,6 +1,6 @@
 # Algoritmo matcheo
 
-Dados 2 usuarios, $i$ y $j$, con sus respectivos dias, horarios e historial de juego entre si, podemos diseñar una funcion la cual nos permita determinar cuales son las top x opciones a recomendar al usuario que reserva una cancha para jugar en un dia y hora dados. Analiticamente puedo decir:
+Dados 2 usuarios, $i$ y $j$, con sus respectivos preferencias (dias, horarios, canchas) e historial de juego entre si, podemos diseñar una funcion la cual nos permita determinar cuales son las top x opciones a recomendar al usuario que reserva una cancha para jugar en un dia y hora dados. Analiticamente puedo decir:
 
 Dada una lista ordenada, donde los valores en V estan de forma descendente. Llamare a esa lista ordenada 
 
