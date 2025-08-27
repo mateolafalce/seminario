@@ -25,12 +25,11 @@ app.add_middleware(
 
 @app.on_event("startup")
 async def startup_event():
-    print("🚀 Iniciando aplicación...")
     try:
         actualizadas = await asyncio.to_thread(actualizar_reservas_completadas)
-        print(f"✅ Se actualizaron {actualizadas} reservas a estado 'Completada' al iniciar la aplicación")
+        print(f"Se actualizaron {actualizadas} reservas a estado 'Completada' al iniciar la aplicación")
     except Exception as e:
-        print(f"❌ Error al actualizar reservas en startup: {e}")
+        print(f"Error al actualizar reservas en startup: {e}")
 
     #start_scheduler()
 

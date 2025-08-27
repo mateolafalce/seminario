@@ -320,7 +320,7 @@ def get_training_data() -> List[Tuple[str, str, int]]:
             if user1["_id"] != user2["_id"]:
                 pair_exists = any(
                     (str(user1["_id"]), str(user2["_id"]), 1) in training_data or 
-                    (str(user2["_id"]), str(user1["_id"]), 1) in training_data
+                    (str(user2["_Id"]), str(user1["_id"]), 1) in training_data
                     for _ in [None]
                 )
                 if not pair_exists:
@@ -526,6 +526,99 @@ def optimize_weights() -> Dict[str, Tuple[float, float]]:
     
     print(f"✅ Optimización completada. Se actualizaron pesos para {len(updated_weights)} usuarios.")
     return updated_weights
+
+
+def train_model_with_feedback(pares_feedback: Dict[Tuple[str, str], int]):
+    updated_weights = {}
+    learning_rate = 0.01
+    iterations = 1
+    
+    for (usuario_i, usuario_j), feedback in pares_feedback.items():
+        try:
+            # Obtener pesos actuales
+            current_alpha, current_beta, _ = get_user_weights(usuario_i, usuario_j)
+            beta = current_beta
+            
+            print(f"👥 Par {usuario_i[:8]}.../{usuario_j[:8]}... - Feedback: {feedback}")
+            print(f"   🎯 Pesos actuales: α={current_alpha:.3f}, β={current_beta:.3f}")
+            
+            # Crear datos de entrenamiento para este par
+            # Si feedback > 0, significa que la predicción fue acertada (y_ij = 1)
+            # Si feedback = 0, la predicción falló (y_ij = 0)
+            y_ij = 1 if feedback > 0 else 0
+            
+            # Optimización usando gradient descent
+            for iteration in range(iterations):
+                try:
+                    alpha = 1 - beta
+                    s_ij = S(usuario_i, usuario_j)
+                    j_ij = J(usuario_i, usuario_j)
+                    a_ij = alpha * s_ij + beta * j_ij
+                    
+                    # Calcular gradiente: ∂L/∂β = 2(A(i,j) - y_ij)(J(i,j) - S(i,j))
+                    error = a_ij - y_ij
+                    gradient = 2 * error * (j_ij - s_ij)
+                    
+                    # Actualizar beta
+                    beta = beta - learning_rate * gradient
+                    
+                    # Mantener beta en el rango [0, 1]
+                    beta = max(0.0, min(1.0, beta))
+                    
+                    # Early stopping si el error es muy pequeño
+                    if abs(error) < 0.01:
+                        break
+                        
+                except (ValueError, ZeroDivisionError) as e:
+                    print(f"   ⚠️ Error en iteración {iteration}: {e}")
+                    break
+            
+            new_alpha = 1 - beta
+            new_beta = beta
+            
+            # Actualizar pesos en la base de datos
+            if update_user_weights(usuario_i, usuario_j, new_alpha, new_beta):
+                updated_weights[(usuario_i, usuario_j)] = (new_alpha, new_beta)
+                print(f"   ✅ Pesos actualizados: α={new_alpha:.3f}, β={new_beta:.3f}")
+                
+                # Si el feedback fue positivo, fortalecer la relación inversa también
+                if feedback > 0:
+                    if update_user_weights(usuario_j, usuario_i, new_alpha, new_beta):
+                        updated_weights[(usuario_j, usuario_i)] = (new_alpha, new_beta)
+                        print(f"   🔄 Relación inversa también actualizada")
+            else:
+                print(f"   ❌ Error actualizando pesos en BD")
+                
+        except Exception as e:
+            print(f"❌ Error entrenando par {usuario_i[:8]}.../{usuario_j[:8]}...: {e}")
+            continue
+    
+    print(f"✅ Entrenamiento completado. Se actualizaron {len(updated_weights)} relaciones.")
+    return updated_weights
+
+
+def train_model_with_feedback_optimized(pares_feedback: Dict[Tuple[str, str], int]):
+    for (usuario_i, usuario_j), feedback in pares_feedback.items():
+        try:
+            s_ij = S(usuario_i, usuario_j)
+            j_ij = J(usuario_i, usuario_j)
+            y_ij = 1 if feedback > 0 else 0
+            
+            # Solución analítica para minimizar (α*S + β*J - y)²
+            # donde α + β = 1, entonces α = 1 - β
+            # Minimizar: ((1-β)*S + β*J - y)² respecto a β
+            
+            if abs(j_ij - s_ij) > 1e-6:  # Evitar división por cero
+                # Derivada = 0: β_optimal = (y - S) / (J - S)
+                beta_optimal = (y_ij - s_ij) / (j_ij - s_ij)
+                beta_optimal = max(0.0, min(1.0, beta_optimal))  # Clamp [0,1]
+                alpha_optimal = 1 - beta_optimal
+                
+                update_user_weights(usuario_i, usuario_j, alpha_optimal, beta_optimal)
+            
+        except Exception as e:
+            print(f"Error: {e}")
+            continue
 
 
 def calculate_and_store_relations():

@@ -401,14 +401,11 @@ def actualizar_reservas_completadas():
     
     # Obtener estados
     estado_reservada = db_client.estadoreserva.find_one({"nombre": "Reservada"})
-    estado_completada = db_client.estadoreserva.find_one({"nombre": "Completada"})
-    
-    if not estado_reservada or not estado_completada:
-        print("❌ No se encontraron los estados 'Reservada' o 'Completada'")
+    estado_completada = db_client.estadoreserva.find_one({"nombre": "Confirmada"})
+
+    if not estado_reservada:
+        print("❌ No se encontró el estado 'Reservada'")
         return 0
-    
-    print(f"🔍 Estado Reservada ID: {estado_reservada['_id']}")
-    print(f"🔍 Estado Completada ID: {estado_completada['_id']}")
     
     # Pipeline para encontrar reservas que ya pasaron
     pipeline = [
@@ -433,6 +430,7 @@ def actualizar_reservas_completadas():
     print(f"📋 Se encontraron {len(reservas)} reservas en estado 'Reservada'")
     
     reservas_a_actualizar = []
+    datos_entrenamiento = {}  # Dict para almacenar feedback por pares
     
     for reserva in reservas:
         try:
@@ -451,8 +449,7 @@ def actualizar_reservas_completadas():
             try:
                 reserva_fin_dt = argentina_tz.localize(reserva_fin_dt_naive)
             except ValueError as e:
-                # Si hay error de DST, usar fold=1 para manejar ambigüedad
-                print(f"   ⚠️ Ambigüedad de timezone, usando fold=1: {e}")
+                print(f"   ⚠️ Ambigüedad de timezone, usando is_dst=None: {e}")
                 reserva_fin_dt = argentina_tz.localize(reserva_fin_dt_naive, is_dst=None)
             
             print(f"   🌍 DateTime con timezone: {reserva_fin_dt}")
@@ -465,6 +462,48 @@ def actualizar_reservas_completadas():
             if ya_paso:
                 reservas_a_actualizar.append(reserva["_id"])
                 print(f"   ➕ Agregada para actualizar")
+                
+                # Procesar datos para entrenamiento del modelo
+                if reserva.get("notificacion_id"):
+                    print(f"   🔔 Procesando notificación {reserva['notificacion_id']}")
+                    
+                    # Buscar la notificación asociada
+                    notificacion = db_client.notificaciones.find_one({"_id": reserva["notificacion_id"]})
+                    
+                    if notificacion:
+                        usuario_i = str(notificacion.get("i"))  # Usuario que hizo la reserva
+                        usuarios_j = [str(uid) for uid in notificacion.get("j", [])]  # Usuarios notificados
+                        
+                        print(f"   👤 Usuario i (reservador): {usuario_i}")
+                        print(f"   👥 Usuarios j (notificados): {usuarios_j}")
+                        
+                        # Buscar todas las reservas en la misma cancha, fecha y horario
+                        reservas_mismo_slot = list(db_client.reservas.find({
+                            "cancha": reserva["cancha"],
+                            "fecha": reserva["fecha"],
+                            "hora_inicio": reserva["hora_inicio"],
+                            "estado": {"$ne": db_client.estadoreserva.find_one({"nombre": "Cancelada"})["_id"]}
+                        }))
+                        
+                        usuarios_que_jugaron = [str(r["usuario"]) for r in reservas_mismo_slot]
+                        print(f"   🎮 Usuarios que efectivamente jugaron: {usuarios_que_jugaron}")
+                        
+                        # Para cada usuario notificado, verificar si jugó
+                        for usuario_j in usuarios_j:
+                            clave = (usuario_i, usuario_j)
+                            
+                            if usuario_j in usuarios_que_jugaron:
+                                # El usuario notificado sí jugó -> +1
+                                datos_entrenamiento[clave] = datos_entrenamiento.get(clave, 0) + 1
+                                print(f"   ✅ {usuario_j} fue notificado y SÍ jugó -> +1")
+                            else:
+                                # El usuario notificado no jugó -> +0
+                                datos_entrenamiento[clave] = datos_entrenamiento.get(clave, 0) + 0
+                                print(f"   ❌ {usuario_j} fue notificado pero NO jugó -> +0")
+                    else:
+                        print(f"   ⚠️ No se encontró la notificación {reserva['notificacion_id']}")
+                else:
+                    print(f"   ℹ️ Reserva sin notificación asociada")
             else:
                 print(f"   ⏭️ Aún no ha pasado")
                 
@@ -477,6 +516,7 @@ def actualizar_reservas_completadas():
     print(f"\n📊 Resumen:")
     print(f"   📋 Total reservas revisadas: {len(reservas)}")
     print(f"   ✅ Reservas a actualizar: {len(reservas_a_actualizar)}")
+    print(f"   🎯 Pares únicos con feedback: {len(datos_entrenamiento)}")
     
     # Actualizar en lote
     if reservas_a_actualizar:
@@ -488,17 +528,34 @@ def actualizar_reservas_completadas():
         
         print(f"✅ Se actualizaron {result.modified_count} reservas a estado 'Completada'")
         
-        # Ejecutar optimización de pesos después de actualizar reservas
-        if result.modified_count > 0:
-            print(f"🔄 Ejecutando optimización de pesos tras {result.modified_count} reservas completadas...")
+        # Entrenar el modelo con los datos recolectados
+        if datos_entrenamiento:
+            print(f"🤖 Entrenando modelo con {len(datos_entrenamiento)} pares de feedback...")
+            print(f"📈 Feedback por pares:")
+            for (usuario_i, usuario_j), total in datos_entrenamiento.items():
+                print(f"   {usuario_i[:8]}... -> {usuario_j[:8]}...: +{total}")
+            
             try:
-                from services.matcheo import optimize_weights
-                optimize_weights()
-                print("✅ Optimización de pesos completada")
+                from services.matcheo import train_model_with_feedback
+                train_model_with_feedback(datos_entrenamiento)
+                print("✅ Entrenamiento del modelo completado")
+                
+            except ImportError:
+                print("⚠️ Función train_model_with_feedback no encontrada. Usando optimize_weights como fallback.")
+                try:
+                    from services.matcheo import optimize_weights
+                    optimize_weights()
+                    print("✅ Optimización de pesos completada")
+                except Exception as e:
+                    print(f"❌ Error en optimización de pesos: {e}")
+                    import traceback
+                    traceback.print_exc()
             except Exception as e:
-                print(f"❌ Error en optimización de pesos: {e}")
+                print(f"❌ Error en entrenamiento del modelo: {e}")
                 import traceback
                 traceback.print_exc()
+        else:
+            print("ℹ️ No hay datos de entrenamiento para procesar")
     else:
         print("ℹ️ No hay reservas para actualizar a estado 'Completada'")
     
