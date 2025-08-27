@@ -12,9 +12,8 @@ def schedule_jobs():
         scheduler.add_job(
             actualizar_reservas_completadas,
             'interval',
-            #hours=1,
-            #minutes=30,
-            #minutes=1,
+            hours=1,
+            minutes=30,
             id='actualizar_reservas_job',
             replace_existing=True
         )
@@ -25,7 +24,6 @@ def schedule_jobs():
             calculate_and_store_relations,
             'interval',
             hours=2,
-            #minutes=1,
             id='calculate_relations_job',
             replace_existing=True
         )
