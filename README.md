@@ -221,9 +221,9 @@ Una vez hecho esto, los cambios hechos se revertiran.
   * [x] Modificar preferencia
   * [x] Eliminar preferencia
 * Sistema de matcheo de jugadores (Marcos)
-  * [ ] Crear la entidad Matcheo
-  * [ ] Implementar la logica en el backend
-  * [ ] Implementar el frontend respectivo
+  * [x] Crear la entidad Matcheo
+  * [x] Implementar la logica en el backend
+  * [x] Implementar el frontend respectivo
 * Modulo del Admin (Mateo)
   * [x] Listar Usuarios (de a 10) y luego permitir modificarlo
   * [x] Buscar Usuario por nombre de usuario para gestionar usuario
@@ -231,11 +231,11 @@ Una vez hecho esto, los cambios hechos se revertiran.
 * Frontend General (Nico)
   * [x] Hacer el Navbar
   * [x] Footer con links importantes
-  * [ ] Cambiar los alert por toast
+  * [x] Cambiar los alert por toast
 * Notificaciones por mail
-  * [ ] Recibir aprobacion de email
-  * [ ] Implemnetar estructura de la BD
-  * [ ] Notificar posible matcheo
+  * [x] Validar email del usuario
+  * [x] Implemnetar estructura de la BD
+  * [ ] Notificar posible matcheo a posibles usuarios.
 * Home (javi)
   * [x] Fletar "¡Regístrate o inicia sesión para comenzar!" cuando estamos logueados
   * [x] Hacer que las imagenes vayan pasando solas cada x tiempo (mantener la posibilidad de pasarlas a mano)
