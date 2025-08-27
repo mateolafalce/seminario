@@ -42,7 +42,7 @@ $$
 \alpha = \beta = 0.5
 $$
 
-Como no queremos suponer nada sino aprender de las reservas del usuario, vamos a proponer un algoritmo de aprendizaje inteligente, incorporarando un mecanismo basado en **backpropagation** para ajustar los pesos $\alpha$ y $\beta$ de modo que la función $A(i,j)$ refleje mejor cómo importar las preferencias y el historial de juego en la predicción del emparejamiento.
+Como no queremos suponer nada sino aprender de las reservas del usuario, vamos a proponer un algoritmo de aprendizaje inteligente, incorporarando un mecanismo basado en **backpropagation** para ajustar los pesos $\alpha$ y $\beta$ de modo que la función $A(i,j)$ refleje mejor cómo impacta las preferencias y el historial de juego en la predicción del emparejamiento.
 
 Para hacerlo, usaremos un modelo simple de predicción supervisado, para minimizar un error con respecto a datos reales de emparejamientos (si el usuario eligió o jugó con ese par, o si prefirió ese emparejamiento sobre otro).
 
