@@ -18,6 +18,7 @@ from fastapi.responses import JSONResponse
 import asyncio
 import pytz  
 from datetime import datetime, timedelta
+from services.matcheo import a_notificar
 
 class Reserva(BaseModel):
     cancha: str
@@ -39,6 +40,8 @@ def clean_mongo_doc(doc):
         doc["hora_inicio"] = str(doc["hora_inicio"])
     if "estado" in doc:
         doc["estado"] = str(doc["estado"])
+    if "notificacion_id" in doc and doc["notificacion_id"]:
+        doc["notificacion_id"] = str(doc["notificacion_id"])
     return doc
 
 
@@ -132,13 +135,34 @@ async def reservar(reserva: Reserva, user: dict = Depends(current_user)):
                 "estado": estado_cancelada_id
             })
             if reserva_cancelada:
+                # Actualizar estado de la reserva cancelada
+                update_data = {"estado": estado_reservada_id}
+                
+                # Crear notificación para reserva reactivada
+                notificacion_id = None
+                try:
+                    usuarios_a_notificar = a_notificar(user["id"])
+                    if usuarios_a_notificar:
+                        notificacion = {
+                            "i": ObjectId(user["id"]),
+                            "j": [ObjectId(uid) for uid in usuarios_a_notificar if ObjectId.is_valid(uid)],
+                        }
+                        result_notif = db_client.notificaciones.insert_one(notificacion)
+                        notificacion_id = result_notif.inserted_id
+                        update_data["notificacion_id"] = notificacion_id
+                except Exception as e:
+                    print(f"Error creando notificación para reserva reactivada: {e}")
+                
                 result = db_client.reservas.update_one(
                     {"_id": reserva_cancelada["_id"]},
-                    {"$set": {"estado": estado_reservada_id}}
+                    {"$set": update_data}
                 )
+                
                 if result.modified_count == 1:
                     reserva_cancelada["estado"] = estado_reservada_id
                     reserva_cancelada["_id"] = str(reserva_cancelada["_id"])
+                    if notificacion_id:
+                        reserva_cancelada["notificacion_id"] = str(notificacion_id)
                     return reserva_cancelada
                 else:
                     raise ValueError("No se pudo reactivar la reserva cancelada.")
@@ -161,11 +185,33 @@ async def reservar(reserva: Reserva, user: dict = Depends(current_user)):
                 "fecha": reserva.fecha,
                 "hora_inicio": horario_id,
                 "usuario": ObjectId(user["id"]),
-                "estado": estado_reservada_id
+                "estado": estado_reservada_id,
+                "notificacion_id": None  # Inicializar como None
             }
 
             result = db_client.reservas.insert_one(nueva_reserva)
             nueva_reserva["_id"] = str(result.inserted_id)
+            
+            # Crear notificación para nueva reserva
+            try:
+                usuarios_a_notificar = a_notificar(user["id"])
+                if usuarios_a_notificar:
+                    notificacion = {
+                        "i": ObjectId(user["id"]),
+                        "j": [ObjectId(uid) for uid in usuarios_a_notificar if ObjectId.is_valid(uid)]
+                    }
+                    result_notif = db_client.notificaciones.insert_one(notificacion)
+                    
+                    # Actualizar la reserva con el ID de la notificación
+                    db_client.reservas.update_one(
+                        {"_id": result.inserted_id},
+                        {"$set": {"notificacion_id": result_notif.inserted_id}}
+                    )
+                    
+                    nueva_reserva["notificacion_id"] = str(result_notif.inserted_id)
+            except Exception as e:
+                print(f"Error creando notificación para nueva reserva: {e}")
+            
             return nueva_reserva
 
         resultado = await asyncio.to_thread(operaciones_sincronas)
@@ -345,17 +391,24 @@ async def obtener_cantidad_reservas(fecha: str):
             detail=f"Error al obtener cantidad de reservas: {str(e)}"
         )
 
-async def actualizar_reservas_completadas():
+def actualizar_reservas_completadas():
     """Actualiza las reservas que ya pasaron de 'Reservada' a 'Completada'"""
     argentina_tz = pytz.timezone("America/Argentina/Buenos_Aires")
     ahora = datetime.now(argentina_tz)
+    
+    print(f"🕐 Hora actual: {ahora}")
+    print(f"📅 Fecha actual: {ahora.strftime('%d-%m-%Y %H:%M')}")
     
     # Obtener estados
     estado_reservada = db_client.estadoreserva.find_one({"nombre": "Reservada"})
     estado_completada = db_client.estadoreserva.find_one({"nombre": "Completada"})
     
     if not estado_reservada or not estado_completada:
-        return
+        print("❌ No se encontraron los estados 'Reservada' o 'Completada'")
+        return 0
+    
+    print(f"🔍 Estado Reservada ID: {estado_reservada['_id']}")
+    print(f"🔍 Estado Completada ID: {estado_completada['_id']}")
     
     # Pipeline para encontrar reservas que ya pasaron
     pipeline = [
@@ -376,26 +429,78 @@ async def actualizar_reservas_completadas():
         }}
     ]
     
-    reservas_a_actualizar = []
     reservas = list(db_client.reservas.aggregate(pipeline))
+    print(f"📋 Se encontraron {len(reservas)} reservas en estado 'Reservada'")
+    
+    reservas_a_actualizar = []
     
     for reserva in reservas:
-        fecha_str = reserva["fecha"]
-        hora_fin_str = reserva["hora_fin"]
-        
-        reserva_fin_dt = argentina_tz.localize(
-            datetime.strptime(f"{fecha_str} {hora_fin_str}", "%d-%m-%Y %H:%M")
-        )
-        
-        if reserva_fin_dt <= ahora:
-            reservas_a_actualizar.append(reserva["_id"])
+        try:
+            fecha_str = reserva["fecha"]
+            hora_fin_str = reserva["hora_fin"]
+            
+            print(f"\n🔍 Procesando reserva {reserva['_id']}:")
+            print(f"   📅 Fecha: {fecha_str}")
+            print(f"   🕐 Hora fin: {hora_fin_str}")
+            
+            # Convertir fecha DD-MM-YYYY y hora HH:MM a datetime naive
+            reserva_fin_dt_naive = datetime.strptime(f"{fecha_str} {hora_fin_str}", "%d-%m-%Y %H:%M")
+            print(f"   📅 DateTime naive: {reserva_fin_dt_naive}")
+            
+            # Localizar en timezone de Argentina
+            try:
+                reserva_fin_dt = argentina_tz.localize(reserva_fin_dt_naive)
+            except ValueError as e:
+                # Si hay error de DST, usar fold=1 para manejar ambigüedad
+                print(f"   ⚠️ Ambigüedad de timezone, usando fold=1: {e}")
+                reserva_fin_dt = argentina_tz.localize(reserva_fin_dt_naive, is_dst=None)
+            
+            print(f"   🌍 DateTime con timezone: {reserva_fin_dt}")
+            print(f"   🕐 Ahora: {ahora}")
+            print(f"   ⏰ Diferencia: {ahora - reserva_fin_dt}")
+            
+            ya_paso = reserva_fin_dt <= ahora
+            print(f"   ✅ ¿Ya pasó?: {ya_paso}")
+            
+            if ya_paso:
+                reservas_a_actualizar.append(reserva["_id"])
+                print(f"   ➕ Agregada para actualizar")
+            else:
+                print(f"   ⏭️ Aún no ha pasado")
+                
+        except Exception as e:
+            print(f"❌ Error procesando reserva {reserva.get('_id', 'unknown')}: {e}")
+            import traceback
+            traceback.print_exc()
+            continue
+    
+    print(f"\n📊 Resumen:")
+    print(f"   📋 Total reservas revisadas: {len(reservas)}")
+    print(f"   ✅ Reservas a actualizar: {len(reservas_a_actualizar)}")
     
     # Actualizar en lote
     if reservas_a_actualizar:
-        db_client.reservas.update_many(
+        print(f"\n🔄 Actualizando {len(reservas_a_actualizar)} reservas...")
+        result = db_client.reservas.update_many(
             {"_id": {"$in": reservas_a_actualizar}},
             {"$set": {"estado": estado_completada["_id"]}}
         )
+        
+        print(f"✅ Se actualizaron {result.modified_count} reservas a estado 'Completada'")
+        
+        # Ejecutar optimización de pesos después de actualizar reservas
+        if result.modified_count > 0:
+            print(f"🔄 Ejecutando optimización de pesos tras {result.modified_count} reservas completadas...")
+            try:
+                from services.matcheo import optimize_weights
+                optimize_weights()
+                print("✅ Optimización de pesos completada")
+            except Exception as e:
+                print(f"❌ Error en optimización de pesos: {e}")
+                import traceback
+                traceback.print_exc()
+    else:
+        print("ℹ️ No hay reservas para actualizar a estado 'Completada'")
     
     return len(reservas_a_actualizar)
 
@@ -403,4 +508,4 @@ async def actualizar_reservas_completadas():
 async def trigger_actualizar_estados():
     """Endpoint para activar manualmente la actualización de estados"""
     actualizadas = await asyncio.to_thread(actualizar_reservas_completadas)
-    return {"msg": f"Se actualizaron {actualizadas} reservas a estado 'Completada'"}
+    return {"msg": f"Se actualizaron {actualizadas} reservas a estado 'Completada' y se optimizaron los pesos del algoritmo de matcheo"}
