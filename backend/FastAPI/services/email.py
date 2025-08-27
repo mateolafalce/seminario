@@ -17,3 +17,12 @@ def enviar_email(to: str, subject: str, html: str):
         "subject": subject,
         "html": html
     })
+
+def enviar_email_habilitacion(to: str, token: str):
+    dominio = os.getenv("DOMINIO")
+    subject = "Habilitación de cuenta"
+    html = f"""
+    <p>Para habilitar su cuenta, haga clic en el siguiente enlace:</p>
+    <a href="https://{dominio}/users_b/habilitar?token={token}">Habilitar cuenta</a>
+    """
+    enviar_email(to, subject, html)

@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException, status, Body
+from fastapi import APIRouter, Depends, HTTPException, status, Body, Query
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
 from jose import jwt, JWTError
 from passlib.context import CryptContext
@@ -13,6 +13,8 @@ import asyncio
 from datetime import datetime
 import pytz
 from fastapi import Body
+import secrets
+from services.email import enviar_email_habilitacion
 
 router = APIRouter(
     prefix="/users_b",
@@ -40,7 +42,6 @@ async def register(user: UserDB):
     user_dict = dict(user)
     del user_dict["id"]
 
-    # Hashear la contraseña
     hashed_password = crypt.hash(user.password)
     user_dict["password"] = hashed_password
 
@@ -51,6 +52,11 @@ async def register(user: UserDB):
     user_dict["ultima_conexion"] = None
     user_dict["categoria"] = None
 
+    # Generar token de habilitación
+    habilitacion_token = secrets.token_urlsafe(32)
+    user_dict["habilitacion_token"] = habilitacion_token
+    # enviar mail
+    enviar_email_habilitacion(user.email, habilitacion_token)
     id = db_client.users.insert_one(user_dict).inserted_id
 
     new_user_data = db_client.users.find_one({"_id": id})
@@ -60,10 +66,7 @@ async def register(user: UserDB):
         "exp": datetime.utcnow() + timedelta(minutes=ACCESS_TOKEN_DURATION)
     }
 
-    return {
-        "access_token": access_token,
-        "token_type": "bearer"
-    }
+    return {"access_token": access_token}
 
 
 def check_admin(user_id: str):
@@ -493,3 +496,20 @@ async def eliminar_usuario(
     except Exception as e:
         raise HTTPException(status_code=500,
                             detail=f"Error al eliminar usuario: {str(e)}")
+
+
+@router.post("/habilitar")
+async def habilitar_usuario(token: str = Query(...)):
+    user = await asyncio.to_thread(
+        lambda: db_client.users.find_one({"habilitacion_token": token})
+    )
+    if not user:
+        raise HTTPException(status_code=404, detail="Token inválido")
+
+    await asyncio.to_thread(
+        lambda: db_client.users.update_one(
+            {"_id": user["_id"]},
+            {"$set": {"habilitado": True, "habilitacion_token": None}}
+        )
+    )
+    return {"message": "Usuario habilitado correctamente"}

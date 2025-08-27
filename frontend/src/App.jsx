@@ -17,6 +17,7 @@ import Unauthorized from './pages/Unauthorized';
 import Preferencias from './pages/Preferencia';
 import MisReservas from './pages/MisReservas';
 import AdminRoute from './components/admin/AdminRoute';
+import Habilitado from './pages/Habilitado';
 
 function App() {
   return (
@@ -87,6 +88,7 @@ function AppWithTimeout() {
           <Route path="/Admin/*" element={<AdminRoute />}>
             <Route index element={<Admin />} />
           </Route>
+          <Route path="/enabled" element={<Habilitado />} />
           <Route path="/admin/dashboard" element={<AdminDashboard />} />
           <Route path="/unauthorized" element={<Unauthorized />} />
         </Routes>
