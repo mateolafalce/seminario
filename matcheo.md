@@ -1,6 +1,6 @@
 # Algoritmo matcheo
 
-Dados 2 usuarios, $i$ y $j$, con sus respectivos dias, horarios e historial de juego entre si, podemos diseñar una funcion la cual nos permita determinar cuales son las top x opciones a recomendar al usuario que reserva una cancha para jugar en un dia y hora dados. Analiticamente puedo decir:
+Dados 2 usuarios, $i$ y $j$, con sus respectivos preferencias (dias, horarios, canchas) e historial de juego entre si, podemos diseñar una funcion la cual nos permita determinar cuales son las top $x$ opciones a recomendar al usuario que reserva una cancha para jugar en un dia y hora dados. Analiticamente puedo decir:
 
 Dada una lista ordenada, donde los valores en V estan de forma descendente. Llamare a esa lista ordenada 
 
@@ -26,9 +26,9 @@ $$
 
 Donde:
 
-- $S(i,j) = 1 - \frac{d(i,j)}{d_{\max}}$ es la similitud de preferencias, con $d(i,j)$ una distancia euclidiana entre las preferencias de usuario $i$ y $j$, y $d_{\max}$ la distancia máxima posible (normalizando $S$ entre 0 y 1).
+- $S(i,j) = 1 - \frac{d(i,j)}{d_{\max}}$ es la similitud de preferencias, con $d(i,j)$ una distancia euclidiana entre las preferencias de usuario $i$ y $j$, y $d_{\max}$ la distancia máxima posible (normalizando $S$ entre 0 y 1). En nuestro caso, tendremos que calcular distancias en 3 dimensiones.
 - $J(i,j) = \frac{g(i,j)}{g(i)}$, donde la funcion $g(i, j)$ nos indica la cantidad de partidos del usuario $i$ con el usuario $j$, y $g(i)$ nos indica la totalidad de los partidos jugados por el usuario $i$  
-- $\alpha$ y $\beta$ son pesos que balancean la importancia de la similitud versus la historia de haber jugado juntos, por lo tanto:
+- $\alpha$ y $\beta$ son pesos que balancean la importancia de las preferencias versus la historia de haber jugado juntos, por lo tanto:
  
 $$
 \alpha + \beta = 1
@@ -36,13 +36,13 @@ $$
 
 Con esta fórmula, se puede calcular el puntaje $A$ para cada par de usuarios, y luego obtener un top $x$ de usuarios con puntajes más altos para un usuario dado. Este puntaje se puede graficar como matriz de calor o top ranking para visualizar semejanzas y relaciones.
 
-Partiremos del supuesto que jugar con un jugador o valorar mas las preferncias de dias y horarios es igual, entiendase:
+Partiremos del supuesto que jugar con un jugador o valorar mas las preferencias de dias y horarios es igual, entiendase:
 
 $$
 \alpha = \beta = 0.5
 $$
 
-Como no queremos suponer nada sino aprender de las reservas del usuario, por lo tanto vamos a proponer un algoritmo de aprendizaje inteligente, incorporarando un mecanismo basado en **backpropagation** para ajustar los pesos $\alpha$ y $\beta$ de modo que la función $A(i,j)$ refleje mejor cómo importar las preferencias y el historial de juego en la predicción del emparejamiento.
+Como no queremos suponer nada sino aprender de las reservas del usuario, vamos a proponer un algoritmo de aprendizaje inteligente, incorporarando un mecanismo basado en **backpropagation** para ajustar los pesos $\alpha$ y $\beta$ de modo que la función $A(i,j)$ refleje mejor cómo impacta las preferencias y el historial de juego en la predicción del emparejamiento.
 
 Para hacerlo, usaremos un modelo simple de predicción supervisado, para minimizar un error con respecto a datos reales de emparejamientos (si el usuario eligió o jugó con ese par, o si prefirió ese emparejamiento sobre otro).
 
@@ -58,7 +58,7 @@ El objetivo es minimizar $L$ respecto a $\beta$ (y $\alpha = 1 - \beta$).
 
 ¿Por que optimizar $\beta$?
 
-Se optimiza este peso ya que el unico dato "verdadero" $\{0,1\}$ que tenemos despues de una reserva es saber con quien jugo ese dia.
+Se optimiza este peso ya que el unico dato "verdadero" $\{0,1\}$ que tenemos. Una vez que se concreta la reserva queda registrado en la BD si efectivamente $j$ jugo con $i$.
 
 Finalmente calculamos el gradiente y actualizamos los pesos (backpropagation)
 
@@ -74,6 +74,6 @@ $$
 \beta \leftarrow \beta - \eta \frac{\partial L}{\partial \beta}
 $$
 
-Y finalmente normalizamos para que $\alpha = 1 - \beta$.
+Y finalmente hacemos lo mismo con $\alpha = 1 - \beta$.
 
 Este algoritmo esta inspirado en [k-nearest neighbors algorithm](https://en.wikipedia.org/wiki/K-nearest_neighbors_algorithm) y en [backpropagation](https://en.wikipedia.org/wiki/Backpropagation).
