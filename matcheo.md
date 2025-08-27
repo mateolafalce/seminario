@@ -36,13 +36,13 @@ $$
 
 Con esta fórmula, se puede calcular el puntaje $A$ para cada par de usuarios, y luego obtener un top $x$ de usuarios con puntajes más altos para un usuario dado. Este puntaje se puede graficar como matriz de calor o top ranking para visualizar semejanzas y relaciones.
 
-Partiremos del supuesto que jugar con un jugador o valorar mas las preferncias de dias y horarios es igual, entiendase:
+Partiremos del supuesto que jugar con un jugador o valorar mas las preferencias de dias y horarios es igual, entiendase:
 
 $$
 \alpha = \beta = 0.5
 $$
 
-Como no queremos suponer nada sino aprender de las reservas del usuario, por lo tanto vamos a proponer un algoritmo de aprendizaje inteligente, incorporarando un mecanismo basado en **backpropagation** para ajustar los pesos $\alpha$ y $\beta$ de modo que la función $A(i,j)$ refleje mejor cómo importar las preferencias y el historial de juego en la predicción del emparejamiento.
+Como no queremos suponer nada sino aprender de las reservas del usuario, vamos a proponer un algoritmo de aprendizaje inteligente, incorporarando un mecanismo basado en **backpropagation** para ajustar los pesos $\alpha$ y $\beta$ de modo que la función $A(i,j)$ refleje mejor cómo importar las preferencias y el historial de juego en la predicción del emparejamiento.
 
 Para hacerlo, usaremos un modelo simple de predicción supervisado, para minimizar un error con respecto a datos reales de emparejamientos (si el usuario eligió o jugó con ese par, o si prefirió ese emparejamiento sobre otro).
 
