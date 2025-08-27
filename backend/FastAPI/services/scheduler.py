@@ -3,7 +3,6 @@ from db.client import db_client
 from routers.reservas import actualizar_reservas_completadas
 from services.matcheo import calculate_and_store_relations
 
-
 scheduler = AsyncIOScheduler()
 
 def schedule_jobs():
