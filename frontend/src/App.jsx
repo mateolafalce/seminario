@@ -88,7 +88,7 @@ function AppWithTimeout() {
           <Route path="/Admin/*" element={<AdminRoute />}>
             <Route index element={<Admin />} />
           </Route>
-          <Route path="/enabled" element={<Habilitado />} />
+          <Route path="/habilitado" element={<Habilitado />} />
           <Route path="/admin/dashboard" element={<AdminDashboard />} />
           <Route path="/unauthorized" element={<Unauthorized />} />
         </Routes>

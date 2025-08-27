@@ -15,6 +15,7 @@ import pytz
 from fastapi import Body
 import secrets
 from services.email import enviar_email_habilitacion
+from fastapi.responses import RedirectResponse
 
 router = APIRouter(
     prefix="/users_b",
@@ -498,7 +499,7 @@ async def eliminar_usuario(
                             detail=f"Error al eliminar usuario: {str(e)}")
 
 
-@router.post("/habilitar")
+@router.get("/habilitar")
 async def habilitar_usuario(token: str = Query(...)):
     user = await asyncio.to_thread(
         lambda: db_client.users.find_one({"habilitacion_token": token})
@@ -512,4 +513,5 @@ async def habilitar_usuario(token: str = Query(...)):
             {"$set": {"habilitado": True, "habilitacion_token": None}}
         )
     )
-    return {"message": "Usuario habilitado correctamente"}
+    # Redirige al usuario al frontend
+    return RedirectResponse(url="/habilitado")
