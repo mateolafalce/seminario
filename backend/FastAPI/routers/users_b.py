@@ -513,5 +513,5 @@ async def habilitar_usuario(token: str = Query(...)):
             {"$set": {"habilitado": True, "habilitacion_token": None}}
         )
     )
-    # Redirige al usuario al frontend
-    return RedirectResponse(url="/habilitado")
+    # Redirige al usuario al frontend (URL ABSOLUTA)
+    return RedirectResponse(url="https://boulevard81.duckdns.org/habilitado")
