@@ -26,9 +26,9 @@ $$
 
 Donde:
 
-- $S(i,j) = 1 - \frac{d(i,j)}{d_{\max}}$ es la similitud de preferencias, con $d(i,j)$ una distancia euclidiana entre las preferencias de usuario $i$ y $j$, y $d_{\max}$ la distancia máxima posible (normalizando $S$ entre 0 y 1).
+- $S(i,j) = 1 - \frac{d(i,j)}{d_{\max}}$ es la similitud de preferencias, con $d(i,j)$ una distancia euclidiana entre las preferencias de usuario $i$ y $j$, y $d_{\max}$ la distancia máxima posible (normalizando $S$ entre 0 y 1). En nuestro caso, tendremos que calcular distancias en 3 dimensiones.
 - $J(i,j) = \frac{g(i,j)}{g(i)}$, donde la funcion $g(i, j)$ nos indica la cantidad de partidos del usuario $i$ con el usuario $j$, y $g(i)$ nos indica la totalidad de los partidos jugados por el usuario $i$  
-- $\alpha$ y $\beta$ son pesos que balancean la importancia de la similitud versus la historia de haber jugado juntos, por lo tanto:
+- $\alpha$ y $\beta$ son pesos que balancean la importancia de las preferencias versus la historia de haber jugado juntos, por lo tanto:
  
 $$
 \alpha + \beta = 1
