@@ -36,4 +36,44 @@ $$
 
 Con esta fórmula, se puede calcular el puntaje $A$ para cada par de usuarios, y luego obtener un top $x$ de usuarios con puntajes más altos para un usuario dado. Este puntaje se puede graficar como matriz de calor o top ranking para visualizar semejanzas y relaciones.
 
+Partiremos del supuesto que jugar con un jugador o valorar mas las preferncias de dias y horarios es igual, entiendase:
+
+$$
+\alpha = \beta = 0.5
+$$
+
+Como no queremos suponer nada sino aprender de las reservas del usuario, por lo tanto vamos a proponer un algoritmo de aprendizaje inteligente, incorporarando un mecanismo basado en **backpropagation** para ajustar los pesos $\alpha$ y $\beta$ de modo que la función $A(i,j)$ refleje mejor cómo importar las preferencias y el historial de juego en la predicción del emparejamiento.
+
+Para hacerlo, usaremos un modelo simple de predicción supervisado, para minimizar un error con respecto a datos reales de emparejamientos (si el usuario eligió o jugó con ese par, o si prefirió ese emparejamiento sobre otro).
+
+Suponiendo que elegimos $x$ pares $(i,j)$ con etiquetas $y_{ij} \in \{0,1\}$. Donde (1 = jugaron, 0 = no jugaron).
+
+Podemos definir una función de pérdida $L$, con el error cuadrático medio:
+
+$$
+L(\beta) = \sum_{(i,j)} (A(i,j) - y_{ij})^2 = \sum_{(i,j)} \left((1-\beta) S(i,j) + \beta J(i,j) - y_{ij}\right)^2
+$$
+
+El objetivo es minimizar $L$ respecto a $\beta$ (y $\alpha = 1 - \beta$).
+
+¿Por que optimizar $\beta$?
+
+Se optimiza este peso ya que el unico dato "verdadero" $\{0,1\}$ que tenemos despues de una reserva es saber con quien jugo ese dia.
+
+Finalmente calculamos el gradiente y actualizamos los pesos (backpropagation)
+
+Derivamos $L$ respecto a $\beta$:
+
+$$
+\frac{\partial L}{\partial \beta} = 2 \sum_{(i,j)} \left((1-\beta) S(i,j) + \beta J(i,j) - y_{ij}\right) \left(S(i,j) - J(i,j)\right)
+$$
+
+Luego, actualizamos $\beta$ con un learning rate $\eta$:
+
+$$
+\beta \leftarrow \beta - \eta \frac{\partial L}{\partial \beta}
+$$
+
+Y finalmente normalizamos para que $\alpha = 1 - \beta$.
+
 Este algoritmo esta inspirado en [k-nearest neighbors algorithm](https://en.wikipedia.org/wiki/K-nearest_neighbors_algorithm).
