@@ -638,7 +638,7 @@ async def trigger_enviar_recordatorios():
     return {"msg": f"Se enviaron {recordatorios} recordatorios"}
 
 @router.get("/detalle")
-async def detalle_reserva(cancha: str, horario: str, fecha: str):
+async def detalle_reserva(cancha: str, horario: str, fecha: str, usuario_id: str = None):
     from bson import ObjectId
 
     cancha_doc = db_client.canchas.find_one({"nombre": cancha})
@@ -646,21 +646,59 @@ async def detalle_reserva(cancha: str, horario: str, fecha: str):
     if not cancha_doc or not horario_doc:
         raise HTTPException(status_code=404, detail="Cancha u horario no encontrados")
 
-    reservas = list(db_client.reservas.find({
+    estado_cancelada = db_client.estadoreserva.find_one({"nombre": "Cancelada"})
+    filtro = {
         "cancha": cancha_doc["_id"],
         "hora_inicio": horario_doc["_id"],
         "fecha": fecha,
-        "estado": {"$ne": db_client.estadoreserva.find_one({"nombre": "Cancelada"})["_id"]}
-    }))
+        "estado": {"$ne": estado_cancelada["_id"]}  # Excluir canceladas
+    }
+    reservas = list(db_client.reservas.find(filtro))
+
+    # Si el usuario está logueado, buscar si tiene una reserva cancelada en ese slot
+    reserva_cancelada_usuario = None
+    if usuario_id and ObjectId.is_valid(usuario_id):
+        reserva_cancelada_usuario = db_client.reservas.find_one({
+            "cancha": cancha_doc["_id"],
+            "hora_inicio": horario_doc["_id"],
+            "fecha": fecha,
+            "usuario": ObjectId(usuario_id),
+            "estado": estado_cancelada["_id"]
+        })
+        if reserva_cancelada_usuario:
+            u = db_client.users.find_one({"_id": ObjectId(usuario_id)})
+            if u:
+                # Agrega el usuario cancelado a la lista con un indicador
+                reservas.append({
+                    **reserva_cancelada_usuario,
+                    "_usuario_info": {
+                        "nombre": u.get("nombre", ""),
+                        "apellido": u.get("apellido", ""),
+                        "usuario_id": str(u["_id"]),
+                        "estado": "Cancelada"
+                    }
+                })
 
     usuarios = []
     for r in reservas:
-        u = db_client.users.find_one({"_id": r["usuario"]})
-        if u:
-            usuarios.append({
+        if "_usuario_info" in r:
+            uinfo = r["_usuario_info"]
+        else:
+            u = db_client.users.find_one({"_id": r["usuario"]})
+            uinfo = {
                 "nombre": u.get("nombre", ""),
                 "apellido": u.get("apellido", ""),
-                "reserva_id": str(r["_id"])
+                "usuario_id": str(u["_id"]),
+                "estado": "Reservada"  # Por defecto, estado "Reservada"
+            } if u else {}
+        # Solo incluir usuarios con estado distinto de "Cancelada"
+        if uinfo.get("estado") != "Cancelada":
+            usuarios.append({
+                "nombre": uinfo.get("nombre", ""),
+                "apellido": uinfo.get("apellido", ""),
+                "reserva_id": str(r["_id"]),
+                "usuario_id": uinfo.get("usuario_id", ""),
+                "estado": str(r["estado"])
             })
 
     return {
@@ -668,5 +706,6 @@ async def detalle_reserva(cancha: str, horario: str, fecha: str):
         "cancha": cancha,
         "horario": horario,
         "fecha": fecha,
-        "cantidad": len(usuarios)
+        "cantidad": len(usuarios),  # Solo cuenta usuarios con reservas activas
+        "estado_cancelada": str(estado_cancelada["_id"])
     }

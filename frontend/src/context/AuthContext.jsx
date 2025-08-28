@@ -22,6 +22,8 @@ export const AuthProvider = ({ children }) => {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [isAdmin, setIsAdmin] = useState(false);
   const [habilitado, setHabilitado] = useState(false);
+  const [user, setUser] = useState(null);
+  const [redirectAfterLogin, setRedirectAfterLogin] = useState(null);
   const navigate = useNavigate();
   const location = useLocation();
 
@@ -29,15 +31,20 @@ export const AuthProvider = ({ children }) => {
     const token = localStorage.getItem('accessToken');
     const storedIsAdmin = localStorage.getItem('isAdmin');
     const storedHabilitado = localStorage.getItem('habilitado');
+    const storedUser = localStorage.getItem('user');
 
     if (token) {
       setIsAuthenticated(true);
       setIsAdmin(storedIsAdmin === 'true');
       setHabilitado(storedHabilitado === 'true');
+      if (storedUser) {
+        setUser(JSON.parse(storedUser));
+      }
     } else {
       setIsAuthenticated(false);
       setIsAdmin(false);
       setHabilitado(false);
+      setUser(null);
     }
   }, []);
 
@@ -54,14 +61,16 @@ export const AuthProvider = ({ children }) => {
     localStorage.removeItem('accessToken');
     localStorage.removeItem('isAdmin');
     localStorage.removeItem('habilitado');
+    localStorage.removeItem('user');
     setIsAuthenticated(false);
     setIsAdmin(false);
     setHabilitado(false);
+    setUser(null);
   };
 
-  // --- NUEVA LÓGICA ---
-  // Función que se ejecutará cuando la API devuelva un 401
+  // Modifica handleUnauthorized para guardar la URL actual
   const handleUnauthorized = () => {
+    setRedirectAfterLogin(window.location.pathname + window.location.search);
     logout();
     toast(<MiToast mensaje="Tu sesión ha expirado. Por favor, inicia sesión de nuevo." tipo="warning" />);
     setTimeout(() => {
@@ -71,24 +80,41 @@ export const AuthProvider = ({ children }) => {
 
   // Creamos una instancia de nuestro fetch wrapper y la pasamos al contexto
   const apiFetch = createApi(handleUnauthorized);
-  // --- FIN NUEVA LÓGICA ---
 
-  const login = (token, isAdminUser, habilitadoUser) => {
-    localStorage.setItem('accessToken', token);
+  const login = (token, isAdminUser, habilitadoUser, userData) => {
+    localStorage.setItem('accessToken', token); // Guarda el token
     localStorage.setItem('isAdmin', isAdminUser);
     localStorage.setItem('habilitado', habilitadoUser);
+    if (userData) {
+      localStorage.setItem('user', JSON.stringify(userData)); // Guarda los datos del usuario
+      setUser(userData);
+    }
     setIsAuthenticated(true);
     setIsAdmin(isAdminUser);
     setHabilitado(habilitadoUser);
   };
 
   const loginWithToken = (token) => {
-    localStorage.setItem('accessToken', token)
-    setIsAuthenticated(true)
-  }
+    try {
+      const payload = JSON.parse(atob(token.split('.')[1]));
+      localStorage.setItem('accessToken', token);
+      setIsAuthenticated(true);
+      setIsAdmin(payload.is_admin || false);
+      setHabilitado(payload.habilitado || false);
+      const userData = {
+        id: payload.id
+      };
+      setUser(userData);
+    } catch (e) {
+      logout();
+    }
+  };
 
   return (
-    <AuthContext.Provider value={{ apiFetch, isAuthenticated, isAdmin, habilitado, login, logout, loginWithToken }}>
+    <AuthContext.Provider value={{
+      apiFetch, isAuthenticated, isAdmin, habilitado, user, login, logout, loginWithToken,
+      redirectAfterLogin, setRedirectAfterLogin
+    }}>
       {children}
     </AuthContext.Provider>
   );

@@ -10,7 +10,7 @@ const BACKEND_URL = `http://${window.location.hostname}:8000`;
 
 function Login() {
   const navigate = useNavigate();
-  const { login } = useContext(AuthContext);
+  const { login, redirectAfterLogin, setRedirectAfterLogin } = useContext(AuthContext);
   const [errores, setErrores] = useState({});
   const [cargando, setCargando] = useState(false);
 
@@ -50,13 +50,7 @@ function Login() {
 
       if (response.ok) {
         const data = await response.json();
-        login(data.access_token, data.is_admin, data.habilitado);
-
-        if (data.is_admin === true) {
-          navigate('/admin');
-        } else {
-          navigate('/reserva');
-        }
+        handleLoginSuccess(data.access_token, data.is_admin, data.habilitado);
       } else {
         const errorData = await response.json();
         setErrores({ general: errorData.detail || 'Credenciales incorrectas' });
@@ -65,6 +59,22 @@ function Login() {
       setErrores({ general: 'Error al enviar los datos' });
     } finally {
       setCargando(false);
+    }
+  };
+
+  const handleLoginSuccess = (token, isAdmin, habilitado) => {
+    // Decodificar el token para obtener userData
+    const payload = JSON.parse(atob(token.split('.')[1]));
+    const userData = {
+      id: payload.id
+    };
+
+    login(token, isAdmin, habilitado, userData);
+    if (redirectAfterLogin) {
+      navigate(redirectAfterLogin, { replace: true });
+      setRedirectAfterLogin(null);
+    } else {
+      navigate('/home', { replace: true });
     }
   };
 

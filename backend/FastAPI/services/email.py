@@ -34,6 +34,7 @@ def enviar_email_habilitacion(to: str, token: str):
 def notificar_posible_matcheo(to: str, day: str, hora: str, cancha: str):
     dominio = os.getenv("DOMINIO")
     subject = f"Posible matcheo para jugar el {day} a las {hora} en la {cancha}"
+    # para tester http://localhost:8080/reserva?fecha=28-08-2025&cancha=Blindex%20A&horario=21:00-22:30
     url = f"https://{dominio}/reserva?fecha={day}&cancha={cancha}&horario={hora}"
     html = f"""
     <p>Se ha encontrado un posible matcheo con:</p>

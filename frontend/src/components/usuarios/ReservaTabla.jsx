@@ -181,7 +181,8 @@ function ReservaTabla() {
     setLoadingDetalle(true)
     setModalOpen(true)
     try {
-      const response = await apiFetch(`/api/reservas/detalle?cancha=${encodeURIComponent(cancha)}&horario=${encodeURIComponent(hora)}&fecha=${encodeURIComponent(selectedDate)}`)
+      const url = `/api/reservas/detalle?cancha=${encodeURIComponent(cancha)}&horario=${encodeURIComponent(hora)}&fecha=${encodeURIComponent(selectedDate)}${user?.id ? `&usuario_id=${user.id}` : ''}`
+      const response = await apiFetch(url)
       if (response.ok) {
         const data = await response.json()
         setDetalleReserva(data)
@@ -292,62 +293,77 @@ function ReservaTabla() {
                 <div className="mb-2 text-gray-200">
                   <span className="font-semibold">Cancha:</span> {detalleReserva.cancha}<br/>
                   <span className="font-semibold">Fecha:</span> {detalleReserva.fecha}<br/>
-                  <span className="font-semibold">Horario:</span> {detalleReserva.horario}                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    
+                  <span className="font-semibold">Horario:</span> {detalleReserva.horario}
                 </div>
                 <div className="mb-2">
                   <span className="font-semibold text-gray-200">Reservaron:</span>
                   <ul className="mt-1">
                     {detalleReserva.usuarios.length === 0 ? (
                       <li className="text-gray-400">Nadie aún</li>
-                    ) : detalleReserva.usuarios.map((u, idx) => (
-                      <li key={idx} className="text-gray-300">{u.nombre} {u.apellido}</li>
-                    ))}
+                    ) : detalleReserva.usuarios
+                        .filter(u => u.estado !== detalleReserva.estado_cancelada) // Excluir canceladas
+                        .map((u, idx) => (
+                          <li key={idx} className="text-gray-300">{u.nombre} {u.apellido}</li>
+                        ))}
                   </ul>
                 </div>
                 <div className="flex gap-2 mt-4">
-                  {/* Calcula isFull aquí */}
                   {(() => {
                     const key = `${detalleReserva.cancha}-${detalleReserva.horario}`;
-                    const cantidad = cantidades[key] || detalleReserva.usuarios.length || 0;
+                    const cantidad = cantidades[key] || detalleReserva.usuarios.filter(u => u.estado !== detalleReserva.estado_cancelada).length || 0;
                     const isFull = cantidad >= 4;
-                    // Botón reservar
-                    return (
-                      <>
-                        {!isFull && isAuthenticated && (
-                          <button
-                            className="bg-[#eaff00] text-[#0D1B2A] px-4 py-1 rounded font-bold"
-                            onClick={() => {
-                              setModalOpen(false)
-                              handleClick(detalleReserva.cancha, detalleReserva.horario)
-                            }}
-                          >Reservar</button>
-                        )}
-                        {/* Botón cancelar si el usuario tiene reserva en ese slot */}
-                        {detalleReserva.usuarios
-                          .filter(u => u.nombre === user?.nombre && u.apellido === user?.apellido)
-                          .map(u => (
-                            <button
-                              key={u.reserva_id}
-                              className="bg-red-500 text-white px-4 py-1 rounded font-bold"
-                              onClick={async () => {
-                                try {
-                                  const response = await apiFetch(`/api/reservas/cancelar/${u.reserva_id}`, { method: 'DELETE' })
-                                  if (response.ok) {
-                                    toast(<MiToast mensaje="Reserva cancelada" color="var(--color-red-400)" />)
-                                    setModalOpen(false)
-                                  } else {
-                                    const error = await response.json()
-                                    toast(<MiToast mensaje={error.detail || "Error al cancelar"} color="var(--color-red-400)" />)
-                                  }
-                                } catch (err) {
-                                  toast(<MiToast mensaje="Error al cancelar" color="var(--color-red-400)" />)
-                                }
-                              }}
-                            >Cancelar</button>
-                          ))
-                        }
-                      </>
+                    const usuarioReserva = detalleReserva.usuarios.find(
+                      u => u.usuario_id === user?.id
                     );
+                    const estadoCancelada = usuarioReserva?.estado === detalleReserva.estado_cancelada;
+
+                    if (usuarioReserva && !estadoCancelada) {
+                      return (
+                        <button
+                          key={usuarioReserva.reserva_id}
+                          className="bg-red-500 text-white px-4 py-1 rounded font-bold"
+                          onClick={async () => {
+                            try {
+                              const response = await apiFetch(`/api/reservas/cancelar/${usuarioReserva.reserva_id}`, { method: 'DELETE' })
+                              if (response.ok) {
+                                toast(<MiToast mensaje="Reserva cancelada" color="var(--color-red-400)" />)
+                                setModalOpen(false)
+                              } else {
+                                const error = await response.json()
+                                toast(<MiToast mensaje={error.detail || "Error al cancelar"} color="var(--color-red-400)" />)
+                              }
+                            } catch (err) {
+                              toast(<MiToast mensaje="Error al cancelar" color="var(--color-red-400)" />)
+                            }
+                          }}
+                        >Cancelar</button>
+                      );
+                    }
+                    // Si el usuario tiene reserva cancelada, muestra el botón reservar
+                    if (usuarioReserva && estadoCancelada && isAuthenticated) {
+                      return (
+                        <button
+                          className="bg-[#eaff00] text-[#0D1B2A] px-4 py-1 rounded font-bold"
+                          onClick={() => {
+                            setModalOpen(false)
+                            handleClick(detalleReserva.cancha, detalleReserva.horario)
+                          }}
+                        >Reservar</button>
+                      );
+                    }
+                    // Si el usuario no tiene reserva, muestra el botón reservar si hay lugar
+                    if (!usuarioReserva && !isFull && isAuthenticated) {
+                      return (
+                        <button
+                          className="bg-[#eaff00] text-[#0D1B2A] px-4 py-1 rounded font-bold"
+                          onClick={() => {
+                            setModalOpen(false)
+                            handleClick(detalleReserva.cancha, detalleReserva.horario)
+                          }}
+                        >Reservar</button>
+                      );
+                    }
+                    return null;
                   })()}
                 </div>
               </div>

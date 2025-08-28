@@ -1,15 +1,21 @@
 import React, { useContext, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
-import ReservaTabla from "../components/usuarios/ReservaTabla";
 import { AuthContext } from '../context/AuthContext';
+import { useLocation, useNavigate } from 'react-router-dom';
+import ReservaTabla from '../components/usuarios/ReservaTabla';
 
 function Reserva() {
-  const { isAuthenticated } = useContext(AuthContext);
+  const { isAuthenticated, setRedirectAfterLogin } = useContext(AuthContext);
+  const location = useLocation();
   const navigate = useNavigate();
 
-  if (!isAuthenticated) {
-    return <p>No tienes permisos para ver esta página.</p>
-  }
+  useEffect(() => {
+    if (!isAuthenticated) {
+      setRedirectAfterLogin(location.pathname + location.search);
+      navigate('/login', { replace: true });
+    }
+  }, [isAuthenticated, location, navigate, setRedirectAfterLogin]);
+
+  if (!isAuthenticated) return null;
 
   return <ReservaTabla />;
 }
