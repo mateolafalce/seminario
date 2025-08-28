@@ -236,6 +236,7 @@ Una vez hecho esto, los cambios hechos se revertiran.
   * [x] Validar email del usuario
   * [x] Implemnetar estructura de la BD
   * [ ] Notificar posible matcheo a posibles usuarios.
+  * [ ] Notificar 1 hora antes a los jugadores (?)
 * Home (javi)
   * [x] Fletar "¡Regístrate o inicia sesión para comenzar!" cuando estamos logueados
   * [x] Hacer que las imagenes vayan pasando solas cada x tiempo (mantener la posibilidad de pasarlas a mano)
