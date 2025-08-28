@@ -28,8 +28,6 @@ ACCESS_TOKEN_DURATION = 50
 SECRET = "201d573bd7d1344d3a3bfce1550b69102fd11be3db6d379508b6cccc58ea230b"
 crypt = CryptContext(schemes=["bcrypt"])
 
-# TODO: validar que un admin no pueda borrarse a si mismo xd
-
 
 @router.post("/register", status_code=status.HTTP_201_CREATED)
 async def register(user: UserDB):
@@ -268,7 +266,6 @@ async def modificar_usuario(
         data: ModificarUsuarioRequest,
         user: dict = Depends(current_user)):
     try:
-        # Convertir el ID del usuario a modificar
         user_id = ObjectId(data.identificador)
     except Exception:
         raise HTTPException(status_code=400, detail="ID inválido")
@@ -276,21 +273,22 @@ async def modificar_usuario(
     print(f"Intentando modificar usuario con datos: {data}")
     print(f"Usuario actual: {user}")
     
-    # Verificar que el usuario actual es admin
     def operaciones_sincronas():
-        # Obtener datos del usuario que hace la solicitud
         current_user_data = db_client.users.find_one(
             {"_id": ObjectId(user["id"])})
         if not current_user_data:
             raise ValueError("Usuario no encontrado")
 
-        # Verificar si es admin
         is_admin = db_client.admins.find_one(
             {"user": current_user_data["_id"]})
         if not is_admin:
             raise ValueError("Solo los admin pueden modificar usuarios")
 
-        # Buscar categoría por nombre si existe y no es "Sin categoría"
+        # Obtener el usuario actual para comparar el email
+        usuario_actual = db_client.users.find_one({"_id": user_id})
+        if not usuario_actual:
+            raise ValueError("Usuario a modificar no encontrado")
+
         categoria_obj = None
         if data.categoria and data.categoria not in ["Sin categoría", ""]:
             categoria_obj = db_client.categorias.find_one(
@@ -305,7 +303,18 @@ async def modificar_usuario(
             "habilitado": data.habilitado,
         }
         
-        # Solo actualizar categoría si se encontró una válida
+        # Verificar si el email cambió
+        email_cambio = usuario_actual["email"] != data.email
+        
+        if email_cambio:
+            # Generar nuevo token y deshabilitar usuario
+            nuevo_token = secrets.token_urlsafe(32)
+            update_data["habilitacion_token"] = nuevo_token
+            update_data["habilitado"] = False
+            
+            # Enviar email de habilitación al nuevo email
+            enviar_email_habilitacion(data.email, nuevo_token)
+        
         if categoria_obj:
             update_data["categoria"] = categoria_obj["_id"]
         elif data.categoria in ["Sin categoría", ""]:
@@ -319,12 +328,14 @@ async def modificar_usuario(
         if result.matched_count == 0:
             raise ValueError("Usuario a modificar no encontrado")
 
-        return True
+        return email_cambio
 
     try:
-        # Ejecutar operaciones en hilo separado
-        await asyncio.to_thread(operaciones_sincronas)
-        return {"message": "Usuario actualizado correctamente"}
+        email_cambio = await asyncio.to_thread(operaciones_sincronas)
+        message = "Usuario actualizado correctamente"
+        if email_cambio:
+            message += ". Se ha enviado un email de verificación al nuevo correo."
+        return {"message": message}
 
     except ValueError as e:
         raise HTTPException(
@@ -412,7 +423,6 @@ async def editar_usuario(
     body: dict = Body(...),
     user: dict = Depends(current_user)
 ):
-    # Solo admin puede editar
     def operaciones_sincronas():
         current_user_data = db_client.users.find_one(
             {"_id": ObjectId(user["id"])})
@@ -423,11 +433,14 @@ async def editar_usuario(
         if not is_admin:
             raise ValueError("Solo los admin pueden modificar usuarios")
 
-        # Buscar categoría por nombre si existe
+        # Obtener el usuario actual para comparar el email
+        usuario_actual = db_client.users.find_one({"_id": ObjectId(user_id)})
+        if not usuario_actual:
+            raise ValueError("Usuario a modificar no encontrado")
+
         categoria_nombre = body.get("categoria")
         categoria_obj = None
         
-        # Si se proporciona un nombre de categoría y no es "Sin categoría" o vacío, búscalo.
         if categoria_nombre and categoria_nombre not in ["Sin categoría", ""]:
             categoria_obj = db_client.categorias.find_one(
                 {"nombre": categoria_nombre})
@@ -441,10 +454,22 @@ async def editar_usuario(
             "email": body.get("email"),
             "habilitado": body.get("habilitado"),
         }
+        
+        # Verificar si el email cambió
+        email_cambio = usuario_actual["email"] != body.get("email")
+        
+        if email_cambio:
+            # Generar nuevo token y deshabilitar usuario
+            nuevo_token = secrets.token_urlsafe(32)
+            update_data["habilitacion_token"] = nuevo_token
+            update_data["habilitado"] = False
+            
+            # Enviar email de habilitación al nuevo email
+            enviar_email_habilitacion(body.get("email"), nuevo_token)
+        
         if categoria_obj:
             update_data["categoria"] = categoria_obj["_id"]
         else:
-            # Si no hay categoría, se establece a None (null en la DB)
             update_data["categoria"] = None
 
         result = db_client.users.update_one(
@@ -453,11 +478,14 @@ async def editar_usuario(
         )
         if result.matched_count == 0:
             raise ValueError("Usuario a modificar no encontrado")
-        return True
+        return email_cambio
 
     try:
-        await asyncio.to_thread(operaciones_sincronas)
-        return {"success": True}
+        email_cambio = await asyncio.to_thread(operaciones_sincronas)
+        response = {"success": True}
+        if email_cambio:
+            response["message"] = "Se ha enviado un email de verificación al nuevo correo."
+        return response
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:
