@@ -237,7 +237,7 @@ Una vez hecho esto, los cambios hechos se revertiran.
 * Notificaciones por mail
   * [x] Validar email del usuario
   * [x] Implemnetar estructura de la BD
-  * [ ] Notificar posible matcheo a posibles usuarios (tendriamos que hacer el detalle de la reserva e implementar la logica de un path responsivo ante el id de una reserva)
+  * [x] Notificar posible matcheo a posibles usuarios
   * [x] Notificar 1 hora antes a los jugadores (?)
   * [ ] Dar de alta el servicio de email
 * Home (javi)
@@ -254,6 +254,9 @@ Una vez hecho esto, los cambios hechos se revertiran.
 * Seguridad
   * [ ] Asegurarse de la autenticacion en cada endpoint
   * [ ] Asegurarnos que las contraseñas cumplan cierto criterio de longitud y caracteres
+* Breaking Changes
+  * [ ] Eliminar la carpeta FastAPI y usar solo la carpeta /backend, para el backend
+  * [ ] Utilizar docker para dar de alta la app mas facil y rapido
 
 ## Diagrama de clases
 

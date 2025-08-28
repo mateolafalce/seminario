@@ -31,21 +31,18 @@ def enviar_email_habilitacion(to: str, token: str):
     """
     #enviar_email(to, subject, html)
 
-# TODO? actulmente no hay un detalle de la reserva, en caso que lo haya habria
-# que modificar esto jiji
-def notificar_posible_matcheo(to: str, nombre: str, apellido: str, day: str, hora: str, cancha: str):
+def notificar_posible_matcheo(to: str, day: str, hora: str, cancha: str):
     dominio = os.getenv("DOMINIO")
-    subject = f"Posible matcheo para el {day} a las {hora} en {cancha}"
+    subject = f"Posible matcheo para jugar el {day} a las {hora} en la {cancha}"
+    url = f"https://{dominio}/reserva?fecha={day}&cancha={cancha}&horario={hora}"
     html = f"""
     <p>Se ha encontrado un posible matcheo con:</p>
     <ul>
-        <li><strong>Jugador:</strong> {nombre}</li>
-        <li><strong>Apellido:</strong> {apellido}</li>
         <li><strong>Día:</strong> {day}</li>
         <li><strong>Hora:</strong> {hora}</li>
         <li><strong>Cancha:</strong> {cancha}</li>
     </ul>
-    <p>Para más información, visita <a href="https://{dominio}/reserva">el detalle de las reservas</a>.</p>
+    <p>Para más información, visita <a href="{url}">el detalle de la reserva</a>.</p>
     """
     #enviar_email(to, subject, html)}
 

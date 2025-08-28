@@ -167,8 +167,6 @@ async def reservar(reserva: Reserva, user: dict = Depends(current_user)):
                                 if usuario_notificado:
                                     notificar_posible_matcheo(
                                         to=usuario_notificado["email"],
-                                        nombre=nombre_usuario,
-                                        apellido=apellido_usuario,
                                         day=reserva.fecha,
                                         hora=reserva.horario,
                                         cancha=reserva.cancha
@@ -252,8 +250,6 @@ async def reservar(reserva: Reserva, user: dict = Depends(current_user)):
                             if usuario_notificado:
                                 notificar_posible_matcheo(
                                     to=usuario_notificado["email"],
-                                    nombre=nombre_usuario,
-                                    apellido=apellido_usuario,
                                     day=reserva.fecha,
                                     hora=reserva.horario,
                                     cancha=reserva.cancha
@@ -640,3 +636,37 @@ async def trigger_enviar_recordatorios():
     from services.scheduler import enviar_recordatorios_reservas
     recordatorios = await asyncio.to_thread(enviar_recordatorios_reservas)
     return {"msg": f"Se enviaron {recordatorios} recordatorios"}
+
+@router.get("/detalle")
+async def detalle_reserva(cancha: str, horario: str, fecha: str):
+    from bson import ObjectId
+
+    cancha_doc = db_client.canchas.find_one({"nombre": cancha})
+    horario_doc = db_client.horarios.find_one({"hora": horario})
+    if not cancha_doc or not horario_doc:
+        raise HTTPException(status_code=404, detail="Cancha u horario no encontrados")
+
+    reservas = list(db_client.reservas.find({
+        "cancha": cancha_doc["_id"],
+        "hora_inicio": horario_doc["_id"],
+        "fecha": fecha,
+        "estado": {"$ne": db_client.estadoreserva.find_one({"nombre": "Cancelada"})["_id"]}
+    }))
+
+    usuarios = []
+    for r in reservas:
+        u = db_client.users.find_one({"_id": r["usuario"]})
+        if u:
+            usuarios.append({
+                "nombre": u.get("nombre", ""),
+                "apellido": u.get("apellido", ""),
+                "reserva_id": str(r["_id"])
+            })
+
+    return {
+        "usuarios": usuarios,
+        "cancha": cancha,
+        "horario": horario,
+        "fecha": fecha,
+        "cantidad": len(usuarios)
+    }

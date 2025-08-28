@@ -2,6 +2,7 @@ import { useState, useContext, useEffect } from 'react'
 import { AuthContext } from "../../context/AuthContext";
 import { toast } from 'react-toastify';
 import MiToast from '../common/Toast/MiToast';
+import { useLocation } from 'react-router-dom';
 
 const BACKEND_URL = `http://${window.location.hostname}:8000`;
 
@@ -65,7 +66,11 @@ function ReservaTabla() {
   const [cantidades, setCantidades] = useState({})
   const [selectedDate, setSelectedDate] = useState(fechasDisponibles[0].value);
   const [canchas, setCanchas] = useState([]);
-  const { isAuthenticated, apiFetch } = useContext(AuthContext);
+  const [detalleReserva, setDetalleReserva] = useState(null)
+  const [modalOpen, setModalOpen] = useState(false)
+  const [loadingDetalle, setLoadingDetalle] = useState(false)
+  const { isAuthenticated, apiFetch, user } = useContext(AuthContext);
+  const location = useLocation();
 
   // Obtener canchas desde la API
   useEffect(() => {
@@ -110,6 +115,17 @@ function ReservaTabla() {
 
     fetchCantidades();
   }, [selectedDate, apiFetch]);
+
+  useEffect(() => {
+    const params = new URLSearchParams(location.search);
+    const fecha = params.get('fecha');
+    const cancha = params.get('cancha');
+    const horario = params.get('horario');
+    if (fecha && cancha && horario) {
+      setSelectedDate(fecha);
+      abrirDetalleReserva(cancha, horario);
+    }
+  }, [location.search]);
 
   const handleClick = async (cancha, hora) => {
     if (!window.confirm(`¿Estás seguro de que quieres reservar en la cancha "${cancha}" a las ${hora} para el día ${selectedDate}?`)) {
@@ -159,6 +175,23 @@ function ReservaTabla() {
 
       setSelected(null);
     }
+  }
+
+  const abrirDetalleReserva = async (cancha, hora) => {
+    setLoadingDetalle(true)
+    setModalOpen(true)
+    try {
+      const response = await apiFetch(`/api/reservas/detalle?cancha=${encodeURIComponent(cancha)}&horario=${encodeURIComponent(hora)}&fecha=${encodeURIComponent(selectedDate)}`)
+      if (response.ok) {
+        const data = await response.json()
+        setDetalleReserva(data)
+      } else {
+        setDetalleReserva(null)
+      }
+    } catch (e) {
+      setDetalleReserva(null)
+    }
+    setLoadingDetalle(false)
   }
 
   return (
@@ -223,13 +256,7 @@ function ReservaTabla() {
                       focus:outline-none
                     `}
                     disabled={!isAuthenticated || isFull || isPast}
-                    onClick={() => {
-                      if (!isAuthenticated) {
-                        toast(<MiToast mensaje="Debes iniciar sesión para reservar" color="--var-red-400"/>);
-                      } else if (!isFull && !isPast) {
-                        handleClick(cancha, hora)
-                      }
-                    }}
+                    onClick={() => abrirDetalleReserva(cancha, hora)}
                     style={{
                       minWidth: '4rem',
                       minHeight: '1.7rem',
@@ -248,6 +275,88 @@ function ReservaTabla() {
           </div>
         ))}
       </div>
+
+      {/* Modal de detalles */}
+      {modalOpen && (
+        <div className="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-50">
+          <div className="bg-gray-900 rounded-lg p-6 w-full max-w-md relative">
+            <button
+              className="absolute top-2 right-2 text-gray-400 hover:text-white"
+              onClick={() => setModalOpen(false)}
+            >✕</button>
+            {loadingDetalle ? (
+              <div className="text-center text-gray-300">Cargando...</div>
+            ) : detalleReserva ? (
+              <div>
+                <h3 className="text-lg font-bold text-[#eaff00] mb-2 text-center">Detalle de Reserva</h3>
+                <div className="mb-2 text-gray-200">
+                  <span className="font-semibold">Cancha:</span> {detalleReserva.cancha}<br/>
+                  <span className="font-semibold">Fecha:</span> {detalleReserva.fecha}<br/>
+                  <span className="font-semibold">Horario:</span> {detalleReserva.horario}                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    
+                </div>
+                <div className="mb-2">
+                  <span className="font-semibold text-gray-200">Reservaron:</span>
+                  <ul className="mt-1">
+                    {detalleReserva.usuarios.length === 0 ? (
+                      <li className="text-gray-400">Nadie aún</li>
+                    ) : detalleReserva.usuarios.map((u, idx) => (
+                      <li key={idx} className="text-gray-300">{u.nombre} {u.apellido}</li>
+                    ))}
+                  </ul>
+                </div>
+                <div className="flex gap-2 mt-4">
+                  {/* Calcula isFull aquí */}
+                  {(() => {
+                    const key = `${detalleReserva.cancha}-${detalleReserva.horario}`;
+                    const cantidad = cantidades[key] || detalleReserva.usuarios.length || 0;
+                    const isFull = cantidad >= 4;
+                    // Botón reservar
+                    return (
+                      <>
+                        {!isFull && isAuthenticated && (
+                          <button
+                            className="bg-[#eaff00] text-[#0D1B2A] px-4 py-1 rounded font-bold"
+                            onClick={() => {
+                              setModalOpen(false)
+                              handleClick(detalleReserva.cancha, detalleReserva.horario)
+                            }}
+                          >Reservar</button>
+                        )}
+                        {/* Botón cancelar si el usuario tiene reserva en ese slot */}
+                        {detalleReserva.usuarios
+                          .filter(u => u.nombre === user?.nombre && u.apellido === user?.apellido)
+                          .map(u => (
+                            <button
+                              key={u.reserva_id}
+                              className="bg-red-500 text-white px-4 py-1 rounded font-bold"
+                              onClick={async () => {
+                                try {
+                                  const response = await apiFetch(`/api/reservas/cancelar/${u.reserva_id}`, { method: 'DELETE' })
+                                  if (response.ok) {
+                                    toast(<MiToast mensaje="Reserva cancelada" color="var(--color-red-400)" />)
+                                    setModalOpen(false)
+                                  } else {
+                                    const error = await response.json()
+                                    toast(<MiToast mensaje={error.detail || "Error al cancelar"} color="var(--color-red-400)" />)
+                                  }
+                                } catch (err) {
+                                  toast(<MiToast mensaje="Error al cancelar" color="var(--color-red-400)" />)
+                                }
+                              }}
+                            >Cancelar</button>
+                          ))
+                        }
+                      </>
+                    );
+                  })()}
+                </div>
+              </div>
+            ) : (
+              <div className="text-center text-red-400">No se pudo cargar el detalle</div>
+            )}
+          </div>
+        </div>
+      )}
       <div className="mt-6 text-gray-400 text-xs text-center max-w-2xl">
         <span className="inline-block bg-[#eaff00]/70 text-[#0D1B2A] font-bold px-2 py-0.5 rounded-full mr-2">Tip</span>
         Haz clic en un horario para reservar. Si el botón está gris, ese horario está lleno.
