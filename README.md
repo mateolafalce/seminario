@@ -237,8 +237,8 @@ Una vez hecho esto, los cambios hechos se revertiran.
 * Notificaciones por mail
   * [x] Validar email del usuario
   * [x] Implemnetar estructura de la BD
-  * [x] Notificar posible matcheo a posibles usuarios.
-  * [ ] Notificar 1 hora antes a los jugadores (?)
+  * [ ] Notificar posible matcheo a posibles usuarios (tendriamos que hacer el detalle de la reserva e implementar la logica de un path responsivo ante el id de una reserva)
+  * [x] Notificar 1 hora antes a los jugadores (?)
   * [ ] Dar de alta el servicio de email
 * Home (javi)
   * [x] Fletar "¡Regístrate o inicia sesión para comenzar!" cuando estamos logueados

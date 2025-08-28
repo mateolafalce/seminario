@@ -141,6 +141,8 @@ async def reservar(reserva: Reserva, user: dict = Depends(current_user)):
             nombre_usuario = usuario_data.get("nombre", "Usuario")
             apellido_usuario = usuario_data.get("apellido", "Apellido")
             
+            hora_inicio_str = reserva.horario.split('-')[0]
+            
             if reserva_cancelada:
                 # Actualizar estado de la reserva cancelada
                 update_data = {"estado": estado_reservada_id}
@@ -184,6 +186,18 @@ async def reservar(reserva: Reserva, user: dict = Depends(current_user)):
                     reserva_cancelada["_id"] = str(reserva_cancelada["_id"])
                     if notificacion_id:
                         reserva_cancelada["notificacion_id"] = str(notificacion_id)
+                    
+                    # Programar recordatorio para reserva reactivada
+                    try:
+                        from services.scheduler import programar_recordatorio_nueva_reserva
+                        programar_recordatorio_nueva_reserva(
+                            str(reserva_cancelada["_id"]), 
+                            reserva.fecha, 
+                            hora_inicio_str
+                        )
+                    except Exception as e:
+                        print(f"Error programando recordatorio para reserva reactivada: {e}")
+                    
                     return reserva_cancelada
                 else:
                     raise ValueError("No se pudo reactivar la reserva cancelada.")
@@ -246,6 +260,17 @@ async def reservar(reserva: Reserva, user: dict = Depends(current_user)):
                                 )
             except Exception as e:
                 print(f"Error creando notificación para nueva reserva: {e}")
+            
+            # Programar recordatorio para nueva reserva
+            try:
+                from services.scheduler import programar_recordatorio_nueva_reserva
+                programar_recordatorio_nueva_reserva(
+                    nueva_reserva["_id"], 
+                    reserva.fecha, 
+                    hora_inicio_str
+                )
+            except Exception as e:
+                print(f"Error programando recordatorio para nueva reserva: {e}")
             
             return nueva_reserva
 
@@ -353,6 +378,13 @@ async def cancelar_reserva(
         )
 
         if result.modified_count == 1:
+            # Cancelar recordatorio programado
+            try:
+                from services.scheduler import cancelar_recordatorio_reserva
+                await asyncio.to_thread(cancelar_recordatorio_reserva, reserva_id)
+            except Exception as e:
+                print(f"Error cancelando recordatorio: {e}")
+            
             return {"msg": "Reserva cancelada con éxito"}
         else:
             raise HTTPException(status_code=500,
@@ -601,3 +633,10 @@ async def trigger_actualizar_estados():
     """Endpoint para activar manualmente la actualización de estados"""
     actualizadas = await asyncio.to_thread(actualizar_reservas_completadas)
     return {"msg": f"Se actualizaron {actualizadas} reservas a estado 'Completada' y se optimizaron los pesos del algoritmo de matcheo"}
+
+@router.post("/enviar-recordatorios")
+async def trigger_enviar_recordatorios():
+    """Endpoint para activar manualmente el envío de recordatorios"""
+    from services.scheduler import enviar_recordatorios_reservas
+    recordatorios = await asyncio.to_thread(enviar_recordatorios_reservas)
+    return {"msg": f"Se enviaron {recordatorios} recordatorios"}
