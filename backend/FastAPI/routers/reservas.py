@@ -19,6 +19,7 @@ import asyncio
 import pytz  
 from datetime import datetime, timedelta
 from services.matcheo import a_notificar
+from services.email import notificar_posible_matcheo
 
 class Reserva(BaseModel):
     cancha: str
@@ -134,6 +135,12 @@ async def reservar(reserva: Reserva, user: dict = Depends(current_user)):
                 "cancha": cancha_id,
                 "estado": estado_cancelada_id
             })
+            
+            # Obtener datos del usuario que hace la reserva para el email
+            usuario_data = db_client.users.find_one({"_id": ObjectId(user["id"])})
+            nombre_usuario = usuario_data.get("nombre", "Usuario")
+            apellido_usuario = usuario_data.get("apellido", "Apellido")
+            
             if reserva_cancelada:
                 # Actualizar estado de la reserva cancelada
                 update_data = {"estado": estado_reservada_id}
@@ -150,6 +157,20 @@ async def reservar(reserva: Reserva, user: dict = Depends(current_user)):
                         result_notif = db_client.notificaciones.insert_one(notificacion)
                         notificacion_id = result_notif.inserted_id
                         update_data["notificacion_id"] = notificacion_id
+                        
+                        # Enviar emails a usuarios notificados
+                        for usuario_id in usuarios_a_notificar:
+                            if ObjectId.is_valid(usuario_id):
+                                usuario_notificado = db_client.users.find_one({"_id": ObjectId(usuario_id)})
+                                if usuario_notificado:
+                                    notificar_posible_matcheo(
+                                        to=usuario_notificado["email"],
+                                        nombre=nombre_usuario,
+                                        apellido=apellido_usuario,
+                                        day=reserva.fecha,
+                                        hora=reserva.horario,
+                                        cancha=reserva.cancha
+                                    )
                 except Exception as e:
                     print(f"Error creando notificación para reserva reactivada: {e}")
                 
@@ -209,6 +230,20 @@ async def reservar(reserva: Reserva, user: dict = Depends(current_user)):
                     )
                     
                     nueva_reserva["notificacion_id"] = str(result_notif.inserted_id)
+                    
+                    # Enviar emails a usuarios notificados
+                    for usuario_id in usuarios_a_notificar:
+                        if ObjectId.is_valid(usuario_id):
+                            usuario_notificado = db_client.users.find_one({"_id": ObjectId(usuario_id)})
+                            if usuario_notificado:
+                                notificar_posible_matcheo(
+                                    to=usuario_notificado["email"],
+                                    nombre=nombre_usuario,
+                                    apellido=apellido_usuario,
+                                    day=reserva.fecha,
+                                    hora=reserva.horario,
+                                    cancha=reserva.cancha
+                                )
             except Exception as e:
                 print(f"Error creando notificación para nueva reserva: {e}")
             

@@ -237,7 +237,7 @@ Una vez hecho esto, los cambios hechos se revertiran.
 * Notificaciones por mail
   * [x] Validar email del usuario
   * [x] Implemnetar estructura de la BD
-  * [ ] Notificar posible matcheo a posibles usuarios.
+  * [x] Notificar posible matcheo a posibles usuarios.
   * [ ] Notificar 1 hora antes a los jugadores (?)
   * [ ] Dar de alta el servicio de email
 * Home (javi)
