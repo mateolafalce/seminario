@@ -204,7 +204,7 @@ Una vez hecho esto, los cambios hechos se revertiran.
    * [x] Una vez que el token expira y nos volvemos a conectar, desloguarnos automaticamente
    * [x] Setear el mail en cada usuario (borrar el telefono bd/back/front)
    * [x] Cuando un usuario modifica su email, se le debe enviar un email para confirmar ese nuevo mail
-   * [ ] Validar que un admin no se pueda eliminar a si mismo
+   * [x] Validar que un admin no se pueda eliminar a si mismo
 * Reserva de canchas
   * [x] Crear la entidad Reserva
   * [x] Implementar la logica en el backend
