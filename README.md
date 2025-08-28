@@ -203,7 +203,7 @@ Una vez hecho esto, los cambios hechos se revertiran.
    * [x] Que me autocomplete la contraseña cuando selecciono el nombre de usuario
    * [x] Una vez que el token expira y nos volvemos a conectar, desloguarnos automaticamente
    * [x] Setear el mail en cada usuario (borrar el telefono bd/back/front)
-   * [ ] Cuando un usuario modifica su email, se le debe enviar un email para confirmar ese nuevo mail
+   * [x] Cuando un usuario modifica su email, se le debe enviar un email para confirmar ese nuevo mail
    * [ ] Validar que un admin no se pueda eliminar a si mismo
 * Reserva de canchas
   * [x] Crear la entidad Reserva
