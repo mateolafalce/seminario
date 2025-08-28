@@ -203,6 +203,7 @@ Una vez hecho esto, los cambios hechos se revertiran.
    * [x] Que me autocomplete la contraseña cuando selecciono el nombre de usuario
    * [x] Una vez que el token expira y nos volvemos a conectar, desloguarnos automaticamente
    * [x] Setear el mail en cada usuario (borrar el telefono bd/back/front)
+   * [ ] Cuando un usuario modifica su email, se le debe enviar un email para confirmar ese nuevo mail 
 * Reserva de canchas
   * [x] Crear la entidad Reserva
   * [x] Implementar la logica en el backend
@@ -237,6 +238,7 @@ Una vez hecho esto, los cambios hechos se revertiran.
   * [x] Implemnetar estructura de la BD
   * [ ] Notificar posible matcheo a posibles usuarios.
   * [ ] Notificar 1 hora antes a los jugadores (?)
+  * [ ] Dar de alta el servicio de email
 * Home (javi)
   * [x] Fletar "¡Regístrate o inicia sesión para comenzar!" cuando estamos logueados
   * [x] Hacer que las imagenes vayan pasando solas cada x tiempo (mantener la posibilidad de pasarlas a mano)

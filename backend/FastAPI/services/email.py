@@ -36,4 +36,4 @@ def enviar_email_habilitacion(to: str, token: str):
     <p>Para habilitar tu cuenta, hace clic en el siguiente enlace:</p>
     <a href="https://{dominio}/api/users_b/habilitar?token={token}">Habilitar cuenta</a>
     """
-    enviar_email(to, subject, html)
+    #enviar_email(to, subject, html)
