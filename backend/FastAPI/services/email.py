@@ -29,7 +29,7 @@ def enviar_email_habilitacion(to: str, token: str):
     <p>Para habilitar tu cuenta, hace clic en el siguiente enlace:</p>
     <a href="https://{dominio}/api/users_b/habilitar?token={token}">Habilitar cuenta</a>
     """
-    #enviar_email(to, subject, html)
+    enviar_email(to, subject, html)
 
 def notificar_posible_matcheo(to: str, day: str, hora: str, cancha: str):
     dominio = os.getenv("DOMINIO")
@@ -45,7 +45,7 @@ def notificar_posible_matcheo(to: str, day: str, hora: str, cancha: str):
     </ul>
     <p>Para más información, visita <a href="{url}">el detalle de la reserva</a>.</p>
     """
-    #enviar_email(to, subject, html)}
+    enviar_email(to, subject, html)}
 
 def notificar_recordatorio(to: str, day: str, hora: str, cancha: str):
     dominio = os.getenv("DOMINIO")
@@ -58,4 +58,4 @@ def notificar_recordatorio(to: str, day: str, hora: str, cancha: str):
         <li><strong>Cancha:</strong> {cancha}</li>
     </ul>
     """
-    #enviar_email(to, subject, html)
+    enviar_email(to, subject, html)

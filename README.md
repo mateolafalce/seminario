@@ -259,7 +259,7 @@ Una vez hecho esto, los cambios hechos se revertiran.
   * [x] Notificar posible matcheo a posibles usuarios
   * [ ] Notificar 24 horas antes a los jugadores 
   * [ ] Dar de alta el servicio de email
-  * [ ] 
+  * [ ] Notificar cuando un usuario cancela la reserva a los demas jugadores
 * Home (javi)
   * [x] Fletar "¡Regístrate o inicia sesión para comenzar!" cuando estamos logueados
   * [x] Hacer que las imagenes vayan pasando solas cada x tiempo (mantener la posibilidad de pasarlas a mano)
