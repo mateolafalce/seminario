@@ -1,6 +1,6 @@
 # Algoritmo matcheo
 
-Dados 2 usuarios, $i$ y $j$, con sus respectivos preferencias (dias, horarios, canchas) e historial de juego entre si, podemos diseñar una funcion la cual nos permita determinar cuales son las top $x$ opciones a recomendar al usuario que reserva una cancha para jugar en un dia y hora dados. Analiticamente puedo decir:
+Dados 2 usuarios, $i$ y $j$, con sus respectivos preferencias (dias, horarios, canchas, categoria) e historial de juego entre si, podemos diseñar una funcion la cual nos permita determinar cuales son las top $x$ opciones a recomendar al usuario que reserva una cancha para jugar en un dia y hora dados. Analiticamente puedo decir:
 
 Dada una lista ordenada, donde los valores en V estan de forma descendente. Llamare a esa lista ordenada 
 
@@ -26,7 +26,7 @@ $$
 
 Donde:
 
-- $S(i,j) = 1 - \frac{d(i,j)}{d_{\max}}$ es la similitud de preferencias, con $d(i,j)$ una distancia euclidiana entre las preferencias de usuario $i$ y $j$, y $d_{\max}$ la distancia máxima posible (normalizando $S$ entre 0 y 1). En nuestro caso, tendremos que calcular modulos en espacios tridimensionales (dias, horarios, canchas).
+- $S(i,j) = 1 - \frac{d(i,j)}{d_{\max}}$ es la similitud de preferencias, con $d(i,j)$ una distancia euclidiana entre las preferencias de usuario $i$ y $j$, y $d_{\max}$ la distancia máxima posible (normalizando $S$ entre 0 y 1). En nuestro caso, tendremos que calcular modulos en espacios 4 dimensiones (dias, horarios, canchas, categoria).
 - $J(i,j) = \frac{g(i,j)}{g(i)}$, donde la funcion $g(i, j)$ nos indica la cantidad de partidos del usuario $i$ con el usuario $j$, y $g(i)$ nos indica la totalidad de los partidos jugados por el usuario $i$  
 - $\alpha$ y $\beta$ son pesos que balancean la importancia de las preferencias versus la historia de haber jugado juntos, por lo tanto:
  
