@@ -202,7 +202,7 @@ Una vez hecho esto, los cambios hechos se revertiran.
   * [x] El sistema deberá permitir ABML de reservas de canchas. 
   * [x] El sistema deberá permitir ABML de preferencias. 
   * [x] El sistema deberá hacer un emparejamiento entre jugadores en base a sus preferencias y categoría. 
-  * [ ] El sistema deberá permitir enviar notificaciones a los usuarios mediante correo. 
+  * [x] El sistema deberá permitir enviar notificaciones a los usuarios mediante correo. 
   * [x] El sistema deberá permitir reservar una cancha a solo los clientes habilitados. 
   * [ ] El sistema deberá permitir registrar el resultado de un partido. 
   * [x] El sistema deberá permitir visualizar los turnos en formato calendario con vistas semanales, permitiendo acceder posteriormente al detalle de un día específico
