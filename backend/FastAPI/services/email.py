@@ -45,7 +45,7 @@ def notificar_posible_matcheo(to: str, day: str, hora: str, cancha: str):
     </ul>
     <p>Para más información, visita <a href="{url}">el detalle de la reserva</a>.</p>
     """
-    enviar_email(to, subject, html)}
+    enviar_email(to, subject, html)
 
 def notificar_recordatorio(to: str, day: str, hora: str, cancha: str):
     dominio = os.getenv("DOMINIO")
