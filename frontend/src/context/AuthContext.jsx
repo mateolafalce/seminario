@@ -24,6 +24,7 @@ export const AuthProvider = ({ children }) => {
   const [habilitado, setHabilitado] = useState(false);
   const [user, setUser] = useState(null);
   const [redirectAfterLogin, setRedirectAfterLogin] = useState(null);
+  const [authReady, setAuthReady] = useState(false);
   const navigate = useNavigate();
   const location = useLocation();
 
@@ -46,6 +47,7 @@ export const AuthProvider = ({ children }) => {
       setHabilitado(false);
       setUser(null);
     }
+    setAuthReady(true);
   }, []);
 
   // Chequea el token cada vez que cambia la ruta
@@ -113,7 +115,7 @@ export const AuthProvider = ({ children }) => {
   return (
     <AuthContext.Provider value={{
       apiFetch, isAuthenticated, isAdmin, habilitado, user, login, logout, loginWithToken,
-      redirectAfterLogin, setRedirectAfterLogin
+      redirectAfterLogin, setRedirectAfterLogin, authReady
     }}>
       {children}
     </AuthContext.Provider>

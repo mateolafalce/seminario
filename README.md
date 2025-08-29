@@ -264,7 +264,7 @@ Una vez hecho esto, los cambios hechos se revertiran.
   * [ ] Notificar 24 horas antes a los jugadores 
   * [x] Dar de alta el servicio de email
   * [ ] Notificar cuando un usuario cancela la reserva a los demas jugadores
-  * [ ] Arreglar link roto al momento de recomendar alguien para el matcheo.
+  * [x] Arreglar link roto al momento de recomendar alguien para el matcheo.
 * Modulo de evalucion/referencias.
   * [ ] Luego de un partido, dejarle setear a un usuario una calificacion y una observacion de la performance del usuario.
   * [ ] Implementar en el front una pestaña para poder buscar los jugadores con sus respectivas reseñas.
