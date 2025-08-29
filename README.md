@@ -230,6 +230,7 @@ Una vez hecho esto, los cambios hechos se revertiran.
   * [x] Al momento de cancelar una reserva, se deria liberar la reserva para ese dia :o
   * [x] Setear limite de reservas x usuario
   * [x] Corregir cantidad de usuarios x reserva de 4 a 6
+  * [ ] Solo se podra cancelar una reserva con 24hs antelacion.
 * ABML de Preferencias del usuario
   * [x] Crear la entidad Preferencia
   * [x] Implementar la logica en el backend
@@ -256,8 +257,9 @@ Una vez hecho esto, los cambios hechos se revertiran.
   * [x] Validar email del usuario
   * [x] Implemnetar estructura de la BD
   * [x] Notificar posible matcheo a posibles usuarios
-  * [x] Notificar 1 hora antes a los jugadores (?)
+  * [ ] Notificar 24 horas antes a los jugadores 
   * [ ] Dar de alta el servicio de email
+
 * Home (javi)
   * [x] Fletar "¡Regístrate o inicia sesión para comenzar!" cuando estamos logueados
   * [x] Hacer que las imagenes vayan pasando solas cada x tiempo (mantener la posibilidad de pasarlas a mano)
