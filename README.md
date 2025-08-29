@@ -245,6 +245,9 @@ Una vez hecho esto, los cambios hechos se revertiran.
   * [x] Listar Usuarios (de a 10) y luego permitir modificarlo
   * [x] Buscar Usuario por nombre de usuario para gestionar usuario
   * [x] Alta de un cliente
+* Modulo del Empleado
+  * [ ] Implementarlo en la BD
+  * [ ] Asociarle la funcionalidad de poder registrar resultado de partido.
 * Frontend General (Nico)
   * [x] Hacer el Navbar
   * [x] Footer con links importantes
