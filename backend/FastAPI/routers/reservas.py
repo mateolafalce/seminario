@@ -209,7 +209,7 @@ async def reservar(reserva: Reserva, user: dict = Depends(current_user)):
                 ]
             }
             conteo = db_client.reservas.count_documents(filtro)
-            if conteo >= 4:
+            if conteo >= 6:
                 raise ValueError(
                     "No hay cupo disponible para esta cancha en ese horario")
 

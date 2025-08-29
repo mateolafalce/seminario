@@ -228,7 +228,7 @@ function ReservaTabla() {
                 const key = `${cancha}-${hora}`
                 const cantidad = cantidades[key] || 0
                 const isSelected = selected?.cancha === cancha && selected?.hora === hora
-                const isFull = cantidad >= 4
+                const isFull = cantidad >= 6
 
                 // --- Lógica para deshabilitar horarios pasados ---
                 let isPast = false;
@@ -266,7 +266,7 @@ function ReservaTabla() {
                   >
                     <span>{hora}</span>
                     <span className="block text-[0.7rem] font-bold">
-                      {cantidad}/4 {isFull ? <span className="text-red-400">Lleno</span> : ''}
+                      {cantidad}/6 {isFull ? <span className="text-red-400">Lleno</span> : ''}
                       {isSelected && !isFull ? <span className="text-green-700 ml-1">¡Reservado!</span> : ''}
                     </span>
                   </button>

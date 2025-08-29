@@ -229,6 +229,7 @@ Una vez hecho esto, los cambios hechos se revertiran.
   * [x] Implemnetar logica para que solo se puedan ver las reservas del futuro, no del pasado
   * [x] Al momento de cancelar una reserva, se deria liberar la reserva para ese dia :o
   * [x] Setear limite de reservas x usuario
+  * [x] Corregir cantidad de usuarios x reserva de 4 a 6
 * ABML de Preferencias del usuario
   * [x] Crear la entidad Preferencia
   * [x] Implementar la logica en el backend
