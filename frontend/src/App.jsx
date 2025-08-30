@@ -20,6 +20,7 @@ import Habilitado from './pages/Habilitado';
 import MisDatos from './pages/MisDatos';
 import CargarResultados from './pages/CargarResultados';
 import Reseñas from './pages/Reseñas'; 
+import Jugadores from './pages/Jugadores'; // <-- Importa el componente
 
 function App() {
   return (
@@ -93,8 +94,9 @@ function AppWithTimeout() {
           <Route path="/admin/dashboard" element={<AdminDashboard />} />
           <Route path="/unauthorized" element={<Unauthorized />} />
           <Route path="/mis-datos" element={<MisDatos />} />
-          <Route path="/cargar-resultados" element={<CargarResultados />} /> {/* <-- NUEVA RUTA */}
-          <Route path="/reseñas" element={<Reseñas />} /> {/* <-- Añade esta línea */}
+          <Route path="/cargar-resultados" element={<CargarResultados />} /> 
+          <Route path="/reseñas" element={<Reseñas />} /> 
+          <Route path="/jugadores" element={<Jugadores />} /> 
         </Routes>
       </div>
       <ToastContainer 

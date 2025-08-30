@@ -267,7 +267,7 @@ Una vez hecho esto, los cambios hechos se revertiran.
   * [x] Arreglar logica del front/back para permitirme hacer la peticion http sobre los datos de la reserva y ver los que reservaron.
 * Modulo de evalucion/referencias.
   * [x] Implementar en el front una pestaña para poder buscar los jugadores con sus respectivas reseñas (calificacion y una observacion).
-  * [ ] Implementar buscador de jugadores para ver las reseñas de los jugadores.
+  * [x] Implementar buscador de jugadores para ver las reseñas de los jugadores.
 * Home (javi)
   * [x] Fletar "¡Regístrate o inicia sesión para comenzar!" cuando estamos logueados
   * [x] Hacer que las imagenes vayan pasando solas cada x tiempo (mantener la posibilidad de pasarlas a mano)

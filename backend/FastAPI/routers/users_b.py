@@ -772,3 +772,61 @@ async def obtener_calificaciones(user: dict = Depends(current_user)):
 
     calificaciones = await asyncio.to_thread(fetch_calificaciones)
     return {"calificaciones": calificaciones}
+
+@router.get("/reseñas/listar")
+async def listar_resenas(page: int = 1, limit: int = 10, user: dict = Depends(current_user)):
+    skip = (page - 1) * limit
+
+    def fetch_resenas():
+        pipeline = [
+            {"$sort": {"_id": -1}},
+            {"$skip": skip},
+            {"$limit": limit},
+            {"$lookup": {
+                "from": "users",
+                "localField": "jugador",
+                "foreignField": "_id",
+                "as": "jugador_info"
+            }},
+            {"$unwind": "$jugador_info"},
+            {"$lookup": {
+                "from": "users",
+                "localField": "con",
+                "foreignField": "_id",
+                "as": "con_info"
+            }},
+            {"$unwind": "$con_info"},
+            {"$lookup": {
+                "from": "calificaciones",
+                "localField": "calificacion",
+                "foreignField": "_id",
+                "as": "calificacion_info"
+            }},
+            {"$unwind": "$calificacion_info"},
+            {"$project": {
+                "_id": 1,
+                "jugador": {
+                    "id": {"$toString": "$jugador_info._id"},
+                    "nombre": "$jugador_info.nombre",
+                    "apellido": "$jugador_info.apellido",
+                    "username": "$jugador_info.username"
+                },
+                "con": {
+                    "id": {"$toString": "$con_info._id"},
+                    "nombre": "$con_info.nombre",
+                    "apellido": "$con_info.apellido",
+                    "username": "$con_info.username"
+                },
+                "calificacion": "$calificacion_info.numero",
+                "observacion": 1
+            }}
+        ]
+        resenas = list(db_client.resenas.aggregate(pipeline))
+        total = db_client.resenas.count_documents({})
+        # Convertir _id de cada reseña a string
+        for r in resenas:
+            r["_id"] = str(r["_id"])
+        return resenas, total
+
+    resenas, total = await asyncio.to_thread(fetch_resenas)
+    return {"resenas": resenas, "total": total, "page": page, "limit": limit}
