@@ -380,7 +380,44 @@ async def cancelar_reserva(
                 await asyncio.to_thread(cancelar_recordatorio_reserva, reserva_id)
             except Exception as e:
                 print(f"Error cancelando recordatorio: {e}")
-            
+
+            # Notificar a otros usuarios con reservas en el mismo slot
+            try:
+                from services.email import notificar_cancelacion_reserva
+                cancha_id = reserva["cancha"]
+                fecha = reserva["fecha"]
+                hora_inicio_id = reserva["hora_inicio"]
+
+                # Buscar reservas activas en el mismo slot (excluyendo la cancelada)
+                estado_reservada = await asyncio.to_thread(
+                    lambda: db_client.estadoreserva.find_one({"nombre": "Reservada"})
+                )
+                reservas_mismo_slot = await asyncio.to_thread(
+                    lambda: list(db_client.reservas.find({
+                        "cancha": cancha_id,
+                        "fecha": fecha,
+                        "hora_inicio": hora_inicio_id,
+                        "estado": estado_reservada["_id"],
+                        "_id": {"$ne": reserva_oid}
+                    }))
+                )
+                for r in reservas_mismo_slot:
+                    usuario = await asyncio.to_thread(
+                        lambda: db_client.users.find_one({"_id": r["usuario"]})
+                    )
+                    if usuario and usuario.get("email"):
+                        await asyncio.to_thread(
+                            notificar_cancelacion_reserva,
+                            usuario["email"],
+                            fecha,
+                            horario_doc["hora"],
+                            db_client.canchas.find_one({"_id": cancha_id})["nombre"],
+                            usuario["nombre"],
+                            usuario["apellido"]
+                        )
+            except Exception as e:
+                print(f"Error notificando cancelación a otros usuarios: {e}")
+
             return {"msg": "Reserva cancelada con éxito"}
         else:
             raise HTTPException(status_code=500,

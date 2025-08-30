@@ -262,7 +262,7 @@ Una vez hecho esto, los cambios hechos se revertiran.
   * [x] Implemnetar estructura de la BD
   * [x] Notificar posible matcheo a posibles usuarios
   * [x] Dar de alta el servicio de email
-  * [ ] Notificar cuando un usuario cancela la reserva a los demas jugadores
+  * [x] Notificar cuando un usuario cancela la reserva a los demas jugadores
   * [x] Arreglar link roto al momento de recomendar alguien para el matcheo.
   * [x] Arreglar logica del front/back para permitirme hacer la peticion http sobre los datos de la reserva y ver los que reservaron.
 * Modulo de evalucion/referencias.

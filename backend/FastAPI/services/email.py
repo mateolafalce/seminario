@@ -8,7 +8,6 @@ load_dotenv()
 # 100/dia
 # 3000/mes
 # Gratarola 🤠
-#
 def enviar_email(to: str, subject: str, html: str):
     resend.api_key = os.getenv("RESEND_TOKEN")
     resend_email = os.getenv("RESEND_EMAIL")
@@ -57,5 +56,20 @@ def notificar_recordatorio(to: str, day: str, hora: str, cancha: str):
         <li><strong>Hora:</strong> {hora}</li>
         <li><strong>Cancha:</strong> {cancha}</li>
     </ul>
+    """
+    enviar_email(to, subject, html)
+
+def notificar_cancelacion_reserva(to: str, day: str, hora: str, cancha: str, nombre: str, apellido: str):
+    dominio = os.getenv("DOMINIO")
+    subject = f"Un usuario canceló su reserva para el {day} a las {hora} en {cancha}"
+    url = f"https://{dominio}/reserva?fecha={day}&cancha={cancha}&horario={hora}"
+    html = f"""
+    <p>El jugador {nombre} {apellido} ha cancelado su reserva para:</p>
+    <ul>
+        <li><strong>Día:</strong> {day}</li>
+        <li><strong>Hora:</strong> {hora}</li>
+        <li><strong>Cancha:</strong> {cancha}</li>
+    </ul>
+    <p>Puedes ver el detalle y cancelar tu reserva si lo deseas en <a href="{url}">este enlace</a>.</p>
     """
     enviar_email(to, subject, html)
