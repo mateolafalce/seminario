@@ -110,6 +110,12 @@ export default function GestionReservas() {
     if (res.ok) {
       toast(<MiToast mensaje="Reserva eliminada" color="var(--color-red-400)" />);
       setModalOpen(false);
+      // Actualiza las cantidades tras eliminar
+      apiFetch(`/api/reservas/cantidad?fecha=${selectedDate}`).then(async res => {
+        if (res.ok) {
+          setCantidades(await res.json());
+        }
+      });
     } else {
       toast(<MiToast mensaje={mensaje} color="var(--color-red-400)" />);
     }
