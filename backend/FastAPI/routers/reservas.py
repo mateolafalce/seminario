@@ -219,7 +219,8 @@ async def reservar(reserva: Reserva, user: dict = Depends(current_user)):
                 "hora_inicio": horario_id,
                 "usuario": ObjectId(user["id"]),
                 "estado": estado_reservada_id,
-                "notificacion_id": None  # Inicializar como None
+                "notificacion_id": None, 
+                "resultado": None
             }
 
             result = db_client.reservas.insert_one(nueva_reserva)
