@@ -11,6 +11,7 @@ import Button from '../components/common/Button/Button';
 import { HiUsers } from "react-icons/hi";
 import { IoStatsChartSharp } from "react-icons/io5";
 import { PiCourtBasketballFill } from "react-icons/pi";
+import GestionReservas from '../components/admin/dashboard/GestionReservas';
 
 function AdminDashboard() {
     const [activeTab, setActiveTab] = useState('usuarios');
@@ -32,7 +33,7 @@ function AdminDashboard() {
 
     const tabs = [
         { id: 'usuarios', label: 'Gestión Usuarios', icon: <HiUsers />, shortLabel: 'Usuarios' },
-        { id: 'stats', label: 'Estadísticas', icon: <IoStatsChartSharp />, shortLabel: 'Stats' },
+        { id: 'reservas', label: 'Gestion Reservas', icon: <IoStatsChartSharp />, shortLabel: 'Reservas' },
         { id: 'canchas', label: 'Gestion Canchas', icon: <PiCourtBasketballFill />, shortLabel: 'Canchas' },
     ];
 
@@ -41,10 +42,9 @@ function AdminDashboard() {
         window.location.reload();
     };
 
-    // NUEVO: handler para cancha creada
     const handleCanchaCreada = () => {
         setModalCrearAbierto(false);
-        setRefreshCanchas(r => !r); // trigger refresh en AltaCancha
+        setRefreshCanchas(r => !r);
     };
 
     const renderContent = () => {
@@ -52,14 +52,9 @@ function AdminDashboard() {
             case 'usuarios':
                 return <GestionUsuarios />;
             case 'canchas':
-                // Pasar refreshCanchas como prop para que AltaCancha refresque el listado
                 return <ListarCanchas key={refreshCanchas} />;
-            case 'stats':
-                return (
-                    <div className="space-y-6">
-                        <h1 className="text-xl font-bold text-white">En progreso?? ... 🤠</h1>
-                    </div>
-                );
+            case 'reservas':
+                return <GestionReservas />;
             default:
                 return null;
         }

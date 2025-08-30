@@ -246,7 +246,7 @@ Una vez hecho esto, los cambios hechos se revertiran.
   * [x] Listar Usuarios (de a 10) y luego permitir modificarlo
   * [x] Buscar Usuario por nombre de usuario para gestionar usuario
   * [x] Alta de un cliente
-  * [ ] Gestionar reservar (modificarlas y eliminarlas)
+  * [x] Gestionar reservar (modificarlas y eliminarlas)
 * Modulo de Auto-Gestion de usuario
   * [x] Permitirle a un usuario ver sus datos (back)
   * [x] Permitirle a un usuario mofificar sus datos (back)

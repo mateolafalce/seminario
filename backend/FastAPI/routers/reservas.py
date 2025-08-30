@@ -336,16 +336,41 @@ async def cancelar_reserva(
         raise HTTPException(status_code=400, detail="ID de reserva inválido")
 
     reserva_oid = ObjectId(reserva_id)
+    user_id = user.get("id")
+    if not user_id or not ObjectId.is_valid(user_id):
+        raise HTTPException(status_code=400, detail="ID de usuario no válido")
 
-    reserva = await asyncio.to_thread(
-        lambda: db_client.reservas.find_one({"_id": reserva_oid, "usuario": ObjectId(user["id"])})
+    # Verificar si el usuario es admin
+    user_db_data = await asyncio.to_thread(
+        lambda: db_client.users.find_one({"_id": ObjectId(user_id)})
     )
+    if not user_db_data:
+        raise HTTPException(status_code=404, detail="Usuario no encontrado")
+
+    admin_data = await asyncio.to_thread(
+        lambda: db_client.admins.find_one({"user": user_db_data["_id"]})
+    )
+    es_admin = bool(admin_data)
+
+    # El admin puede cancelar cualquier reserva, el usuario solo la propia
+    filtro = {"_id": reserva_oid}
+    if not es_admin:
+        filtro["usuario"] = ObjectId(user_id)
+
+    print("Intentando cancelar reserva:", reserva_id)
+    print("Filtro usado:", filtro)
+    print("Es admin:", es_admin)
+    reserva = await asyncio.to_thread(
+        lambda: db_client.reservas.find_one(filtro)
+    )
+    print("Reserva encontrada:", reserva)
 
     if not reserva:
         raise HTTPException(
             status_code=404,
             detail="Reserva no encontrada o no tienes permiso para cancelarla")
 
+    # Obtener horario para calcular la fecha/hora de la reserva
     horario_doc = await asyncio.to_thread(lambda: db_client.horarios.find_one({"_id": reserva["hora_inicio"]}))
     hora_inicio_str = horario_doc["hora"].split('-')[0]
 
@@ -378,7 +403,7 @@ async def cancelar_reserva(
             # Cancelar recordatorio programado
             try:
                 from services.scheduler import cancelar_recordatorio_reserva
-                await asyncio.to_thread(cancelar_recordatorio_reserva, reserva_id)
+                await asyncio.to_thread(cancelar_recordatorio_reserva, str(reserva_id))
             except Exception as e:
                 print(f"Error cancelando recordatorio: {e}")
 
