@@ -261,7 +261,6 @@ Una vez hecho esto, los cambios hechos se revertiran.
   * [x] Validar email del usuario
   * [x] Implemnetar estructura de la BD
   * [x] Notificar posible matcheo a posibles usuarios
-  * [ ] Notificar 24 horas antes a los jugadores no con 1 hora de antelacion
   * [x] Dar de alta el servicio de email
   * [ ] Notificar cuando un usuario cancela la reserva a los demas jugadores
   * [x] Arreglar link roto al momento de recomendar alguien para el matcheo.
