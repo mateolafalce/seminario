@@ -265,6 +265,7 @@ Una vez hecho esto, los cambios hechos se revertiran.
   * [x] Dar de alta el servicio de email
   * [ ] Notificar cuando un usuario cancela la reserva a los demas jugadores
   * [x] Arreglar link roto al momento de recomendar alguien para el matcheo.
+  * [ ] Cuando una persona le recomiendan un par para jugar, y nos redirigimos a la pagina. Aparecera que no hay personas que hayan reservado en ese momento, lo cual es falso. Arreglar logica del front/back para permitirme hacer la peticion http sobre los datos de la reserva.
 * Modulo de evalucion/referencias.
   * [ ] Luego de un partido, dejarle setear a un usuario una calificacion y una observacion de la performance del usuario.
   * [ ] Implementar en el front una pestaña para poder buscar los jugadores con sus respectivas reseñas.
