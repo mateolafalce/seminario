@@ -251,8 +251,8 @@ Una vez hecho esto, los cambios hechos se revertiran.
   * [x] Permitirle a un usuario mofificar sus datos (back)
   * [x] Implementar el front a este requermiento
 * Modulo del Empleado
-  * [ ] Implementarlo en la BD
-  * [ ] Asociarle la funcionalidad de poder registrar resultado de partido.
+  * [x] Implementarlo en la BD
+  * [x] Asociarle la funcionalidad de poder registrar resultado de partido.
 * Frontend General (Nico)
   * [x] Hacer el Navbar
   * [x] Footer con links importantes

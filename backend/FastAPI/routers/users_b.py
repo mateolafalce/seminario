@@ -77,6 +77,17 @@ def check_admin(user_id: str):
         return False
 
 
+def check_empleado(user_id: str):
+    try:
+        print(f"Verificando empleado para user_id: {user_id}")  # LOG
+        empleado = db_client.empleados.find_one({"user": ObjectId(user_id)})
+        print(f"Resultado de búsqueda en empleados: {empleado}")  # LOG
+        return empleado is not None
+    except Exception as e:
+        print(f"Error al verificar el empleado: {e}")
+        return False
+
+
 @router.post("/login")
 async def login(form: OAuth2PasswordRequestForm = Depends()):
     user_db_data = await asyncio.to_thread(
@@ -122,6 +133,10 @@ async def login(form: OAuth2PasswordRequestForm = Depends()):
     is_admin = await asyncio.to_thread(
         lambda: check_admin(user_db_data["_id"])
     )
+    is_empleado = await asyncio.to_thread(
+        lambda: check_empleado(user_db_data["_id"])
+    )
+    print(f"LOGIN: is_admin={is_admin}, is_empleado={is_empleado}, user_id={user_db_data['_id']}")  # LOG
 
     return {
         "access_token": access_token,
@@ -129,6 +144,7 @@ async def login(form: OAuth2PasswordRequestForm = Depends()):
         "user_id": str(user_db_data["_id"]),
         "username": user_db_data["username"],
         "is_admin": is_admin,
+        "is_empleado": is_empleado,
         "habilitado": user_db_data["habilitado"]
     }
 

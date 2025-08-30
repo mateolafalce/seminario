@@ -1,5 +1,5 @@
 from fastapi import FastAPI
-from routers import users_b, admin_users, reservas, preferencias, canchas
+from routers import users_b, admin_users, reservas, preferencias, canchas, empleado  # Agrega empleado aquí
 from fastapi.middleware.cors import CORSMiddleware
 from db.client import db_client
 from services.scheduler import start_scheduler, shutdown_scheduler
@@ -14,6 +14,7 @@ app.include_router(admin_users.router_admin, prefix="/api")
 app.include_router(reservas.router, prefix="/api")
 app.include_router(preferencias.router, prefix="/api")
 app.include_router(canchas.router, prefix="/api")
+app.include_router(empleado.router, prefix="/api") 
 
 app.add_middleware(
     CORSMiddleware,

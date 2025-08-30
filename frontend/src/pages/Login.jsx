@@ -35,10 +35,6 @@ function Login() {
     setCargando(true);
     setErrores({});
     try {
-      // antes iba: const response = await fetch('http://127.0.0.1:8000/users_b/login', {
-      // antes: const response = await fetch(`${BACKEND_URL}/users_b/login`, {
-      // ahora con /api:
-      // En producción (nginx), usar ruta relativa para que funcione con HTTPS y proxy_pass
       const url = window.location.hostname === "localhost"
         ? `${BACKEND_URL}/api/users_b/login`
         : "/api/users_b/login";
@@ -50,7 +46,8 @@ function Login() {
 
       if (response.ok) {
         const data = await response.json();
-        handleLoginSuccess(data.access_token, data.is_admin, data.habilitado);
+        // PASA is_empleado aquí:
+        handleLoginSuccess(data.access_token, data.is_admin, data.is_empleado, data.habilitado);
       } else {
         const errorData = await response.json();
         setErrores({ general: errorData.detail || 'Credenciales incorrectas' });
@@ -62,14 +59,13 @@ function Login() {
     }
   };
 
-  const handleLoginSuccess = (token, isAdmin, habilitado) => {
-    // Decodificar el token para obtener userData
+  const handleLoginSuccess = (token, isAdmin, isEmpleado, habilitado) => {
     const payload = JSON.parse(atob(token.split('.')[1]));
     const userData = {
       id: payload.id
     };
 
-    login(token, isAdmin, habilitado, userData);
+    login(token, isAdmin, isEmpleado, habilitado, userData);
     if (redirectAfterLogin) {
       navigate(redirectAfterLogin, { replace: true });
       setRedirectAfterLogin(null);

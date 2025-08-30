@@ -11,7 +11,8 @@ const centerLinks = [
   { label: "Turnos", path: "/reserva", show: ({ isAuthenticated }) => isAuthenticated },
   { label: "Mis Reservas", path: "/mis-reservas", show: ({ isAuthenticated }) => isAuthenticated },
   { label: "Preferencias", path: "/preferencias", show: ({ isAuthenticated }) => isAuthenticated },
-  { label: "Mis Datos", path: "/mis-datos", show: ({ isAuthenticated }) => isAuthenticated }, // <-- NUEVO LINK
+  { label: "Mis Datos", path: "/mis-datos", show: ({ isAuthenticated }) => isAuthenticated },
+  { label: "Cargar Resultados", path: "/cargar-resultados", show: ({ isAuthenticated, isEmpleado }) => isAuthenticated && isEmpleado },
   { label: "Admin", path: "/Admin", show: ({ isAuthenticated, isAdmin }) => isAuthenticated && isAdmin },
   { label: "Admin-Dashboard", path: "/admin/dashboard", show: ({ isAuthenticated, isAdmin }) => isAuthenticated && isAdmin },
 ];
@@ -20,10 +21,10 @@ const centerLinks = [
 const navBotonesCentrales = 'text-white font-semibold text-base px-1 cursor-pointer transition-colors hover:text-[#E5FF00]';
 
 // el componente para los links de navegacion (solo texto, tailwindcss)
-const NavLinks = ({ links, isAuthenticated, isAdmin, onClick, className }) => (
+const NavLinks = ({ links, isAuthenticated, isAdmin, isEmpleado, onClick, className }) => (
   <>
     {links
-      .filter(link => link.show({ isAuthenticated, isAdmin }))
+      .filter(link => link.show({ isAuthenticated, isAdmin, isEmpleado }))
       .map(link => (
         <button
           key={link.label}
@@ -40,7 +41,7 @@ const NavLinks = ({ links, isAuthenticated, isAdmin, onClick, className }) => (
 
 function CustomNavbar() {
   const navigate = useNavigate();
-  const { isAuthenticated, logout, isAdmin } = useContext(AuthContext);
+  const { isAuthenticated, logout, isAdmin, isEmpleado } = useContext(AuthContext); // <-- agrega isEmpleado
   const [scrolled, setScrolled] = useState(false);
   const [showOffcanvas, setShowOffcanvas] = useState(false);
 
@@ -140,6 +141,7 @@ function CustomNavbar() {
               links={centerLinks}
               isAuthenticated={isAuthenticated}
               isAdmin={isAdmin}
+              isEmpleado={isEmpleado} // <-- pasa isEmpleado
               onClick={navigate}
               className=''
             />
@@ -186,7 +188,7 @@ function CustomNavbar() {
             <div className='h-full flex flex-col justify-center items-center'>
               <nav className='flex flex-col space-y-8 mb-12'>
                 {centerLinks
-                  .filter(link => link.show({ isAuthenticated, isAdmin }))
+                  .filter(link => link.show({ isAuthenticated, isAdmin, isEmpleado })) 
                   .map(link => (
                     <button
                       key={link.label}

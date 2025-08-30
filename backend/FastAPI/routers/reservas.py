@@ -755,3 +755,50 @@ async def detalle_reserva(cancha: str, horario: str, fecha: str, usuario_id: str
         "cantidad": len(usuarios),  # Solo cuenta usuarios con reservas activas
         "estado_cancelada": str(estado_cancelada["_id"])
     }
+
+@router.get("/listar")
+async def listar_reservas_confirmadas(fecha: str):
+    """
+    Devuelve todas las reservas con estado 'Confirmada' para una fecha dada.
+    """
+    # Validar formato de fecha
+    try:
+        datetime.strptime(fecha, "%d-%m-%Y")
+    except ValueError:
+        raise HTTPException(
+            status_code=400,
+            detail="Formato de fecha inválido. Use DD-MM-YYYY."
+        )
+
+    # Buscar el estado "Confirmada"
+    estado_confirmada = db_client.estadoreserva.find_one({"nombre": "Confirmada"})
+    if not estado_confirmada:
+        raise HTTPException(status_code=500, detail='No se encontró el estado "Confirmada"')
+    estado_confirmada_id = estado_confirmada["_id"]
+
+    # Pipeline para traer reservas confirmadas con info de cancha, horario y usuario
+    pipeline = [
+        {"$match": {"fecha": fecha, "estado": estado_confirmada_id}},
+        {"$lookup": {"from": "canchas", "localField": "cancha", "foreignField": "_id", "as": "cancha_info"}},
+        {"$unwind": "$cancha_info"},
+        {"$lookup": {"from": "horarios", "localField": "hora_inicio", "foreignField": "_id", "as": "horario_info"}},
+        {"$unwind": "$horario_info"},
+        {"$lookup": {"from": "users", "localField": "usuario", "foreignField": "_id", "as": "usuario_info"}},
+        {"$unwind": "$usuario_info"},
+        {"$project": {
+            "_id": 1,
+            "cancha": "$cancha_info.nombre",
+            "horario": "$horario_info.hora",
+            "usuario_nombre": "$usuario_info.nombre",
+            "usuario_apellido": "$usuario_info.apellido",
+            "usuario_id": {"$toString": "$usuario_info._id"},
+            "estado": {"$literal": "confirmada"}
+        }},
+        {"$sort": {"horario": 1}}
+    ]
+
+    reservas = await asyncio.to_thread(lambda: list(db_client.reservas.aggregate(pipeline)))
+    # Convertir _id a string
+    for r in reservas:
+        r["_id"] = str(r["_id"])
+    return reservas

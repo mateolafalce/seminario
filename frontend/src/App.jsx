@@ -19,6 +19,7 @@ import MisReservas from './pages/MisReservas';
 import AdminRoute from './components/admin/AdminRoute';
 import Habilitado from './pages/Habilitado';
 import MisDatos from './pages/MisDatos';
+import CargarResultados from './pages/CargarResultados'; // <-- Importa el componente
 
 function App() {
   return (
@@ -79,7 +80,6 @@ function AppWithTimeout() {
         <Routes>
           <Route path="/" element={<HomePage />} />
           <Route path="/home" element={<HomePage />} />
-          
           <Route path="/login" element={<Login />} />
           <Route path="/register" element={<Register />} />
           <Route path="/reserva" element={<Reserva />} />
@@ -93,6 +93,7 @@ function AppWithTimeout() {
           <Route path="/admin/dashboard" element={<AdminDashboard />} />
           <Route path="/unauthorized" element={<Unauthorized />} />
           <Route path="/mis-datos" element={<MisDatos />} />
+          <Route path="/cargar-resultados" element={<CargarResultados />} /> {/* <-- NUEVA RUTA */}
         </Routes>
       </div>
       <ToastContainer 
