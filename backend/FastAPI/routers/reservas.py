@@ -355,8 +355,8 @@ async def cancelar_reserva(
 
     ahora_dt = datetime.now(argentina_tz)
 
-    # Se comprueba si la diferencia entre la hora de la reserva y la hora actual es de al menos 1 hora.
-    if (reserva_dt - ahora_dt) >= timedelta(hours=1):
+    # Se comprueba si la diferencia entre la hora de la reserva y la hora actual es de al menos 24 horas.
+    if (reserva_dt - ahora_dt) >= timedelta(hours=24):
         # Buscar el estado "Cancelada" en la colección estadoreserva
         estado_cancelada = await asyncio.to_thread(
             lambda: db_client.estadoreserva.find_one({"nombre": "Cancelada"})
@@ -386,10 +386,10 @@ async def cancelar_reserva(
             raise HTTPException(status_code=500,
                                 detail="Error al procesar la cancelación.")
     else:
-        # Si queda menos de 1 hora, se deniega la cancelación.
+        # Si queda menos de 24 horas, se deniega la cancelación.
         raise HTTPException(
             status_code=400,
-            detail="No se puede cancelar la reserva con menos de 1 hora de antelación.")
+            detail="No se puede cancelar la reserva con menos de 24 horas de antelación.")
 
 
 @router.get("/cantidad")
