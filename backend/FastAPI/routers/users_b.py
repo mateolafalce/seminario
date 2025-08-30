@@ -499,10 +499,8 @@ async def editar_usuario(
             "nombre": body.get("nombre"),
             "apellido": body.get("apellido"),
             "email": body.get("email"),
-            "habilitado": body.get("habilitado"),
         }
 
-        # Verificar si el email cambió
         email_cambio = usuario_actual["email"] != body.get("email")
 
         if email_cambio:
@@ -510,11 +508,7 @@ async def editar_usuario(
             update_data["habilitacion_token"] = nuevo_token
             update_data["habilitado"] = False
             enviar_email_habilitacion(body.get("email"), nuevo_token)
-        else:
-            # Si el email NO cambió, mantener el token y habilitado como estaban
-            update_data.pop("habilitacion_token", None)
-            # No modificar el campo habilitado si no cambió el email
-
+            
         if categoria_obj:
             update_data["categoria"] = categoria_obj["_id"]
         else:

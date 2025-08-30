@@ -73,7 +73,7 @@ export function useUsuarios() {
         body: JSON.stringify({
           nombre: usuarioData.nombre,
           apellido: usuarioData.apellido,
-          telefono: usuarioData.telefono,
+          email: usuarioData.email,
           habilitado: usuarioData.habilitado,
           categoria: usuarioData.categoria,
         }),
