@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException, status, Body, Query
+from fastapi import APIRouter, Depends, HTTPException, status, Body, Query, Request
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
 from jose import jwt, JWTError
 from passlib.context import CryptContext
@@ -7,7 +7,7 @@ from routers.defs import *
 from db.models.user import User, UserDB
 from db.client import db_client
 from routers.Security.auth import current_user
-from pydantic import BaseModel
+from pydantic import BaseModel, EmailStr
 from bson import ObjectId
 import asyncio
 from datetime import datetime
@@ -414,7 +414,56 @@ async def eliminar_usuario(
             detail=f"Error al eliminar usuario: {str(e)}"
         )
 
-# parte nueva
+@router.delete("/{user_id}")
+async def eliminar_usuario(
+    user_id: str,
+    user: dict = Depends(current_user)
+):
+    def operaciones_sincronas():
+        current_user_data = db_client.users.find_one(
+            {"_id": ObjectId(user["id"])})
+        if not current_user_data:
+            raise ValueError("Usuario no encontrado")
+        is_admin = db_client.admins.find_one(
+            {"user": current_user_data["_id"]})
+        if not is_admin:
+            raise ValueError("Solo los admin pueden eliminar usuarios")
+        if str(current_user_data["_id"]) == user_id:
+            raise ValueError("No puedes eliminarte a ti mismo")
+        result = db_client.users.delete_one({"_id": ObjectId(user_id)})
+        if result.deleted_count == 0:
+            raise ValueError("Usuario no encontrado o ya eliminado")
+        db_client.admins.delete_one({"user": ObjectId(user_id)})
+        return True
+
+    try:
+        await asyncio.to_thread(operaciones_sincronas)
+        return {"success": True}
+    except ValueError as e:
+        raise HTTPException(
+            status_code=403 if "eliminarte" in str(e) else 404,
+            detail=str(e))
+    except Exception as e:
+        raise HTTPException(status_code=500,
+                            detail=f"Error al eliminar usuario: {str(e)}")
+
+
+@router.get("/habilitar")
+async def habilitar_usuario(token: str = Query(...)):
+    user = await asyncio.to_thread(
+        lambda: db_client.users.find_one({"habilitacion_token": token})
+    )
+    if not user:
+        raise HTTPException(status_code=404, detail="Token inválido")
+
+    await asyncio.to_thread(
+        lambda: db_client.users.update_one(
+            {"_id": user["_id"]},
+            {"$set": {"habilitado": True, "habilitacion_token": None}}
+        )
+    )
+    # Redirige al usuario al frontend (URL ABSOLUTA)
+    return RedirectResponse(url="https://boulevard81.duckdns.org/habilitado")
 
 
 @router.put("/{user_id}")
@@ -423,6 +472,7 @@ async def editar_usuario(
     body: dict = Body(...),
     user: dict = Depends(current_user)
 ):
+    
     def operaciones_sincronas():
         current_user_data = db_client.users.find_one(
             {"_id": ObjectId(user["id"])})
@@ -493,53 +543,86 @@ async def editar_usuario(
                             detail=f"Error al modificar usuario: {str(e)}")
 
 
-@router.delete("/{user_id}")
-async def eliminar_usuario(
-    user_id: str,
+class EditarPerfilRequest(BaseModel):
+    nombre: str
+    apellido: str
+    email: EmailStr
+
+
+@router.put("/me/")
+async def editar_perfil(
+    request: Request,
     user: dict = Depends(current_user)
 ):
+    body = await request.json()
+    try:
+        data = EditarPerfilRequest(**body)
+    except Exception as e:
+        print("Error de validación:", e)
+        raise HTTPException(status_code=400, detail=str(e))
+
     def operaciones_sincronas():
-        current_user_data = db_client.users.find_one(
-            {"_id": ObjectId(user["id"])})
-        if not current_user_data:
+        usuario_actual = db_client.users.find_one({"_id": ObjectId(user["id"])})
+        if not usuario_actual:
             raise ValueError("Usuario no encontrado")
-        is_admin = db_client.admins.find_one(
-            {"user": current_user_data["_id"]})
-        if not is_admin:
-            raise ValueError("Solo los admin pueden eliminar usuarios")
-        if str(current_user_data["_id"]) == user_id:
-            raise ValueError("No puedes eliminarte a ti mismo")
-        result = db_client.users.delete_one({"_id": ObjectId(user_id)})
-        if result.deleted_count == 0:
-            raise ValueError("Usuario no encontrado o ya eliminado")
-        db_client.admins.delete_one({"user": ObjectId(user_id)})
-        return True
+
+        update_data = {
+            "nombre": data.nombre,
+            "apellido": data.apellido,
+            "email": data.email,
+        }
+
+        email_cambio = usuario_actual["email"] != data.email
+        if email_cambio:
+            nuevo_token = secrets.token_urlsafe(32)
+            update_data["habilitacion_token"] = nuevo_token
+            update_data["habilitado"] = False
+            enviar_email_habilitacion(data.email, nuevo_token)
+
+        result = db_client.users.update_one(
+            {"_id": ObjectId(user["id"])},
+            {"$set": update_data}
+        )
+        if result.matched_count == 0:
+            raise ValueError("Usuario no encontrado")
+        return email_cambio
 
     try:
-        await asyncio.to_thread(operaciones_sincronas)
-        return {"success": True}
+        email_cambio = await asyncio.to_thread(operaciones_sincronas)
+        message = "Perfil actualizado correctamente"
+        if email_cambio:
+            message += ". Se ha enviado un email de verificación al nuevo correo."
+        return {"message": message}
     except ValueError as e:
-        raise HTTPException(
-            status_code=403 if "eliminarte" in str(e) else 404,
-            detail=str(e))
+        raise HTTPException(status_code=404, detail=str(e))
     except Exception as e:
-        raise HTTPException(status_code=500,
-                            detail=f"Error al eliminar usuario: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Error al modificar perfil: {str(e)}")
 
 
-@router.get("/habilitar")
-async def habilitar_usuario(token: str = Query(...)):
-    user = await asyncio.to_thread(
-        lambda: db_client.users.find_one({"habilitacion_token": token})
+@router.get("/perfil")
+async def obtener_perfil(user: dict = Depends(current_user)):
+    usuario = await asyncio.to_thread(
+        lambda: db_client.users.find_one({"_id": ObjectId(user["id"])})
     )
-    if not user:
-        raise HTTPException(status_code=404, detail="Token inválido")
+    if not usuario:
+        raise HTTPException(status_code=404, detail="Usuario no encontrado")
 
-    await asyncio.to_thread(
-        lambda: db_client.users.update_one(
-            {"_id": user["_id"]},
-            {"$set": {"habilitado": True, "habilitacion_token": None}}
-        )
-    )
-    # Redirige al usuario al frontend (URL ABSOLUTA)
-    return RedirectResponse(url="https://boulevard81.duckdns.org/habilitado")
+    # Obtener el nombre de la categoría si existe
+    categoria_nombre = None
+    if usuario.get("categoria"):
+        categoria_obj = db_client.categorias.find_one({"_id": usuario["categoria"]})
+        if categoria_obj:
+            categoria_nombre = categoria_obj.get("nombre")
+    else:
+        categoria_nombre = "Sin categoría"
+
+    return {
+        "nombre": usuario.get("nombre"),
+        "apellido": usuario.get("apellido"),
+        "username": usuario.get("username"),
+        "email": usuario.get("email"),
+        "habilitado": usuario.get("habilitado"),
+        "fecha_registro": usuario.get("fecha_registro"),
+        "ultima_conexion": usuario.get("ultima_conexion"),
+        "categoria": categoria_nombre
+    }

@@ -246,10 +246,10 @@ Una vez hecho esto, los cambios hechos se revertiran.
   * [x] Listar Usuarios (de a 10) y luego permitir modificarlo
   * [x] Buscar Usuario por nombre de usuario para gestionar usuario
   * [x] Alta de un cliente
-* Modulo de Gestion usuario
-  * [ ] Permitirle a un usuario ver sus datos (back)
-  * [ ] Permitirle a un usuario mofificar sus datos (back)
-  * [ ] Implementar el front a este requermiento
+* Modulo de Auto-Gestion de usuario
+  * [x] Permitirle a un usuario ver sus datos (back)
+  * [x] Permitirle a un usuario mofificar sus datos (back)
+  * [x] Implementar el front a este requermiento
 * Modulo del Empleado
   * [ ] Implementarlo en la BD
   * [ ] Asociarle la funcionalidad de poder registrar resultado de partido.
@@ -261,7 +261,7 @@ Una vez hecho esto, los cambios hechos se revertiran.
   * [x] Validar email del usuario
   * [x] Implemnetar estructura de la BD
   * [x] Notificar posible matcheo a posibles usuarios
-  * [ ] Notificar 24 horas antes a los jugadores 
+  * [ ] Notificar 24 horas antes a los jugadores no con 1 hora de antelacion
   * [x] Dar de alta el servicio de email
   * [ ] Notificar cuando un usuario cancela la reserva a los demas jugadores
   * [x] Arreglar link roto al momento de recomendar alguien para el matcheo.

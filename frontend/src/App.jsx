@@ -18,6 +18,7 @@ import Preferencias from './pages/Preferencia';
 import MisReservas from './pages/MisReservas';
 import AdminRoute from './components/admin/AdminRoute';
 import Habilitado from './pages/Habilitado';
+import MisDatos from './pages/MisDatos';
 
 function App() {
   return (
@@ -91,6 +92,7 @@ function AppWithTimeout() {
           <Route path="/habilitado" element={<Habilitado />} />
           <Route path="/admin/dashboard" element={<AdminDashboard />} />
           <Route path="/unauthorized" element={<Unauthorized />} />
+          <Route path="/mis-datos" element={<MisDatos />} />
         </Routes>
       </div>
       <ToastContainer 
