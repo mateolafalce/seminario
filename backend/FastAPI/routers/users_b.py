@@ -472,7 +472,6 @@ async def editar_usuario(
     body: dict = Body(...),
     user: dict = Depends(current_user)
 ):
-    
     def operaciones_sincronas():
         current_user_data = db_client.users.find_one(
             {"_id": ObjectId(user["id"])})
@@ -483,14 +482,12 @@ async def editar_usuario(
         if not is_admin:
             raise ValueError("Solo los admin pueden modificar usuarios")
 
-        # Obtener el usuario actual para comparar el email
         usuario_actual = db_client.users.find_one({"_id": ObjectId(user_id)})
         if not usuario_actual:
             raise ValueError("Usuario a modificar no encontrado")
 
         categoria_nombre = body.get("categoria")
         categoria_obj = None
-        
         if categoria_nombre and categoria_nombre not in ["Sin categoría", ""]:
             categoria_obj = db_client.categorias.find_one(
                 {"nombre": categoria_nombre})
@@ -504,19 +501,20 @@ async def editar_usuario(
             "email": body.get("email"),
             "habilitado": body.get("habilitado"),
         }
-        
+
         # Verificar si el email cambió
         email_cambio = usuario_actual["email"] != body.get("email")
-        
+
         if email_cambio:
-            # Generar nuevo token y deshabilitar usuario
             nuevo_token = secrets.token_urlsafe(32)
             update_data["habilitacion_token"] = nuevo_token
             update_data["habilitado"] = False
-            
-            # Enviar email de habilitación al nuevo email
             enviar_email_habilitacion(body.get("email"), nuevo_token)
-        
+        else:
+            # Si el email NO cambió, mantener el token y habilitado como estaban
+            update_data.pop("habilitacion_token", None)
+            # No modificar el campo habilitado si no cambió el email
+
         if categoria_obj:
             update_data["categoria"] = categoria_obj["_id"]
         else:
