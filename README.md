@@ -204,7 +204,7 @@ Una vez hecho esto, los cambios hechos se revertiran.
   * [x] El sistema deberá hacer un emparejamiento entre jugadores en base a sus preferencias y categoría. 
   * [x] El sistema deberá permitir enviar notificaciones a los usuarios mediante correo. 
   * [x] El sistema deberá permitir reservar una cancha a solo los clientes habilitados. 
-  * [ ] El sistema deberá permitir registrar el resultado de un partido. 
+  * [x] El sistema deberá permitir registrar el resultado de un partido. 
   * [x] El sistema deberá permitir visualizar los turnos en formato calendario con vistas semanales, permitiendo acceder posteriormente al detalle de un día específico
 
 
@@ -266,8 +266,8 @@ Una vez hecho esto, los cambios hechos se revertiran.
   * [x] Arreglar link roto al momento de recomendar alguien para el matcheo.
   * [x] Arreglar logica del front/back para permitirme hacer la peticion http sobre los datos de la reserva y ver los que reservaron.
 * Modulo de evalucion/referencias.
-  * [ ] Luego de un partido, dejarle setear a un usuario una calificacion y una observacion de la performance del usuario.
-  * [ ] Implementar en el front una pestaña para poder buscar los jugadores con sus respectivas reseñas.
+  * [x] Implementar en el front una pestaña para poder buscar los jugadores con sus respectivas reseñas (calificacion y una observacion).
+  * [ ] Implementar buscador de jugadores para ver las reseñas de los jugadores.
 * Home (javi)
   * [x] Fletar "¡Regístrate o inicia sesión para comenzar!" cuando estamos logueados
   * [x] Hacer que las imagenes vayan pasando solas cada x tiempo (mantener la posibilidad de pasarlas a mano)

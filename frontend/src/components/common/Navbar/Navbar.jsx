@@ -12,6 +12,7 @@ const centerLinks = [
   { label: "Mis Reservas", path: "/mis-reservas", show: ({ isAuthenticated }) => isAuthenticated },
   { label: "Preferencias", path: "/preferencias", show: ({ isAuthenticated }) => isAuthenticated },
   { label: "Mis Datos", path: "/mis-datos", show: ({ isAuthenticated }) => isAuthenticated },
+  { label: "Reseñas", path: "/reseñas", show: ({ isAuthenticated }) => isAuthenticated }, // <-- Añade esta línea
   { label: "Cargar Resultados", path: "/cargar-resultados", show: ({ isAuthenticated, isEmpleado }) => isAuthenticated && isEmpleado },
   { label: "Admin", path: "/Admin", show: ({ isAuthenticated, isAdmin }) => isAuthenticated && isAdmin },
   { label: "Admin-Dashboard", path: "/admin/dashboard", show: ({ isAuthenticated, isAdmin }) => isAuthenticated && isAdmin },

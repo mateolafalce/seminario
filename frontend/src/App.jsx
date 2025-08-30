@@ -4,7 +4,6 @@ import React, { useState, useEffect, useContext } from 'react';
 import Login from './pages/Login';
 import { ToastContainer, toast, cssTransition } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
-
 import Register from './pages/Register';
 import Navbar from './components/common/Navbar/Navbar';
 import Reserva from './pages/Reserva';
@@ -19,7 +18,8 @@ import MisReservas from './pages/MisReservas';
 import AdminRoute from './components/admin/AdminRoute';
 import Habilitado from './pages/Habilitado';
 import MisDatos from './pages/MisDatos';
-import CargarResultados from './pages/CargarResultados'; // <-- Importa el componente
+import CargarResultados from './pages/CargarResultados';
+import Reseñas from './pages/Reseñas'; 
 
 function App() {
   return (
@@ -94,6 +94,7 @@ function AppWithTimeout() {
           <Route path="/unauthorized" element={<Unauthorized />} />
           <Route path="/mis-datos" element={<MisDatos />} />
           <Route path="/cargar-resultados" element={<CargarResultados />} /> {/* <-- NUEVA RUTA */}
+          <Route path="/reseñas" element={<Reseñas />} /> {/* <-- Añade esta línea */}
         </Routes>
       </div>
       <ToastContainer 
