@@ -4,8 +4,6 @@ import { toast } from 'react-toastify';
 import MiToast from '../common/Toast/MiToast';
 import { useLocation } from 'react-router-dom';
 
-const BACKEND_URL = `http://${window.location.hostname}:8000`;
-
 export const generarHorarios = () => {
   const horarios = []
   let hora = 9
@@ -71,6 +69,7 @@ function ReservaTabla() {
   const [loadingDetalle, setLoadingDetalle] = useState(false)
   const { isAuthenticated, apiFetch, user } = useContext(AuthContext);
   const location = useLocation();
+  const [urlParams, setUrlParams] = useState(null);
 
   // Obtener canchas desde la API
   useEffect(() => {
@@ -123,9 +122,23 @@ function ReservaTabla() {
     const horario = params.get('horario');
     if (fecha && cancha && horario) {
       setSelectedDate(fecha);
-      abrirDetalleReserva(cancha, horario);
+      setUrlParams({ cancha, horario, fecha });
+    } else {
+      setUrlParams(null);
     }
   }, [location.search]);
+
+  useEffect(() => {
+    // Espera a que selectedDate y user estén listos
+    if (
+      urlParams &&
+      selectedDate === urlParams.fecha &&
+      user?.id
+    ) {
+      abrirDetalleReserva(urlParams.cancha, urlParams.horario);
+      setUrlParams(null); // Evita abrir dos veces
+    }
+  }, [selectedDate, urlParams, user]);
 
   const handleClick = async (cancha, hora) => {
     if (!window.confirm(`¿Estás seguro de que quieres reservar en la cancha "${cancha}" a las ${hora} para el día ${selectedDate}?`)) {
@@ -177,11 +190,16 @@ function ReservaTabla() {
     }
   }
 
+  const normalizarTexto = (texto) => texto.trim().replace(/\s+/g, ' ');
+
   const abrirDetalleReserva = async (cancha, hora) => {
     setLoadingDetalle(true)
     setModalOpen(true)
     try {
-      const url = `/api/reservas/detalle?cancha=${encodeURIComponent(cancha)}&horario=${encodeURIComponent(hora)}&fecha=${encodeURIComponent(selectedDate)}${user?.id ? `&usuario_id=${user.id}` : ''}`
+      // Normaliza los parámetros antes de la petición
+      const canchaNorm = normalizarTexto(cancha);
+      const horaNorm = normalizarTexto(hora);
+      const url = `/api/reservas/detalle?cancha=${encodeURIComponent(canchaNorm)}&horario=${encodeURIComponent(horaNorm)}&fecha=${encodeURIComponent(selectedDate)}${user?.id ? `&usuario_id=${user.id}` : ''}`
       const response = await apiFetch(url)
       if (response.ok) {
         const data = await response.json()

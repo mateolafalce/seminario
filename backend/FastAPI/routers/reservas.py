@@ -436,14 +436,23 @@ async def obtener_cantidad_reservas(fecha: str):
                    for c in db_client.canchas.find({}, {"_id": 1, "nombre": 1})}
         horarios = {str(h["_id"]): h["hora"]
                     for h in db_client.horarios.find({}, {"_id": 1, "hora": 1})}
-        return [
-            {
-                "cancha": canchas.get(str(reserva["cancha"]), "Desconocida"),
-                "horario": horarios.get(str(reserva["hora_inicio"]), "Desconocido"),
+        resultado = []
+        for reserva in reservas_agrupadas:
+            cancha_nombre = canchas.get(str(reserva["cancha"]))
+            horario_nombre = horarios.get(str(reserva["hora_inicio"]))
+            # Si no se encuentra, busca el nombre directamente en la reserva (por si hay inconsistencia)
+            if not cancha_nombre:
+                cancha_doc = db_client.canchas.find_one({"_id": reserva["cancha"]})
+                cancha_nombre = cancha_doc["nombre"] if cancha_doc else "Desconocida"
+            if not horario_nombre:
+                horario_doc = db_client.horarios.find_one({"_id": reserva["hora_inicio"]})
+                horario_nombre = horario_doc["hora"] if horario_doc else "Desconocido"
+            resultado.append({
+                "cancha": cancha_nombre,
+                "horario": horario_nombre,
                 "cantidad": reserva["cantidad"]
-            }
-            for reserva in reservas_agrupadas
-        ]
+            })
+        return resultado
 
     try:
         resultado = await asyncio.to_thread(obtener_datos)
