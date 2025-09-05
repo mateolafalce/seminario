@@ -15,7 +15,7 @@ import { AuthProvider, AuthContext } from './context/AuthContext';
 import Unauthorized from './pages/Unauthorized';
 import Preferencias from './pages/Preferencia';
 import MisReservas from './pages/MisReservas';
-import AdminRoute from './components/admin/AdminRoute';
+
 import Habilitado from './pages/Habilitado';
 import MisDatos from './pages/MisDatos';
 import CargarResultados from './pages/CargarResultados';
@@ -87,9 +87,7 @@ function AppWithTimeout() {
           <Route path="/clientes/buscar" element={<BuscarCliente />} />
           <Route path="/preferencias" element={<Preferencias />} />
           <Route path="/mis-reservas" element={<MisReservas />} />
-          <Route path="/Admin/*" element={<AdminRoute />}>
-            <Route index element={<Admin />} />
-          </Route>
+
           <Route path="/habilitado" element={<Habilitado />} />
           <Route path="/admin/dashboard" element={<AdminDashboard />} />
           <Route path="/unauthorized" element={<Unauthorized />} />

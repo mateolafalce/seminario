@@ -1,8 +1,9 @@
-#!/bin/bash
+# Eliminar todos los contenedores
+docker stop $(docker ps -aq)
+docker rm $(docker ps -aq)
 
-# Detener y eliminar los contenedores, redes y volúmenes creados por `up`
-docker-compose down
+# Eliminar todas las imágenes
+docker rmi -f $(docker images -q)
 
-# Opcional: eliminar también las imágenes de Docker para una limpieza completa
-# Listar las imágenes que contienen "seminario" en su nombre y eliminarlas
-docker images | grep "seminario" | awk '{print $3}' | xargs docker rmi -f
+# Limpiar todo
+docker system prune -a -f --volumes
