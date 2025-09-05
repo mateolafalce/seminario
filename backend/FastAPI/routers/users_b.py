@@ -701,13 +701,6 @@ async def crear_resena(
     if jugador_oid == con_oid:
         raise HTTPException(status_code=400, detail="No puedes dejarte una reseña a ti mismo.")
 
-    # Validar que no exista ya una reseña de este usuario a este jugador
-    reseña_existente = await asyncio.to_thread(
-        lambda: db_client.resenas.find_one({"jugador": jugador_oid, "con": con_oid})
-    )
-    if reseña_existente:
-        raise HTTPException(status_code=400, detail="Ya has dejado una reseña a este jugador.")
-
     # Obtener el ObjectId del estado "Confirmada"
     estado_confirmada = db_client.estadoreserva.find_one({"nombre": "Confirmada"})
     if not estado_confirmada:
@@ -744,15 +737,40 @@ async def crear_resena(
     if not calificacion:
         raise HTTPException(status_code=400, detail="Calificación inválida.")
 
-    reseña_doc = {
-        "jugador": jugador_oid,
-        "con": con_oid,
-        "calificacion": calificacion_oid,
-        "observacion": data.observacion
-    }
-    await asyncio.to_thread(lambda: db_client.resenas.insert_one(reseña_doc))
+    # Verificar si ya existe una reseña de este usuario a este jugador
+    def actualizar_o_crear_resena():
+        reseña_existente = db_client.resenas.find_one({"jugador": jugador_oid, "con": con_oid})
+        
+        reseña_doc = {
+            "jugador": jugador_oid,
+            "con": con_oid,
+            "calificacion": calificacion_oid,
+            "observacion": data.observacion
+        }
+        
+        if reseña_existente:
+            # Actualizar la reseña existente
+            result = db_client.resenas.update_one(
+                {"jugador": jugador_oid, "con": con_oid},
+                {"$set": {
+                    "calificacion": calificacion_oid,
+                    "observacion": data.observacion
+                }}
+            )
+            return "actualizada" if result.modified_count > 0 else "sin_cambios"
+        else:
+            # Crear nueva reseña
+            db_client.resenas.insert_one(reseña_doc)
+            return "creada"
 
-    return {"message": "Reseña creada correctamente."}
+    resultado = await asyncio.to_thread(actualizar_o_crear_resena)
+    
+    if resultado == "creada":
+        return {"message": "Reseña creada correctamente."}
+    elif resultado == "actualizada":
+        return {"message": "Reseña actualizada correctamente."}
+    else:
+        return {"message": "No se realizaron cambios en la reseña."}
 
 
 @router.get("/calificaciones")
