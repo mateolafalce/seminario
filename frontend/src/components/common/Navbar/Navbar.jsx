@@ -13,9 +13,9 @@ const centerLinks = [
   { label: "Preferencias", path: "/preferencias", show: ({ isAuthenticated }) => isAuthenticated },
   { label: "Mis Datos", path: "/mis-datos", show: ({ isAuthenticated }) => isAuthenticated },
   { label: "Reseñas", path: "/reseñas", show: ({ isAuthenticated }) => isAuthenticated },
-  { label: "Jugadores", path: "/jugadores", show: ({ isAuthenticated }) => isAuthenticated }, // <-- Añade esta línea
+  { label: "Jugadores", path: "/jugadores", show: ({ isAuthenticated }) => isAuthenticated },
   { label: "Cargar Resultados", path: "/cargar-resultados", show: ({ isAuthenticated, isEmpleado }) => isAuthenticated && isEmpleado },
-  { label: "Admin", path: "/Admin", show: ({ isAuthenticated, isAdmin }) => isAuthenticated && isAdmin },
+  
   { label: "Admin-Dashboard", path: "/admin/dashboard", show: ({ isAuthenticated, isAdmin }) => isAuthenticated && isAdmin },
 ];
 
@@ -46,6 +46,7 @@ function CustomNavbar() {
   const { isAuthenticated, logout, isAdmin, isEmpleado } = useContext(AuthContext); // <-- agrega isEmpleado
   const [scrolled, setScrolled] = useState(false);
   const [showOffcanvas, setShowOffcanvas] = useState(false);
+  const [menuOpen, setMenuOpen] = useState(false);
 
   useEffect(() => {
     const handleScroll = () => setScrolled(window.scrollY > 80);
@@ -103,6 +104,11 @@ function CustomNavbar() {
     );
   };
 
+  // Links visibles según rol
+  const visibleLinks = centerLinks.filter(link =>
+    link.show({ isAuthenticated, isAdmin, isEmpleado })
+  );
+
   return (
     <>
       {/* navbar */}
@@ -113,62 +119,62 @@ function CustomNavbar() {
             : 'fixed w-full z-50 transition-all duration-700'
         }
         style={{ 
-          minHeight: "3rem",
+          height: "3.5rem",
           backgroundColor: scrolled ? 'rgba(13, 27, 42, 0.85)' : 'transparent',
           backdropFilter: scrolled ? 'blur(8px)' : 'blur(0px)',
           WebkitBackdropFilter: scrolled ? 'blur(8px)' : 'blur(0px)'
         }}
       >
-
-        <div className='w-full grid grid-cols-3 items-center px-[2rem] lg:px-[5rem] xl:px-[12rem] 2xl:px-[12rem] h-[3.5rem] relative'>
-          {/* logo a la izquierda */}
-          <div
-            className='flex items-center cursor-pointer select-none'
-            onClick={() => navigate("/home")}
-          >
-            <img
-              src={logoCompleto}
-              alt="Boulevard81 Logo"
-              className='mr-[0.5rem] select-none'
-              style={{ userSelect: "none", height: "1.5rem", width: "auto", display: "block" }}
-              draggable={false}
-            />
-            <span className='text-white font-bold tracking-wide text-[1.2rem] ml-[0.5rem] select-none'>
-              Boulevard81
-            </span>
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-12 h-full">
+          <div className="flex items-center justify-between h-[3.5rem]">
+            {/* Logo */}
+            <div className="flex items-center cursor-pointer select-none" onClick={() => handleNavigate("/home")}>
+              <img
+                src={logoCompleto}
+                alt="Boulevard81 Logo"
+                className="mr-2 flex-shrink-0 select-none"
+                style={{ userSelect: "none", height: "1.5rem", width: "auto", display: "block" }}
+                draggable={false}
+              />
+            
+            </div>
+            {/* Links desktop */}
+            <div className="hidden lg:flex items-center gap-2">
+              {visibleLinks.map(link => (
+                <button
+                  key={link.label}
+                  onClick={() => handleNavigate(link.path)}
+                  className="text-white font-semibold px-2 py-1 rounded transition-colors duration-300 text-base hover:text-[#E5FF00]"
+                  style={{ fontFamily: "inherit" }}
+                >
+                  {link.label}
+                </button>
+              ))}
+            </div>
+            {/* Botones sesión desktop */}
+            <div className="hidden lg:flex items-center gap-2">
+              {renderSessionButtons(false)}
+            </div>
+            {/* Botón menú mobile */}
+            <div className="lg:hidden">
+              <button
+                onClick={() => setShowOffcanvas(true)}
+                className="text-white hover:bg-[#1B263B] p-2 rounded focus:outline-none"
+                aria-label="Abrir menú"
+              >
+                <svg className="h-7 w-7" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
+                </svg>
+              </button>
+            </div>
           </div>
-          {/* redirecciones centrales */}
-          <div className='hidden lg:flex justify-center items-center gap-[0.5rem] whitespace-nowrap'>
-            <NavLinks
-              links={centerLinks}
-              isAuthenticated={isAuthenticated}
-              isAdmin={isAdmin}
-              isEmpleado={isEmpleado} // <-- pasa isEmpleado
-              onClick={navigate}
-              className=''
-            />
-          </div>
-          {/* botones sesion derecha */}
-          <div className='hidden lg:flex justify-end items-center gap-[0.5rem] flex-nowrap whitespace-nowrap'>
-            {renderSessionButtons(false)}
-          </div>
-          {/* boton mobil menu */}
-          <button
-            className='lg:hidden text-white focus:outline-none ml-auto col-start-3 justify-self-end'
-            onClick={() => setShowOffcanvas(true)}
-            aria-label="Abrir menú"
-          >
-            <svg className="w-[2rem] h-[2rem]" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" d="M4 6h16M4 12h16M4 18h16" />
-            </svg>
-          </button>
         </div>
       </nav>
       {/* el menu fullscreen para celulares */}
       <AnimatePresence>
         {showOffcanvas && (
           <motion.div
-            className='fixed inset-0 z-50 bg-[#0D1B2A] lg:hidden'
+            className="fixed inset-0 z-50 bg-[#0D1B2A] lg:hidden"
             initial={{ x: '-100%' }}
             animate={{ x: 0 }}
             exit={{ x: '-100%' }}
@@ -178,52 +184,48 @@ function CustomNavbar() {
             {/* boton cerrar minimalista */}
             <button
               onClick={() => setShowOffcanvas(false)}
-              className='absolute top-8 right-8 text-white/60 hover:text-white transition-colors z-10'
+              className="absolute top-8 right-8 text-white/60 hover:text-white transition-colors z-10"
               aria-label="Cerrar menú"
             >
               <svg className="w-8 h-8" fill="none" stroke="currentColor" strokeWidth={1} viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
               </svg>
             </button>
-            
             {/* contenido ultra minimalista */}
-            <div className='h-full flex flex-col justify-center items-center'>
-              <nav className='flex flex-col space-y-8 mb-12'>
-                {centerLinks
-                  .filter(link => link.show({ isAuthenticated, isAdmin, isEmpleado })) 
-                  .map(link => (
-                    <button
-                      key={link.label}
-                      type="button"
-                      onClick={() => handleNavigate(link.path)}
-                      className='text-white text-3xl font-extralight text-center py-2 transition-all duration-300 hover:text-[#E5FF00] hover:scale-105'
-                    >
-                      {link.label}
-                    </button>
-                  ))}
+            <div className="h-full flex flex-col justify-center items-center">
+              <nav className="flex flex-col space-y-8 mb-12">
+                {visibleLinks.map(link => (
+                  <button
+                    key={link.label}
+                    type="button"
+                    onClick={() => handleNavigate(link.path)}
+                    className="text-white text-3xl font-extralight text-center py-2 transition-all duration-300 hover:text-[#E5FF00] hover:scale-105"
+                  >
+                    {link.label}
+                  </button>
+                ))}
               </nav>
-              
               {/* botones de sesion minimalistas */}
               {!isAuthenticated ? (
-                <div className='flex flex-col space-y-6'>
+                <div className="flex flex-col space-y-6">
                   <button
                     onClick={() => handleNavigate("/login")}
-                    className='text-white text-xl font-extralight text-center py-2 transition-all duration-300 hover:text-[#E5FF00] hover:scale-105 border border-white/20 rounded-full px-8'
+                    className="text-white text-xl font-extralight text-center py-2 transition-all duration-300 hover:text-[#E5FF00] hover:scale-105 border border-white/20 rounded-full px-8"
                   >
                     Iniciar Sesión
                   </button>
                   <button
                     onClick={() => handleNavigate("/register")}
-                    className='text-[#0D1B2A] text-xl font-extralight text-center py-2 transition-all duration-300 hover:bg-[#E5FF00] bg-white rounded-full px-8'
+                    className="text-[#0D1B2A] text-xl font-extralight text-center py-2 transition-all duration-300 hover:bg-[#E5FF00] bg-white rounded-full px-8"
                   >
                     Registrarse
                   </button>
                 </div>
               ) : (
-                <div className='flex flex-col space-y-4'>
+                <div className="flex flex-col space-y-4">
                   <button
                     onClick={handleLogout}
-                    className='text-white text-xl font-extralight text-center py-2 transition-all duration-300 hover:text-red-400 hover:scale-105 border border-white/20 rounded-full px-8'
+                    className="text-white text-xl font-extralight text-center py-2 transition-all duration-300 hover:text-red-400 hover:scale-105 border border-white/20 rounded-full px-8"
                   >
                     Cerrar Sesión
                   </button>
@@ -233,9 +235,8 @@ function CustomNavbar() {
           </motion.div>
         )}
       </AnimatePresence>
-
-      {/* espaciador */}
-      <div className='h-[3.5rem] lg:h-[3.5rem]' />
+      {/* Espaciador para evitar superposición */}
+      <div style={{ height: "3.5rem" }} />
     </>
   );
 }
