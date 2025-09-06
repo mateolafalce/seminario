@@ -9,9 +9,9 @@ import { motion, AnimatePresence } from "framer-motion";
 const centerLinks = [
   { label: "Home", path: "/home", show: ({ isAuthenticated }) => true },
   { label: "Turnos", path: "/reserva", show: ({ isAuthenticated }) => isAuthenticated },
-  { label: "Mis Reservas", path: "/mis-reservas", show: ({ isAuthenticated }) => isAuthenticated },
+  { label: "Reservas", path: "/mis-reservas", show: ({ isAuthenticated }) => isAuthenticated },
   { label: "Preferencias", path: "/preferencias", show: ({ isAuthenticated }) => isAuthenticated },
-  { label: "Mis Datos", path: "/mis-datos", show: ({ isAuthenticated }) => isAuthenticated },
+  { label: "Datos", path: "/mis-datos", show: ({ isAuthenticated }) => isAuthenticated },
   { label: "Reseñas", path: "/reseñas", show: ({ isAuthenticated }) => isAuthenticated },
   { label: "Jugadores", path: "/jugadores", show: ({ isAuthenticated }) => isAuthenticated },
   { label: "Jugadores", path: "/jugadores", show: ({ isAuthenticated }) => isAuthenticated },
@@ -133,21 +133,23 @@ function CustomNavbar() {
           WebkitBackdropFilter: scrolled ? 'blur(8px)' : 'blur(0px)'
         }}
       >
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-12 h-full">
-          <div className="flex items-center justify-between h-[3.5rem]">
-            {/* Logo */}
-            <div className="flex items-center cursor-pointer select-none" onClick={() => handleNavigate("/home")}>
-              <img
-                src={logoCompleto}
-                alt="Boulevard81 Logo"
-                className="mr-2 flex-shrink-0 select-none"
-                style={{ userSelect: "none", height: "1.5rem", width: "auto", display: "block" }}
-                draggable={false}
-              />
-              
-            </div>
-            {/* Links desktop */}
-            <div className="hidden lg:flex items-center gap-2">
+        {/* Contenedor principal con posicionamiento relativo */}
+        <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-12 h-full flex items-center justify-between">
+          
+          {/* Logo (Izquierda) */}
+          <div className="flex items-center cursor-pointer select-none" onClick={() => handleNavigate("/home")}>
+            <img
+              src={logoCompleto}
+              alt="Boulevard81 Logo"
+              className="mr-2 flex-shrink-0 select-none"
+              style={{ userSelect: "none", height: "1.5rem", width: "auto", display: "block" }}
+              draggable={false}
+            />
+          </div>
+
+          {/* Links de navegación (Centrados absolutamente) - SOLO DESKTOP */}
+          <div className="hidden lg:block absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2">
+            <div className="flex items-center gap-2">
               {visibleLinks.map(link => (
                 <button
                   key={link.label}
@@ -159,6 +161,10 @@ function CustomNavbar() {
                 </button>
               ))}
             </div>
+          </div>
+
+          {/* Botones de sesión (Derecha) */}
+          <div className="flex items-center">
             {/* Botones sesión desktop */}
             <div className="hidden lg:flex items-center gap-2">
               {renderSessionButtons(false)}
@@ -176,6 +182,7 @@ function CustomNavbar() {
               </button>
             </div>
           </div>
+
         </div>
       </nav>
       {/* el menu fullscreen para celulares */}
