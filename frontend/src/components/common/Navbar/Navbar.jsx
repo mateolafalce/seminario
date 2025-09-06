@@ -14,8 +14,9 @@ const centerLinks = [
   { label: "Mis Datos", path: "/mis-datos", show: ({ isAuthenticated }) => isAuthenticated },
   { label: "Reseñas", path: "/reseñas", show: ({ isAuthenticated }) => isAuthenticated },
   { label: "Jugadores", path: "/jugadores", show: ({ isAuthenticated }) => isAuthenticated },
+  { label: "Jugadores", path: "/jugadores", show: ({ isAuthenticated }) => isAuthenticated },
   { label: "Cargar Resultados", path: "/cargar-resultados", show: ({ isAuthenticated, isEmpleado }) => isAuthenticated && isEmpleado },
-  
+//  { label: "Admin", path: "/Admin", show: ({ isAuthenticated, isAdmin }) => isAuthenticated && isAdmin },
   { label: "Admin-Dashboard", path: "/admin/dashboard", show: ({ isAuthenticated, isAdmin }) => isAuthenticated && isAdmin },
 ];
 
@@ -46,6 +47,7 @@ function CustomNavbar() {
   const { isAuthenticated, logout, isAdmin, isEmpleado } = useContext(AuthContext); // <-- agrega isEmpleado
   const [scrolled, setScrolled] = useState(false);
   const [showOffcanvas, setShowOffcanvas] = useState(false);
+  const [menuOpen, setMenuOpen] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
 
   useEffect(() => {
@@ -109,6 +111,11 @@ function CustomNavbar() {
     link.show({ isAuthenticated, isAdmin, isEmpleado })
   );
 
+  // Links visibles según rol
+  const visibleLinks = centerLinks.filter(link =>
+    link.show({ isAuthenticated, isAdmin, isEmpleado })
+  );
+
   return (
     <>
       {/* navbar */}
@@ -119,6 +126,7 @@ function CustomNavbar() {
             : 'fixed w-full z-50 transition-all duration-700'
         }
         style={{ 
+          height: "3.5rem",
           height: "3.5rem",
           backgroundColor: scrolled ? 'rgba(13, 27, 42, 0.85)' : 'transparent',
           backdropFilter: scrolled ? 'blur(8px)' : 'blur(0px)',
@@ -136,7 +144,7 @@ function CustomNavbar() {
                 style={{ userSelect: "none", height: "1.5rem", width: "auto", display: "block" }}
                 draggable={false}
               />
-            
+              
             </div>
             {/* Links desktop */}
             <div className="hidden lg:flex items-center gap-2">
@@ -175,6 +183,7 @@ function CustomNavbar() {
         {showOffcanvas && (
           <motion.div
             className="fixed inset-0 z-50 bg-[#0D1B2A] lg:hidden"
+            className="fixed inset-0 z-50 bg-[#0D1B2A] lg:hidden"
             initial={{ x: '-100%' }}
             animate={{ x: 0 }}
             exit={{ x: '-100%' }}
@@ -184,6 +193,7 @@ function CustomNavbar() {
             {/* boton cerrar minimalista */}
             <button
               onClick={() => setShowOffcanvas(false)}
+              className="absolute top-8 right-8 text-white/60 hover:text-white transition-colors z-10"
               className="absolute top-8 right-8 text-white/60 hover:text-white transition-colors z-10"
               aria-label="Cerrar menú"
             >
@@ -204,12 +214,26 @@ function CustomNavbar() {
                     {link.label}
                   </button>
                 ))}
+            <div className="h-full flex flex-col justify-center items-center">
+              <nav className="flex flex-col space-y-8 mb-12">
+                {visibleLinks.map(link => (
+                  <button
+                    key={link.label}
+                    type="button"
+                    onClick={() => handleNavigate(link.path)}
+                    className="text-white text-3xl font-extralight text-center py-2 transition-all duration-300 hover:text-[#E5FF00] hover:scale-105"
+                  >
+                    {link.label}
+                  </button>
+                ))}
               </nav>
               {/* botones de sesion minimalistas */}
               {!isAuthenticated ? (
                 <div className="flex flex-col space-y-6">
+                <div className="flex flex-col space-y-6">
                   <button
                     onClick={() => handleNavigate("/login")}
+                    className="text-white text-xl font-extralight text-center py-2 transition-all duration-300 hover:text-[#E5FF00] hover:scale-105 border border-white/20 rounded-full px-8"
                     className="text-white text-xl font-extralight text-center py-2 transition-all duration-300 hover:text-[#E5FF00] hover:scale-105 border border-white/20 rounded-full px-8"
                   >
                     Iniciar Sesión
@@ -217,14 +241,17 @@ function CustomNavbar() {
                   <button
                     onClick={() => handleNavigate("/register")}
                     className="text-[#0D1B2A] text-xl font-extralight text-center py-2 transition-all duration-300 hover:bg-[#E5FF00] bg-white rounded-full px-8"
+                    className="text-[#0D1B2A] text-xl font-extralight text-center py-2 transition-all duration-300 hover:bg-[#E5FF00] bg-white rounded-full px-8"
                   >
                     Registrarse
                   </button>
                 </div>
               ) : (
                 <div className="flex flex-col space-y-4">
+                <div className="flex flex-col space-y-4">
                   <button
                     onClick={handleLogout}
+                    className="text-white text-xl font-extralight text-center py-2 transition-all duration-300 hover:text-red-400 hover:scale-105 border border-white/20 rounded-full px-8"
                     className="text-white text-xl font-extralight text-center py-2 transition-all duration-300 hover:text-red-400 hover:scale-105 border border-white/20 rounded-full px-8"
                   >
                     Cerrar Sesión
@@ -235,6 +262,8 @@ function CustomNavbar() {
           </motion.div>
         )}
       </AnimatePresence>
+      {/* Espaciador para evitar superposición */}
+      <div style={{ height: "3.5rem" }} />
       {/* Espaciador para evitar superposición */}
       <div style={{ height: "3.5rem" }} />
     </>
