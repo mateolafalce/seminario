@@ -1,18 +1,27 @@
-import React, { useState, useContext } from 'react';
+import React, { useState, useContext, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { AuthContext } from '../context/AuthContext';
 import AuthForm from '../components/common/AuthForm/AuthForm';
 
-//frontend: npm run dev -- --host y para el backend: uvicorn main:app --reload --host 0.0.0.0 --port 8000
-
-// esta es una linea nueva que uso para las ip y conectarse desde cualquier dispositivo
 const BACKEND_URL = `http://${window.location.hostname}:8000`;
 
 function Login() {
   const navigate = useNavigate();
-  const { login, redirectAfterLogin, setRedirectAfterLogin } = useContext(AuthContext);
+  const { login, redirectAfterLogin, setRedirectAfterLogin, isAuthenticated } = useContext(AuthContext);
   const [errores, setErrores] = useState({});
   const [cargando, setCargando] = useState(false);
+
+  // Si ya está autenticado, redirigir
+  useEffect(() => {
+    if (isAuthenticated) {
+      if (redirectAfterLogin) {
+        navigate(redirectAfterLogin, { replace: true });
+        setRedirectAfterLogin(null);
+      } else {
+        navigate('/home', { replace: true });
+      }
+    }
+  }, [isAuthenticated, navigate, redirectAfterLogin, setRedirectAfterLogin]);
 
   const campos = [
     {
@@ -46,7 +55,6 @@ function Login() {
 
       if (response.ok) {
         const data = await response.json();
-        // PASA is_empleado aquí:
         handleLoginSuccess(data.access_token, data.is_admin, data.is_empleado, data.habilitado);
       } else {
         const errorData = await response.json();
@@ -66,13 +74,13 @@ function Login() {
     };
 
     login(token, isAdmin, isEmpleado, habilitado, userData);
-    if (redirectAfterLogin) {
-      navigate(redirectAfterLogin, { replace: true });
-      setRedirectAfterLogin(null);
-    } else {
-      navigate('/home', { replace: true });
-    }
+    // La redirección ahora se maneja en el useEffect
   };
+
+  
+  if (isAuthenticated) {
+    return null; // o un spinner de carga
+  }
 
   return (
     <div>
