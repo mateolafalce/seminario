@@ -828,3 +828,40 @@ async def listar_reservas_confirmadas(fecha: str):
     for r in reservas:
         r["_id"] = str(r["_id"])
     return reservas
+
+
+
+@router.get("/historial")
+async def get_historial_reservas(user: dict = Depends(current_user)):
+    """
+    Devuelve el historial de reservas confirmadas (partidos ya jugados) de un usuario.
+    """
+    user_id = ObjectId(user["id"])
+
+    # Buscar el estado "Confirmada"
+    estado_confirmada = db_client.estadoreserva.find_one({"nombre": "Confirmada"})
+    if not estado_confirmada:
+        raise HTTPException(status_code=500, detail='No se encontró el estado "Confirmada"')
+    estado_confirmada_id = estado_confirmada["_id"]
+
+    # Pipeline para traer el historial con toda la información necesaria
+    pipeline = [
+        {"$match": {"usuario": user_id, "estado": estado_confirmada_id}},
+        {"$lookup": {"from": "canchas", "localField": "cancha", "foreignField": "_id", "as": "cancha_info"}},
+        {"$unwind": "$cancha_info"},
+        {"$lookup": {"from": "horarios", "localField": "hora_inicio", "foreignField": "_id", "as": "horario_info"}},
+        {"$unwind": "$horario_info"},
+        {"$project": {
+            "_id": {"$toString": "$_id"},
+            "fecha": 1,
+            "cancha": "$cancha_info.nombre",
+            "horario": "$horario_info.hora"
+            # Puedes añadir más campos si los necesitas, como "resultado"
+        }},
+        # Ordenamos por fecha descendente para mostrar los más recientes primero
+        {"$sort": {"fecha": -1, "horario": -1}}
+    ]
+
+    historial = await asyncio.to_thread(lambda: list(db_client.reservas.aggregate(pipeline)))
+
+    return historial

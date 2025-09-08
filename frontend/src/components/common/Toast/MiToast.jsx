@@ -1,40 +1,46 @@
 import React from "react";
-import { FiCheckCircle, FiXCircle, FiInfo, FiAlertTriangle } from "react-icons/fi";
+import { motion } from "framer-motion";
+import { FaCheck } from "react-icons/fa";
+import "./MiToast.css";
+import { GiTennisBall } from "react-icons/gi"; 
 
-// Configuración de iconos y colores por tipo de toast
-const toastConfig = {
-  success: {
-    icon: <FiCheckCircle className="w-6 h-6 text-green-400" />,
+const animation = {
+  initial: { opacity: 0, y: -100, rotate: -15 },
+  animate: {
+    opacity: 1,
+    y: 0,
+    rotate: [0, -8, 8, -5, 5, 0], // efecto rebote adelante/atrás
+    transition: {
+      type: "spring",
+      stiffness: 300,
+      damping: 15,
+      mass: 0.5
+    }
   },
-  error: {
-    icon: <FiXCircle className="w-6 h-6 text-red-400" />,
-  },
-  info: {
-    icon: <FiInfo className="w-6 h-6 text-blue-400" />,
-  },
-  warning: {
-    icon: <FiAlertTriangle className="w-6 h-6 text-yellow-400" />,
-  },
+  exit: {
+    opacity: 0,
+    y: -50,
+    rotate: 0,
+    transition: { duration: 0.3 }
+  }
 };
 
-/**
- * Componente que renderiza el contenido interno de una notificación.
- * @param {'success'|'error'|'info'|'warning'} type - El tipo de notificación.
- * @param {string} message - El mensaje a mostrar.
- */
-const MiToast = ({ type, message }) => {
-  // Selecciona el icono correcto o usa 'info' por defecto
-  const { icon } = toastConfig[type] || toastConfig.info;
+const MiToast = ({ mensaje, color, tipo = "info" }) => {
+  const colores = {
+    success: "var(--color-green-400)",
+    error: "var(--color-red-400)",
+    warning: "var(--color-yellow-400)",
+    info: "var(--color-blue-400)"
+  };
+  
+  const colorFinal = color || colores[tipo] || colores.info;
 
   return (
-    // Layout del contenido: icono a la izquierda, texto a la derecha
-    <div className="flex items-center gap-4">
-      <div className="flex-shrink-0">{icon}</div>
-      <div className="flex-1 min-w-0">
-        <p className="text-sm font-medium text-slate-100 break-words">
-          {message}
-        </p>
+    <div className="mi-toast-container">
+      <div className="mi-toast-icon">
+        <GiTennisBall size={40} color={colorFinal} />
       </div>
+      <span className="text-[#e5ff00] mi-toast-span">{mensaje}</span>
     </div>
   );
 };

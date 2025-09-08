@@ -2,7 +2,6 @@ import React, { useEffect, useState, useContext, memo } from "react";
 import { AuthContext } from "../context/AuthContext";
 import { toast } from "react-toastify";
 import Modal from "../components/common/Modal/Modal";
-import Loader from "../components/common/Loader/Loader"; // 1. Importa el nuevo Loader
 import {
   FiUser,
   FiMail,
@@ -11,10 +10,27 @@ import {
   FiClock,
   FiTag,
   FiEdit,
-  FiLoader as SpinnerIcon, // Renombra FiLoader para evitar conflictos
+  FiLoader as SpinnerIcon,
 } from "react-icons/fi";
 
-// Componente memoizado para performance
+// --- Helper para formatear la fecha y hora en formato 24hs ---
+const formatDateTime24h = (isoString) => {
+  if (!isoString) return "Nunca";
+  const date = new Date(isoString);
+  // Opciones para forzar el formato 24hs y el estilo deseado
+  const options = {
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit',
+    hour12: false,
+  };
+  return date.toLocaleString('es-AR', options).replace(',', ''); // Usamos 'es-AR' o tu locale preferido
+};
+
+
 const ProfileDataItem = memo(({ icon, label, value }) => {
   const icons = {
     user: <FiUser className="w-6 h-6 text-yellow-400" />,
@@ -50,8 +66,7 @@ function MisDatos() {
 
   useEffect(() => {
     const fetchPerfil = async () => {
-      // Simula un pequeño retraso para que el loader sea visible
-      await new Promise((resolve) => setTimeout(resolve, 500));
+      setLoading(true);
       try {
         const response = await apiFetch("/api/users_b/perfil");
         if (response.ok) {
@@ -110,11 +125,12 @@ function MisDatos() {
     }
   };
 
-  // 2. Usa el nuevo Loader aquí
+  // --- No se muestra NADA mientras carga o si no hay datos (hasta que falle) ---
   if (loading) {
-    return <Loader texto="Cargando tu perfil..." />;
+    return null;
   }
 
+  // --- Mensaje de error si la carga falló ---
   if (!datos)
     return (
       <div className="flex flex-col items-center justify-center h-full text-red-400 bg-red-900/20 p-8 rounded-lg">
@@ -165,16 +181,12 @@ function MisDatos() {
           <ProfileDataItem
             icon="calendar"
             label="Fecha de Registro"
-            value={new Date(datos.fecha_registro).toLocaleDateString()}
+            value={formatDateTime24h(datos.fecha_registro)}
           />
           <ProfileDataItem
             icon="clock"
             label="Última Conexión"
-            value={
-              datos.ultima_conexion
-                ? new Date(datos.ultima_conexion).toLocaleString()
-                : "Nunca"
-            }
+            value={formatDateTime24h(datos.ultima_conexion)}
           />
           <ProfileDataItem
             icon="tag"

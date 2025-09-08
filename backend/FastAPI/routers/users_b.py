@@ -515,6 +515,7 @@ async def editar_usuario(
             "nombre": body.get("nombre"),
             "apellido": body.get("apellido"),
             "email": body.get("email"),
+            "habilitado": body.get("habilitado")
         }
 
         email_cambio = usuario_actual["email"] != body.get("email")
