@@ -1,3 +1,4 @@
+/*
 .mi-toast {
   display: flex !important;
   flex-direction: column;
@@ -21,31 +22,27 @@
   padding: 16px 24px !important;
   color: #fff !important;
   font-weight: bold;
-  background-position: 0 -5px; /* mueve el patrón hacia arriba */
-   /* borde superior normal */
+  background-position: 0 -5px; 
   border-top: 8px solid #ffffff;
   border-bottom: none;
   border-radius: 10px 10px 0 0 !important;
 }
 
-/* postes laterales por encima */
 .mi-toast::before,
 .mi-toast::after {
   content: "";
   position: absolute;
-  top: -9px;          /* sobresale por encima */
+  top: -9px;          
   width: 8px;
   height: calc(100% + 10px);
-  background: var(--color-gray-700); /* azul para los postes */
+  background: var(--color-gray-700); 
 }
 
-/* Poste izquierdo */
 .mi-toast::before {
   left: 0;
   border-radius: 4px 0 0 0;
 }
 
-/* Poste derecho */
 .mi-toast::after {
   right: 0;
   border-radius: 0 4px 0 0;
@@ -57,7 +54,7 @@
   gap: 5px;
   padding: 12px 5px;
   background: transparent;
-  background-size: 12px 12px; /* tamaño del cuadro */
+  background-size: 12px 12px; 
   border-radius: 50px;
   display: flex;  
   justify-content: space-between;
@@ -89,3 +86,4 @@
   padding: 20px;
   border-radius: 50px;
 }
+*/

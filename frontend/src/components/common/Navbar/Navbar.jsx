@@ -14,9 +14,8 @@ const centerLinks = [
   { label: "Datos", path: "/mis-datos", show: ({ isAuthenticated }) => isAuthenticated },
   { label: "Reseñas", path: "/reseñas", show: ({ isAuthenticated }) => isAuthenticated },
   { label: "Jugadores", path: "/jugadores", show: ({ isAuthenticated }) => isAuthenticated },
-  { label: "Jugadores", path: "/jugadores", show: ({ isAuthenticated }) => isAuthenticated },
   { label: "Cargar Resultados", path: "/cargar-resultados", show: ({ isAuthenticated, isEmpleado }) => isAuthenticated && isEmpleado },
-  { label: "Admin", path: "/admin/dashboard", show: ({ isAuthenticated, isAdmin }) => isAuthenticated && isAdmin },
+  { label: "Panel", path: "/admin/dashboard", show: ({ isAuthenticated, isAdmin }) => isAuthenticated && isAdmin },
 ];
 
 // estilo de los botones del medio
