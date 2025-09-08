@@ -7,7 +7,7 @@ load_dotenv()
 # Con esto se puede enviar mails
 # 100/dia
 # 3000/mes
-# Gratarola 🤠
+# Gratarola 🤠🥒
 def enviar_email(to: str, subject: str, html: str):
     resend.api_key = os.getenv("RESEND_TOKEN")
     resend_email = os.getenv("RESEND_EMAIL")

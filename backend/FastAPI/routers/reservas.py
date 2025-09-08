@@ -865,3 +865,98 @@ async def get_historial_reservas(user: dict = Depends(current_user)):
     historial = await asyncio.to_thread(lambda: list(db_client.reservas.aggregate(pipeline)))
 
     return historial
+
+@router.post("/confirmar/{reserva_id}")
+async def confirmar_asistencia(
+        reserva_id: str,
+        user: dict = Depends(current_user)):
+    """Confirma la asistencia del usuario a una reserva"""
+    
+    try:
+        # Verificar que la reserva exista y sea del usuario
+        user_id = ObjectId(user["id"])
+        reserva_id_obj = ObjectId(reserva_id)
+        
+        reserva = db_client.reservas.find_one({
+            "_id": reserva_id_obj, 
+            "usuario": user_id
+        })
+        
+        if not reserva:
+            raise HTTPException(status_code=404, detail="Reserva no encontrada")
+        
+        # Obtener estado confirmado
+        estado_confirmada = db_client.estadoreserva.find_one({"nombre": "Confirmada"})
+        if not estado_confirmada:
+            raise HTTPException(status_code=500, detail="Estado 'Confirmada' no encontrado en la base de datos")
+        
+        # Actualizar estado a confirmado
+        db_client.reservas.update_one(
+            {"_id": reserva_id_obj},
+            {"$set": {"estado": estado_confirmada["_id"]}}
+        )
+        
+        return {"msg": "Asistencia confirmada correctamente"}
+        
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error al confirmar asistencia: {str(e)}")
+
+@router.get("/jugadores/{reserva_id}")
+async def get_jugadores_reserva(reserva_id: str, user: dict = Depends(current_user)):
+    """Obtiene los jugadores que participaron en una reserva específica"""
+    try:
+        user_id = ObjectId(user["id"])
+        reserva_id_obj = ObjectId(reserva_id)
+        
+        # Buscar la reserva original
+        reserva = db_client.reservas.find_one({"_id": reserva_id_obj})
+        if not reserva:
+            raise HTTPException(status_code=404, detail="Reserva no encontrada")
+        
+        # Buscar todas las reservas en la misma cancha, fecha y horario con estado confirmado
+        estado_confirmada = db_client.estadoreserva.find_one({"nombre": "Confirmada"})
+        if not estado_confirmada:
+            raise HTTPException(status_code=500, detail="Estado 'Confirmada' no encontrado")
+        
+        reservas_mismo_slot = list(db_client.reservas.find({
+            "cancha": reserva["cancha"],
+            "fecha": reserva["fecha"],
+            "hora_inicio": reserva["hora_inicio"],
+            "estado": estado_confirmada["_id"]
+        }))
+        
+        # Obtener los IDs de todos los usuarios que jugaron
+        jugadores_ids = [r["usuario"] for r in reservas_mismo_slot]
+        
+        # Eliminar duplicados y al usuario actual
+        jugadores_ids = [id for id in set(jugadores_ids) if id != user_id]
+        
+        if not jugadores_ids:
+            return []
+        
+        # Obtener datos de los jugadores
+        jugadores = list(db_client.users.find({"_id": {"$in": jugadores_ids}}))
+        
+        # Verificar reseñas
+        for jugador in jugadores:
+            reseña = db_client.reseñas.find_one({
+                "de": user_id,
+                "con": jugador["_id"]
+            })
+            jugador["calificado"] = reseña is not None
+        
+        # Limpiar documentos para JSON
+        jugadores_limpios = []
+        for jugador in jugadores:
+            jugadores_limpios.append({
+                "_id": str(jugador["_id"]),
+                "nombre": jugador.get("nombre", ""),
+                "apellido": jugador.get("apellido", ""),
+                "username": jugador.get("username", ""),
+                "calificado": jugador.get("calificado", False)
+            })
+        
+        return jugadores_limpios
+        
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error al obtener jugadores: {str(e)}")
