@@ -19,7 +19,7 @@ import MisReservas from './pages/MisReservas';
 import Habilitado from './pages/Habilitado';
 import MisDatos from './pages/MisDatos';
 import CargarResultados from './pages/CargarResultados';
-import Reseñas from './pages/Reseñas'; 
+//import Reseñas from './pages/Reseñas'; 
 import Jugadores from './pages/Jugadores'; // <-- Importa el componente
 
 function App() {
@@ -95,7 +95,7 @@ function AppWithTimeout() {
           <Route path="/unauthorized" element={<Unauthorized />} />
           <Route path="/mis-datos" element={<MisDatos />} />
           <Route path="/cargar-resultados" element={<CargarResultados />} /> 
-          <Route path="/reseñas" element={<Reseñas />} /> 
+          {/* <Route path="/reseñas" element={<Reseñas />} /> */}
           <Route path="/jugadores" element={<Jugadores />} /> 
         </Routes>
       </div>

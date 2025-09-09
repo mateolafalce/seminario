@@ -5,6 +5,9 @@ import MiToast from '../components/common/Toast/MiToast';
 import { toast } from "react-toastify";
 import Modal from '../components/common/Modal/Modal';
 import { FiUsers, FiStar } from 'react-icons/fi';
+import FormularioReseña from '../components/usuarios/FormularioResenias';
+import HistorialReservas from '../components/usuarios/HistorialReservas';
+import ProximaReservaItem from '../components/usuarios/ProximaReservaItem'; // ¡NUEVA IMPORTACIÓN!
 
 function MisReservas() {
   const [vista, setVista] = useState('proximos');
@@ -19,11 +22,9 @@ function MisReservas() {
   const [reservaSeleccionada, setReservaSeleccionada] = useState(null);
   const [loadingJugadores, setLoadingJugadores] = useState(false);
 
-  // Estados para la calificación
+  // Estados para la calificación (¡SIMPLIFICADOS!)
   const [modalCalificacionAbierto, setModalCalificacionAbierto] = useState(false);
   const [jugadorSeleccionado, setJugadorSeleccionado] = useState(null);
-  const [calificacion, setCalificacion] = useState(5);
-  const [observacion, setObservacion] = useState('');
 
   // Función existente para cargar reservas
   useEffect(() => {
@@ -114,7 +115,7 @@ function MisReservas() {
     }
   };
 
-  // Función para ver jugadores de una reserva - SIN DATOS HARDCODEADOS
+  // Función para ver jugadores de una reserva 
   const handleVerJugadores = async (reserva) => {
     setReservaSeleccionada(reserva);
     setLoadingJugadores(true);
@@ -145,41 +146,15 @@ function MisReservas() {
     setJugadorSeleccionado(jugador);
     setModalCalificacionAbierto(true);
   };
-
-  // Función para enviar calificación
-  const handleEnviarCalificacion = async () => {
-    try {
-      const response = await apiFetch('/api/users_b/reseñar', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-          con: jugadorSeleccionado._id,
-          calificacion: calificacion.toString(),
-          observacion: observacion
-        })
-      });
-
-      if (response.ok) {
-        const data = await response.json();
-        toast(<MiToast mensaje="Jugador calificado correctamente" color="[#e5ff00]"/>);
-        setModalCalificacionAbierto(false);
-        
-        // Marcar jugador como calificado
-        setJugadoresReserva(prev => 
-          prev.map(j => j._id === jugadorSeleccionado._id 
-            ? {...j, calificado: true} 
-            : j
-          )
-        );
-      } else {
-        const error = await response.json();
-        toast(<MiToast mensaje={error.detail || "Error al calificar"} color="var(--color-red-400)"/>);
-      }
-    } catch (error) {
-      toast(<MiToast mensaje="Error de conexión" color="var(--color-red-400)"/>);
-    }
+  // Función para manejar la calificación exitosa
+  const handleReseñaExitosa = () => {
+    setJugadoresReserva(prev => 
+      prev.map(j => 
+        j._id === jugadorSeleccionado._id ? { ...j, calificado: true } : j
+      )
+    );
+    setModalCalificacionAbierto(false);
+    setJugadorSeleccionado(null);
   };
 
   if (!isAuthenticated) {
@@ -225,65 +200,18 @@ function MisReservas() {
             ) : (
               <ul className="space-y-4">
                 {proximasReservas.map((reserva) => (
-                  <li key={reserva._id} className="bg-gray-800 p-5 rounded-xl border border-gray-700 flex flex-col sm:flex-row justify-between items-center gap-4">
-                    <div>
-                      <p className="text-white font-bold text-lg">{reserva.cancha}</p>
-                      <p className="text-gray-300"><span className="font-semibold">Fecha:</span> {reserva.fecha}</p>
-                      <p className="text-gray-300"><span className="font-semibold">Horario:</span> {reserva.horario}</p>
-                      {reserva.confirmada && (
-                        <p className="text-green-400 text-sm mt-2">✓ Asistencia confirmada</p>
-                      )}
-                    </div>
-                    <div className="flex flex-col sm:flex-row gap-2">
-                      {!reserva.confirmada && (
-                        <Button
-                          texto="Confirmar Asistencia"
-                          onClick={() => handleConfirmar(reserva._id)}
-                          variant="default"
-                        />
-                      )}
-                      <Button
-                        texto="Cancelar Reserva"
-                        onClick={() => handleCancelar(reserva._id)}
-                        variant="eliminar"
-                      />
-                    </div>
-                  </li>
+                  <ProximaReservaItem
+                    key={reserva._id}
+                    reserva={reserva}
+                    onConfirmar={handleConfirmar}
+                    onCancelar={handleCancelar}
+                  />
                 ))}
               </ul>
             )}
           </div>
         ) : (
-          <div>
-            {historial.length === 0 ? (
-              <p className="text-gray-300 text-center">No tienes reservas en tu historial.</p>
-            ) : (
-              <ul className="space-y-4">
-                {historial.map((reserva) => (
-                  <li key={reserva._id} className="bg-gray-800 p-5 rounded-xl border border-gray-700">
-                    <div className="flex justify-between items-start">
-                      <div>
-                        <p className="text-white font-bold text-lg">{reserva.cancha}</p>
-                        <p className="text-gray-300"><span className="font-semibold">Fecha:</span> {reserva.fecha}</p>
-                        <p className="text-gray-300"><span className="font-semibold">Horario:</span> {reserva.horario}</p>
-                      </div>
-                      <span className="bg-green-800 text-green-300 text-xs font-medium px-2.5 py-1 rounded-full">
-                        Realizado
-                      </span>
-                    </div>
-                    
-                    {/* Botón funcional para ver jugadores */}
-                    <button 
-                      onClick={() => handleVerJugadores(reserva)}
-                      className="mt-3 text-yellow-400 hover:text-yellow-300 text-sm flex items-center"
-                    >
-                      <FiUsers className="mr-1" /> Ver jugadores
-                    </button>
-                  </li>
-                ))}
-              </ul>
-            )}
-          </div>
+          <HistorialReservas historial={historial} onVerJugadores={handleVerJugadores} />
         )}
       </div>
 
@@ -338,57 +266,13 @@ function MisReservas() {
 
       {/* Modal para calificar jugador */}
       <Modal isOpen={modalCalificacionAbierto} onClose={() => setModalCalificacionAbierto(false)}>
-        <div className="p-6">
-          <h3 className="text-2xl font-bold text-white mb-4">Calificar jugador</h3>
-          <p className="text-gray-300 mb-6">
-            {jugadorSeleccionado?.nombre} {jugadorSeleccionado?.apellido}
-          </p>
-          
-          <div className="mb-4">
-            <label className="block text-gray-300 mb-2">Calificación</label>
-            <div className="flex items-center justify-between mb-2">
-              <span className="text-gray-400">1</span>
-              <span className="text-gray-400">10</span>
-            </div>
-            <input
-              type="range"
-              min="1"
-              max="10"
-              value={calificacion}
-              onChange={(e) => setCalificacion(parseInt(e.target.value))}
-              className="w-full accent-yellow-400"
-            />
-            <div className="text-center mt-2">
-              <span className="text-white text-xl font-bold">{calificacion}</span>
-            </div>
-          </div>
-          
-          <div className="mb-6">
-            <label className="block text-gray-300 mb-2">Observaciones (opcional)</label>
-            <textarea
-              value={observacion}
-              onChange={(e) => setObservacion(e.target.value)}
-              className="w-full px-4 py-2 rounded-lg bg-gray-700 border border-gray-600 text-white"
-              rows="3"
-              placeholder="Añade comentarios sobre el jugador..."
-            />
-          </div>
-          
-          <div className="flex gap-4">
-            <Button
-              texto="Cancelar"
-              onClick={() => setModalCalificacionAbierto(false)}
-              variant="cancelar"
-              className="flex-1"
-            />
-            <Button
-              texto="Enviar Calificación"
-              onClick={handleEnviarCalificacion}
-              variant="default"
-              className="flex-1"
-            />
-          </div>
-        </div>
+        {jugadorSeleccionado && (
+          <FormularioReseña
+            jugadorAReseñar={jugadorSeleccionado}
+            onReseñaEnviada={handleReseñaExitosa}
+            onCancelar={() => setModalCalificacionAbierto(false)}
+          />
+        )}
       </Modal>
     </div>
   );
