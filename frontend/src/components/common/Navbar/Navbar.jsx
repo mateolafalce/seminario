@@ -12,7 +12,6 @@ const centerLinks = [
   { label: "Reservas", path: "/mis-reservas", show: ({ isAuthenticated }) => isAuthenticated },
   { label: "Preferencias", path: "/preferencias", show: ({ isAuthenticated }) => isAuthenticated },
   { label: "Datos", path: "/mis-datos", show: ({ isAuthenticated }) => isAuthenticated },
-  { label: "Reseñas", path: "/reseñas", show: ({ isAuthenticated }) => isAuthenticated },
   { label: "Jugadores", path: "/jugadores", show: ({ isAuthenticated }) => isAuthenticated },
   { label: "Cargar Resultados", path: "/cargar-resultados", show: ({ isAuthenticated, isEmpleado }) => isAuthenticated && isEmpleado },
   { label: "Panel", path: "/admin/dashboard", show: ({ isAuthenticated, isAdmin }) => isAuthenticated && isAdmin },
