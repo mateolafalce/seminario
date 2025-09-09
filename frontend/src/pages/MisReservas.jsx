@@ -88,23 +88,37 @@ function MisReservas() {
         method: 'POST',
       });
       const data = await response.json();
+      
       if (response.ok) {
-        toast(<MiToast mensaje="Asistencia confirmada" color="[#e5ff00]"/>);
+        toast(<MiToast mensaje={data.msg} color="[#e5ff00]"/>);
         
-        // Actualizar estado local
-        setProximasReservas(prev => 
-          prev.filter(r => r._id !== reservaId)  // Quitar de próximas reservas
-        );
-        
-        // Buscar la reserva que acabamos de confirmar
-        const reservaConfirmada = proximasReservas.find(r => r._id === reservaId);
-        if (reservaConfirmada) {
-          // Añadir al historial
-          setHistorial(prev => [reservaConfirmada, ...prev]);
+        // CASO 1: La reserva se completó y se mueve al historial.
+        if (data.msg.includes("La reserva ha sido confirmada con éxito")) {
+          const reservaConfirmada = proximasReservas.find(r => r._id === reservaId);
+          
+          // Quitar de próximas
+          setProximasReservas(prev => prev.filter(r => r._id !== reservaId));
+          
+          // Añadir a historial (si se encontró)
+          if (reservaConfirmada) {
+            setHistorial(prev => [{ ...reservaConfirmada, asistenciaConfirmada: true }, ...prev]);
+          }
+
+        } else {
+          // CASO 2: SOLO se registró la asistencia. ¡ESTA ES LA PARTE NUEVA!
+          // Actualizamos el estado de la reserva en la lista de "próximas".
+          setProximasReservas(prevReservas =>
+            prevReservas.map(reserva => {
+              if (reserva._id === reservaId) {
+                // Devolvemos una copia de la reserva con la propiedad actualizada
+                return { ...reserva, asistenciaConfirmada: true };
+              }
+              // Devolvemos las demás reservas sin cambios
+              return reserva;
+            })
+          );
         }
-        
-        // Alternativamente, puedes volver a cargar los datos
-        // fetchDatos();
+
       } else {
         toast(<MiToast mensaje={`Error: ${data.detail}`} color="var(--color-red-400)"/>);
       }

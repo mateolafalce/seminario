@@ -220,7 +220,8 @@ async def reservar(reserva: Reserva, user: dict = Depends(current_user)):
                 "usuario": ObjectId(user["id"]),
                 "estado": estado_reservada_id,
                 "notificacion_id": None, 
-                "resultado": None
+                "resultado": None,
+                "confirmaciones": []  # Array para almacenar IDs de usuarios que han confirmado
             }
 
             result = db_client.reservas.insert_one(nueva_reserva)
@@ -308,7 +309,11 @@ async def get_mis_reservas(user: dict = Depends(current_user)):
         {"$lookup": {"from": "horarios", "localField": "hora_inicio", "foreignField": "_id", "as": "horario_info"}},
         {"$unwind": "$horario_info"},
         {"$project": {
-            "_id": 1, "fecha": 1, "cancha": "$cancha_info.nombre", "horario": "$horario_info.hora"
+            "_id": 1, 
+            "fecha": 1, 
+            "cancha": "$cancha_info.nombre", 
+            "horario": "$horario_info.hora",
+            "confirmaciones": 1  # AÑADIR ESTE CAMPO
         }},
         {"$sort": {"fecha": 1, "horario": 1}}
     ]
@@ -323,6 +328,15 @@ async def get_mis_reservas(user: dict = Depends(current_user)):
         reserva_dt = argentina_tz.localize(datetime.strptime(f"{fecha_str} {hora_inicio_str}", "%d-%m-%Y %H:%M"))
         if reserva_dt >= ahora:
             r["_id"] = str(r["_id"])
+            
+            # AÑADIR ESTE BLOQUE: Verificar si el usuario ya confirmó asistencia
+            confirmaciones = r.get("confirmaciones", [])
+            r["asistenciaConfirmada"] = user_id in confirmaciones
+            
+            # Opcional: eliminar el array de confirmaciones del resultado
+            if "confirmaciones" in r:
+                del r["confirmaciones"]
+                
             reservas_list.append(r)
 
     return reservas_list
@@ -867,9 +881,7 @@ async def get_historial_reservas(user: dict = Depends(current_user)):
     return historial
 
 @router.post("/confirmar/{reserva_id}")
-async def confirmar_asistencia(
-        reserva_id: str,
-        user: dict = Depends(current_user)):
+async def confirmar_asistencia(reserva_id: str, user: dict = Depends(current_user)):
     """Confirma la asistencia del usuario a una reserva"""
     
     try:
@@ -877,27 +889,59 @@ async def confirmar_asistencia(
         user_id = ObjectId(user["id"])
         reserva_id_obj = ObjectId(reserva_id)
         
-        reserva = db_client.reservas.find_one({
-            "_id": reserva_id_obj, 
-            "usuario": user_id
-        })
-        
-        if not reserva:
-            raise HTTPException(status_code=404, detail="Reserva no encontrada")
-        
         # Obtener estado confirmado
         estado_confirmada = db_client.estadoreserva.find_one({"nombre": "Confirmada"})
         if not estado_confirmada:
             raise HTTPException(status_code=500, detail="Estado 'Confirmada' no encontrado en la base de datos")
-        
-        # Actualizar estado a confirmado
-        db_client.reservas.update_one(
-            {"_id": reserva_id_obj},
-            {"$set": {"estado": estado_confirmada["_id"]}}
+            
+        # 1. Obtener info básica de la reserva y añadir usuario a confirmaciones con una operación atómica
+        # Usar findOneAndUpdate para obtener la reserva y actualizar en un solo paso
+        resultado = db_client.reservas.find_one_and_update(
+            {"_id": reserva_id_obj, "usuario": user_id},
+            {"$addToSet": {"confirmaciones": user_id}},  # Añade solo si no existe
+            return_document=True  # Retorna el documento actualizado
         )
         
-        return {"msg": "Asistencia confirmada correctamente"}
+        if not resultado:
+            raise HTTPException(status_code=404, detail="Reserva no encontrada")
         
+        # 2. Obtener información de la reserva para el slot
+        cancha = resultado["cancha"]
+        fecha = resultado["fecha"]
+        hora_inicio = resultado["hora_inicio"]
+        estado = resultado["estado"]
+        
+        # 3. Contar confirmaciones usando agregación (más eficiente? chequeado? u.u)
+        pipeline = [
+            {"$match": {
+                "cancha": cancha,
+                "fecha": fecha,
+                "hora_inicio": hora_inicio,
+                "estado": estado
+            }},
+            {"$unwind": {"path": "$confirmaciones", "preserveNullAndEmptyArrays": False}},
+            {"$group": {"_id": None, "total_confirmaciones": {"$addToSet": "$confirmaciones"}}},
+            {"$project": {"count": {"$size": "$total_confirmaciones"}}}
+        ]
+        
+        resultado_conteo = list(db_client.reservas.aggregate(pipeline))
+        total_confirmaciones = resultado_conteo[0]["count"] if resultado_conteo else 0
+        
+        # 4. Si hay al menos 2 confirmaciones, actualizar todas las reservas del slot
+        if total_confirmaciones >= 2:
+            db_client.reservas.update_many(
+                {
+                    "cancha": cancha,
+                    "fecha": fecha,
+                    "hora_inicio": hora_inicio,
+                    "estado": estado
+                },
+                {"$set": {"estado": estado_confirmada["_id"]}}
+            )
+            return {"msg": "Asistencia confirmada. La reserva ha sido confirmada con éxito."}
+        else:
+            return {"msg": "Asistencia registrada. Se necesita al menos una confirmación más para confirmar la reserva."}
+            
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error al confirmar asistencia: {str(e)}")
 
