@@ -45,28 +45,16 @@ def gi(user_id_1: str, user_id_2: str) -> int:
     user1_oid = ObjectId(user_id_1)
     user2_oid = ObjectId(user_id_2)
     
-    # Buscar reservas donde ambos usuarios estén en la misma cancha, fecha y horario
+    # Buscar reservas donde ambos usuarios estén en el mismo grupo
     pipeline = [
         {
             "$match": {
-                "usuario": {"$in": [user1_oid, user2_oid]}
-            }
-        },
-        {
-            "$group": {
-                "_id": {
-                    "cancha": "$cancha",
-                    "fecha": "$fecha", 
-                    "hora_inicio": "$hora_inicio"
-                },
-                "usuarios": {"$addToSet": "$usuario"},
-                "count": {"$sum": 1}
+                "usuarios.id": {"$in": [user1_oid, user2_oid]}
             }
         },
         {
             "$match": {
-                "usuarios": {"$all": [user1_oid, user2_oid]},
-                "count": {"$gte": 2}
+                "usuarios.id": {"$all": [user1_oid, user2_oid]}
             }
         },
         {"$count": "partidos_juntos"}
@@ -97,7 +85,7 @@ def g(user_id: str) -> int:
             pipeline = [
                 {
                     "$match": {
-                        "usuario": user_object_id,
+                        "usuarios.id": user_object_id,
                         "estado": {"$ne": estados_cancelada["_id"]}
                     }
                 },
@@ -136,10 +124,10 @@ def g(user_id: str) -> int:
             result = list(db_client.reservas.aggregate(pipeline))
             return result[0]["total_partidos"] if result else 0
         else:
-            return db_client.reservas.count_documents({"usuario": user_object_id})
+            return db_client.reservas.count_documents({"usuarios.id": user_object_id})
     else:
         return db_client.reservas.count_documents({
-            "usuario": user_object_id,
+            "usuarios.id": user_object_id,
             "estado": estado_completada["_id"]
         })
 
