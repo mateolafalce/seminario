@@ -7,7 +7,15 @@ import Modal from '../components/common/Modal/Modal';
 import { FiUsers, FiStar } from 'react-icons/fi';
 import FormularioReseña from '../components/usuarios/FormularioResenias';
 import HistorialReservas from '../components/usuarios/HistorialReservas';
-import ProximaReservaItem from '../components/usuarios/ProximaReservaItem'; // ¡NUEVA IMPORTACIÓN!
+import ProximaReservaItem from '../components/usuarios/ProximaReservaItem';
+
+function safeToast(message, color = "var(--color-red-400)") {
+  toast(<MiToast mensaje={message} color={color} />);
+}
+
+async function safeJson(resp) {
+  try { return await resp.json(); } catch { return {}; }
+}
 
 function MisReservas() {
   const [vista, setVista] = useState('proximos');
@@ -15,161 +23,145 @@ function MisReservas() {
   const [historial, setHistorial] = useState([]);
   const [loading, setLoading] = useState(true);
   const { isAuthenticated, apiFetch } = useContext(AuthContext);
-  
-  // Estados para el modal de jugadores
+
+  // Modal jugadores
   const [modalJugadoresAbierto, setModalJugadoresAbierto] = useState(false);
   const [jugadoresReserva, setJugadoresReserva] = useState([]);
   const [reservaSeleccionada, setReservaSeleccionada] = useState(null);
   const [loadingJugadores, setLoadingJugadores] = useState(false);
 
-  // Estados para la calificación (¡SIMPLIFICADOS!)
+  // Calificación
   const [modalCalificacionAbierto, setModalCalificacionAbierto] = useState(false);
   const [jugadorSeleccionado, setJugadorSeleccionado] = useState(null);
 
-  // Función existente para cargar reservas
+  const urlProximas = '/api/reservas/mis-reservas?estados=Reservada,Confirmada&incluir_pasadas=false';
+  const urlHistorial = '/api/reservas/mis-reservas?estados=Completada,Cancelada&incluir_pasadas=true';
+
+  async function cargarListas() {
+    setLoading(true);
+    try {
+      const [resProx, resHist] = await Promise.all([
+        apiFetch(urlProximas),
+        apiFetch(urlHistorial),
+      ]);
+
+      if (resProx.ok) {
+        const data = await resProx.json();
+        setProximasReservas(Array.isArray(data) ? data : []);
+      } else {
+        const e = await safeJson(resProx);
+        safeToast(e.detail || "No se pudieron cargar tus próximas reservas.");
+      }
+
+      if (resHist.ok) {
+        const data = await resHist.json();
+        setHistorial(Array.isArray(data) ? data : []);
+      } else {
+        const e = await safeJson(resHist);
+        safeToast(e.detail || "No se pudo cargar el historial de reservas.");
+      }
+    } catch (error) {
+      if (error.message !== 'Sesión expirada') {
+        console.error("Error al obtener las reservas:", error);
+        safeToast("No se pudieron cargar tus reservas.");
+      }
+    } finally {
+      setLoading(false);
+    }
+  }
+
   useEffect(() => {
     if (!isAuthenticated) return;
+    cargarListas();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isAuthenticated]);
 
-    const fetchDatos = async () => {
-      setLoading(true);
-      try {
-        const [resProximas, resHistorial] = await Promise.all([
-          apiFetch('/api/reservas/mis-reservas'),
-          apiFetch('/api/reservas/historial')
-        ]);
-
-        if (resProximas.ok) {
-          const data = await resProximas.json();
-          setProximasReservas(data);
-        }
-        if (resHistorial.ok) {
-          const data = await resHistorial.json();
-          setHistorial(data);
-        }
-      } catch (error) {
-        if (error.message !== 'Sesión expirada') {
-          console.error("Error al obtener los datos de reservas:", error);
-          toast(<MiToast mensaje="No se pudieron cargar tus reservas." color="var(--color-red-400)"/>);
-        }
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchDatos();
-  }, [isAuthenticated, apiFetch]);
-
-  const handleCancelar = async (reservaId) => {
-    if (!window.confirm("¿Estás seguro de que quieres cancelar esta reserva?")) {
-      return;
-    }
+  async function handleCancelar(reservaId) {
+    if (!window.confirm("¿Estás seguro de que quieres cancelar esta reserva?")) return;
     try {
-      const response = await apiFetch(`/api/reservas/cancelar/${reservaId}`, {
-        method: 'DELETE',
-      });
-      const data = await response.json();
+      const response = await apiFetch(`/api/reservas/cancelar/${reservaId}`, { method: 'DELETE' });
+      const data = await safeJson(response);
       if (response.ok) {
-        toast(<MiToast mensaje={data.msg} color="[#e5ff00]"/>);
-        setProximasReservas(prev => prev.filter(r => r._id !== reservaId));
+        safeToast(data.msg || "Reserva cancelada.", "[#e5ff00]");
+        // Re-fetch de ambas listas para mantener consistencia
+        await cargarListas();
       } else {
-        toast(<MiToast mensaje={`Error: ${data.detail}`} color="var(--color-red-400)"/>);
+        safeToast(`Error: ${data.detail || 'No se pudo cancelar'}`);
       }
     } catch (error) {
       if (error.message !== 'Sesión expirada') {
-        toast(<MiToast mensaje="Error de conexión al intentar cancelar la reserva." color="var(--color-red-400)"/>);
+        safeToast("Error de conexión al intentar cancelar la reserva.");
       }
     }
-  };
+  }
 
-  // Modifica esta función para que actualice también el historial
-  const handleConfirmar = async (reservaId) => {
+  async function handleConfirmar(reservaId) {
     try {
-      const response = await apiFetch(`/api/reservas/confirmar/${reservaId}`, {
-        method: 'POST',
-      });
-      const data = await response.json();
-      
+      const response = await apiFetch(`/api/reservas/confirmar/${reservaId}`, { method: 'POST' });
+      const data = await safeJson(response);
+
       if (response.ok) {
-        toast(<MiToast mensaje={data.msg} color="[#e5ff00]"/>);
-        
-        // CASO 1: La reserva se completó y se mueve al historial.
-        if (data.msg.includes("La reserva ha sido confirmada con éxito")) {
-          const reservaConfirmada = proximasReservas.find(r => r._id === reservaId);
-          
-          // Quitar de próximas
-          setProximasReservas(prev => prev.filter(r => r._id !== reservaId));
-          
-          // Añadir a historial (si se encontró)
-          if (reservaConfirmada) {
-            setHistorial(prev => [{ ...reservaConfirmada, asistenciaConfirmada: true }, ...prev]);
-          }
-
-        } else {
-          // CASO 2: SOLO se registró la asistencia. ¡ESTA ES LA PARTE NUEVA!
-          // Actualizamos el estado de la reserva en la lista de "próximas".
-          setProximasReservas(prevReservas =>
-            prevReservas.map(reserva => {
-              if (reserva._id === reservaId) {
-                // Devolvemos una copia de la reserva con la propiedad actualizada
-                return { ...reserva, asistenciaConfirmada: true };
-              }
-              // Devolvemos las demás reservas sin cambios
-              return reserva;
-            })
-          );
-        }
-
+        safeToast(data.msg || "Asistencia registrada.", "[#e5ff00]");
+        // Re-fetch de próximas + historial (si pasó a Confirmada/Completada se verá donde corresponda)
+        await cargarListas();
       } else {
-        toast(<MiToast mensaje={`Error: ${data.detail}`} color="var(--color-red-400)"/>);
+        safeToast(`Error: ${data.detail || 'No se pudo confirmar la asistencia'}`);
       }
     } catch (error) {
       if (error.message !== 'Sesión expirada') {
-        toast(<MiToast mensaje="Error de conexión" color="var(--color-red-400)"/>);
+        safeToast("Error de conexión");
       }
     }
-  };
+  }
 
-  // Función para ver jugadores de una reserva 
-  const handleVerJugadores = async (reserva) => {
+  async function handleVerJugadores(reserva) {
     setReservaSeleccionada(reserva);
     setLoadingJugadores(true);
     setModalJugadoresAbierto(true);
-    
+
     try {
-      // Endpoint para obtener jugadores de una reserva
-      const response = await apiFetch(`/api/reservas/jugadores/${reserva._id}`);
-      
+      // Tu backend expuesto: GET /reservas/detalle?cancha=...&horario=...&fecha=...
+      const qs = new URLSearchParams({
+        cancha: reserva.cancha,
+        horario: reserva.horario,
+        fecha: reserva.fecha,
+      });
+      const response = await apiFetch(`/api/reservas/detalle?${qs.toString()}`);
+      const data = await safeJson(response);
+
       if (response.ok) {
-        const data = await response.json();
-        setJugadoresReserva(data);
+        const usuarios = (data.usuarios || []).map(u => ({
+          _id: u.usuario_id,             // clave para la lista
+          nombre: u.nombre,
+          apellido: u.apellido,
+          username: u.username || "",    // tolerante: puede no venir
+          calificado: !!u.calificado,    // tolerante: puede no venir
+        }));
+        setJugadoresReserva(usuarios);
       } else {
-        const errorData = await response.json();
-        toast(<MiToast mensaje={errorData.detail || "No se pudieron obtener los jugadores"} color="var(--color-red-400)"/>);
+        safeToast(data.detail || "No se pudieron obtener los jugadores");
         setJugadoresReserva([]);
       }
     } catch (error) {
-      toast(<MiToast mensaje="Error al cargar los jugadores" color="var(--color-red-400)"/>);
+      safeToast("Error al cargar los jugadores");
       setJugadoresReserva([]);
     } finally {
       setLoadingJugadores(false);
     }
-  };
+  }
 
-  // Función para abrir el modal de calificación
-  const handleCalificarJugador = (jugador) => {
+  function handleCalificarJugador(jugador) {
     setJugadorSeleccionado(jugador);
     setModalCalificacionAbierto(true);
-  };
-  // Función para manejar la calificación exitosa
-  const handleReseñaExitosa = () => {
-    setJugadoresReserva(prev => 
-      prev.map(j => 
-        j._id === jugadorSeleccionado._id ? { ...j, calificado: true } : j
-      )
+  }
+
+  function handleReseñaExitosa() {
+    setJugadoresReserva(prev =>
+      prev.map(j => j._id === jugadorSeleccionado._id ? { ...j, calificado: true } : j)
     );
     setModalCalificacionAbierto(false);
     setJugadorSeleccionado(null);
-  };
+  }
 
   if (!isAuthenticated) {
     return <p className="text-center text-red-400 mt-10">Debes iniciar sesión para ver tus reservas.</p>;
@@ -183,7 +175,8 @@ function MisReservas() {
     <div className="flex flex-col items-center min-h-[70vh] py-8 px-4">
       <div className="w-full max-w-4xl">
         <h2 className="text-3xl font-bold text-[#eaff00] mb-8 text-center">Mis Reservas</h2>
-        {/* Botones para cambiar de vista */}
+
+        {/* Botones de vista */}
         <div className="flex justify-center gap-4 mb-8">
           <button
             onClick={() => setVista('proximos')}
@@ -206,7 +199,8 @@ function MisReservas() {
             Historial
           </button>
         </div>
-        {/* Renderizado condicional de la lista */}
+
+        {/* Contenido */}
         {vista === 'proximos' ? (
           <div>
             {proximasReservas.length === 0 ? (
@@ -219,24 +213,31 @@ function MisReservas() {
                     reserva={reserva}
                     onConfirmar={handleConfirmar}
                     onCancelar={handleCancelar}
+                    // si querés ver jugadores desde próximas:
+                    onVerJugadores={() => handleVerJugadores(reserva)}
                   />
                 ))}
               </ul>
             )}
           </div>
         ) : (
-          <HistorialReservas historial={historial} onVerJugadores={handleVerJugadores} />
+          <HistorialReservas
+            historial={historial}
+            onVerJugadores={handleVerJugadores}
+            // si querés permitir confirmar desde historial (no suele aplicar):
+            // onConfirmarAsistencia={({ _id }) => handleConfirmar(_id)}
+          />
         )}
       </div>
 
-      {/* Modal para ver jugadores */}
+      {/* Modal Jugadores */}
       <Modal isOpen={modalJugadoresAbierto} onClose={() => setModalJugadoresAbierto(false)}>
-        <div className="p-6">
+        <div className="px-1 py-3 sm:p-6">
           <h3 className="text-2xl font-bold text-white mb-2">Jugadores</h3>
           <p className="text-gray-400 mb-4">
-            {reservaSeleccionada?.cancha} - {reservaSeleccionada?.fecha} ({reservaSeleccionada?.horario})
+            {reservaSeleccionada?.cancha} — {reservaSeleccionada?.fecha} ({reservaSeleccionada?.horario})
           </p>
-          
+
           {loadingJugadores ? (
             <p className="text-center text-gray-300 py-4">Cargando jugadores...</p>
           ) : jugadoresReserva.length === 0 ? (
@@ -247,10 +248,11 @@ function MisReservas() {
                 <li key={jugador._id} className="py-4 flex justify-between items-center">
                   <div>
                     <p className="text-white font-medium">{jugador.nombre} {jugador.apellido}</p>
-                    <p className="text-gray-400 text-sm">@{jugador.username}</p>
+                    {jugador.username ? (
+                      <p className="text-gray-400 text-sm">@{jugador.username}</p>
+                    ) : null}
                   </div>
-                  
-                  {/* Mostrar botón de calificar o "ya calificado" */}
+
                   {jugador.calificado ? (
                     <span className="text-green-400 text-sm flex items-center">
                       <FiStar className="mr-1" /> Calificado
@@ -267,7 +269,7 @@ function MisReservas() {
               ))}
             </ul>
           )}
-          
+
           <div className="mt-6 text-center">
             <Button
               texto="Cerrar"
@@ -278,7 +280,7 @@ function MisReservas() {
         </div>
       </Modal>
 
-      {/* Modal para calificar jugador */}
+      {/* Modal Calificación */}
       <Modal isOpen={modalCalificacionAbierto} onClose={() => setModalCalificacionAbierto(false)}>
         {jugadorSeleccionado && (
           <FormularioReseña
