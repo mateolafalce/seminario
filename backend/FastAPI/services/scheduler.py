@@ -39,85 +39,14 @@ def enviar_recordatorio_especifico(reserva_id: str):
                 "foreignField": "_id", 
                 "as": "cancha_info"
             }},
-            {"$unwind": "$cancha_info"}
-        ]
-        
-        reserva_completa = list(db_client.reservas.aggregate(pipeline))
-        
-        if not reserva_completa:
-            print(f"❌ No se encontró la reserva {reserva_id}")
-            return
-            
-        reserva = reserva_completa[0]
-        
-        # Verificar que la reserva aún esté en estado "Reservada"
-        if reserva["estado_info"]["nombre"] not in ("Reservada", "Confirmada"):
-            print(f"ℹ️ Reserva {reserva_id} no requiere recordatorio (estado: {reserva['estado_info']['nombre']})")
-            return
-        
-        # En lugar de un solo usuario, ahora recorremos el array de usuarios
-        for usuario_data in reserva.get("usuarios", []):
-            usuario_id = usuario_data.get("id")
-            if not usuario_id:
-                continue
-                
-            # Obtener información del usuario
-            usuario = db_client.users.find_one({"_id": usuario_id})
-            if not usuario or not usuario.get("email"):
-                continue
-            
-            # Enviar recordatorio a cada usuario
-            print(f"📧 Enviando recordatorio a {usuario['email']}")
-            print(f"   📅 Fecha: {reserva['fecha']}")
-            print(f"   🕐 Hora: {reserva['horario_info']['hora']}")
-            print(f"   🏟️ Cancha: {reserva['cancha_info']['nombre']}")
-            
-            notificar_recordatorio(
-                to=usuario['email'],
-                day=reserva['fecha'],
-                hora=reserva['horario_info']['hora'],
-                cancha=reserva['cancha_info']['nombre']
-            )
-            
-        print(f"✅ Recordatorios enviados exitosamente para reserva {reserva_id}")
-        
-    except Exception as e:
-        print(f"❌ Error enviando recordatorio para reserva {reserva_id}: {e}")
-        import traceback
-        traceback.print_exc()
-
-def enviar_recordatorio_usuario(reserva_id: str, usuario_id: str):
-    """Envía recordatorio para un usuario específico en una reserva grupal"""
-    print(f"🔔 Enviando recordatorio para usuario {usuario_id} en reserva {reserva_id}")
-    
-    try:
-        reserva_oid = ObjectId(reserva_id)
-        usuario_oid = ObjectId(usuario_id)
-        
-        # Pipeline para obtener información completa de la reserva
-        pipeline = [
-            {"$match": {"_id": reserva_oid}},
-            {"$lookup": {
-                "from": "estadoreserva",
-                "localField": "estado", 
-                "foreignField": "_id",
-                "as": "estado_info"
-            }},
-            {"$unwind": "$estado_info"},
-            {"$lookup": {
-                "from": "horarios",
-                "localField": "hora_inicio", 
-                "foreignField": "_id",
-                "as": "horario_info"
-            }},
-            {"$unwind": "$horario_info"},
-            {"$lookup": {
-                "from": "canchas",
-                "localField": "cancha",
-                "foreignField": "_id", 
-                "as": "cancha_info"
-            }},
             {"$unwind": "$cancha_info"},
+            {"$lookup": {
+                "from": "users",
+                "localField": "usuario",
+                "foreignField": "_id",
+                "as": "usuario_info"
+            }},
+            {"$unwind": "$usuario_info"}
         ]
         
         reserva_completa = list(db_client.reservas.aggregate(pipeline))
@@ -133,40 +62,23 @@ def enviar_recordatorio_usuario(reserva_id: str, usuario_id: str):
             print(f"ℹ️ Reserva {reserva_id} ya no está en estado 'Reservada' (estado actual: {reserva['estado_info']['nombre']})")
             return
         
-        # Verificar que el usuario esté en la reserva
-        usuario_en_reserva = False
-        for usuario in reserva.get("usuarios", []):
-            if usuario["id"] == usuario_oid:
-                usuario_en_reserva = True
-                break
-                
-        if not usuario_en_reserva:
-            print(f"❌ El usuario {usuario_id} ya no está en la reserva {reserva_id}")
-            return
-            
-        # Obtener datos del usuario
-        usuario_data = db_client.users.find_one({"_id": usuario_oid})
-        if not usuario_data or not usuario_data.get("email"):
-            print(f"❌ No se encontró email para el usuario {usuario_id}")
-            return
-        
         # Enviar recordatorio
-        print(f"📧 Enviando recordatorio a {usuario_data['email']}")
+        print(f"📧 Enviando recordatorio a {reserva['usuario_info']['email']}")
         print(f"   📅 Fecha: {reserva['fecha']}")
         print(f"   🕐 Hora: {reserva['horario_info']['hora']}")
         print(f"   🏟️ Cancha: {reserva['cancha_info']['nombre']}")
         
         notificar_recordatorio(
-            to=usuario_data['email'],
+            to=reserva['usuario_info']['email'],
             day=reserva['fecha'],
             hora=reserva['horario_info']['hora'],
             cancha=reserva['cancha_info']['nombre']
         )
         
-        print(f"✅ Recordatorio enviado exitosamente para usuario {usuario_id} en reserva {reserva_id}")
+        print(f"✅ Recordatorio enviado exitosamente para reserva {reserva_id}")
         
     except Exception as e:
-        print(f"❌ Error enviando recordatorio para usuario {usuario_id} en reserva {reserva_id}: {e}")
+        print(f"❌ Error enviando recordatorio para reserva {reserva_id}: {e}")
         import traceback
         traceback.print_exc()
 
@@ -299,50 +211,6 @@ def programar_recordatorio_nueva_reserva(reserva_id: str, fecha: str, hora_inici
         print(f"❌ Error programando recordatorio para reserva {reserva_id}: {e}")
         return False
 
-def programar_recordatorio_usuario(reserva_id: str, usuario_id: str, fecha: str, hora_inicio: str):
-    """Programa recordatorio para un usuario específico en una reserva"""
-    print(f"📝 Programando recordatorio para usuario {usuario_id} en reserva {reserva_id}")
-    
-    try:
-        argentina_tz = pytz.timezone("America/Argentina/Buenos_Aires")
-        ahora = datetime.now(argentina_tz)
-        
-        # Convertir a datetime
-        reserva_inicio_dt_naive = datetime.strptime(f"{fecha} {hora_inicio}", "%d-%m-%Y %H:%M")
-        
-        try:
-            reserva_inicio_dt = argentina_tz.localize(reserva_inicio_dt_naive)
-        except ValueError:
-            reserva_inicio_dt = argentina_tz.localize(reserva_inicio_dt_naive, is_dst=None)
-        
-        # Calcular hora del recordatorio (1 hora antes)
-        hora_recordatorio = reserva_inicio_dt - timedelta(hours=1)
-        
-        # Solo programar si el recordatorio es en el futuro
-        if hora_recordatorio > ahora:
-            job_id = f"recordatorio_{reserva_id}_{usuario_id}"
-            
-            scheduler.add_job(
-                enviar_recordatorio_usuario,
-                'date',
-                run_date=hora_recordatorio,
-                args=[reserva_id, usuario_id],
-                id=job_id,
-                replace_existing=True
-            )
-            
-            print(f"✅ Recordatorio programado exitosamente")
-            print(f"   📅 Reserva: {fecha} a las {hora_inicio}")
-            print(f"   🔔 Recordatorio: {hora_recordatorio.strftime('%d-%m-%Y %H:%M')}")
-            return True
-        else:
-            print(f"⚠️ No se puede programar recordatorio - la hora ya pasó")
-            return False
-            
-    except Exception as e:
-        print(f"❌ Error programando recordatorio para usuario {usuario_id} en reserva {reserva_id}: {e}")
-        return False
-
 def cancelar_recordatorio_reserva(reserva_id: str):
     """Cancela el recordatorio programado para una reserva"""
     job_id = f"recordatorio_{reserva_id}"
@@ -358,20 +226,6 @@ def cancelar_recordatorio_reserva(reserva_id: str):
             return False
     except Exception as e:
         print(f"❌ Error cancelando recordatorio para reserva {reserva_id}: {e}")
-        return False
-
-def cancelar_recordatorio_usuario(reserva_id: str, usuario_id: str) -> bool:
-    job_id = f"recordatorio_{reserva_id}_{usuario_id}"
-    try:
-        job = scheduler.get_job(job_id)
-        if job:
-            scheduler.remove_job(job_id)
-            print(f"🗑️ Recordatorio cancelado para usuario {usuario_id} en reserva {reserva_id}")
-            return True
-        print(f"ℹ️ No había recordatorio para usuario {usuario_id} en reserva {reserva_id}")
-        return False
-    except Exception as e:
-        print(f"❌ Error cancelando recordatorio usuario {usuario_id} en reserva {reserva_id}: {e}")
         return False
 
 def schedule_jobs():
@@ -415,4 +269,3 @@ def shutdown_scheduler():
     if scheduler.running:
         scheduler.shutdown()
         print("Scheduler shut down.")
-

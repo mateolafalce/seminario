@@ -9,7 +9,6 @@ from bson import ObjectId
 from db.client import db_client
 from dotenv import load_dotenv
 import os
-import pytz
 
 load_dotenv()
 
@@ -40,59 +39,109 @@ def a_notificar(usuario_id: str) -> List[str]:
     return usuarios_a_notificar
 
 def gi(user_id_1: str, user_id_2: str) -> int:
-    """Cantidad de partidos (completados) donde i y j compartieron reserva."""
-    if not (ObjectId.is_valid(user_id_1) and ObjectId.is_valid(user_id_2)):
+    if not ObjectId.is_valid(user_id_1) or not ObjectId.is_valid(user_id_2):
         raise ValueError("IDs de usuario no válidos")
-    u1 = ObjectId(user_id_1); u2 = ObjectId(user_id_2)
-
-    estado_completada = db_client.estadoreserva.find_one({"nombre": "Completada"})
-    match = {"usuarios.id": {"$all": [u1, u2]}}
-    if estado_completada:
-        match["estado"] = estado_completada["_id"]
-    return db_client.reservas.count_documents(match)
+    
+    user1_oid = ObjectId(user_id_1)
+    user2_oid = ObjectId(user_id_2)
+    
+    # Buscar reservas donde ambos usuarios estén en la misma cancha, fecha y horario
+    pipeline = [
+        {
+            "$match": {
+                "usuario": {"$in": [user1_oid, user2_oid]}
+            }
+        },
+        {
+            "$group": {
+                "_id": {
+                    "cancha": "$cancha",
+                    "fecha": "$fecha", 
+                    "hora_inicio": "$hora_inicio"
+                },
+                "usuarios": {"$addToSet": "$usuario"},
+                "count": {"$sum": 1}
+            }
+        },
+        {
+            "$match": {
+                "usuarios": {"$all": [user1_oid, user2_oid]},
+                "count": {"$gte": 2}
+            }
+        },
+        {"$count": "partidos_juntos"}
+    ]
+    
+    result = list(db_client.reservas.aggregate(pipeline))
+    return result[0]["partidos_juntos"] if result else 0
 
 
 def g(user_id: str) -> int:
     if not ObjectId.is_valid(user_id):
         raise ValueError("ID de usuario no válido")
-    user_oid = ObjectId(user_id)
-
+    
+    user_object_id = ObjectId(user_id)
+    # Buscar el estado "Completada" en la colección estadoreserva
     estado_completada = db_client.estadoreserva.find_one({"nombre": "Completada"})
-    if estado_completada:
+    # Si no existe el estado "Completada", intentar con otros estados que indiquen partidos jugados
+    if not estado_completada:
+        # Alternativamente, buscar reservas que ya pasaron en el tiempo
+        # y que no estén canceladas como aproximación a partidos jugados
+        estados_cancelada = db_client.estadoreserva.find_one({"nombre": "Cancelada"})
+        
+        if estados_cancelada:
+            # Contar reservas que no están canceladas y que ya pasaron
+            argentina_tz = datetime.now()
+            fecha_hoy = argentina_tz.strftime("%d-%m-%Y")
+            
+            pipeline = [
+                {
+                    "$match": {
+                        "usuario": user_object_id,
+                        "estado": {"$ne": estados_cancelada["_id"]}
+                    }
+                },
+                {
+                    "$lookup": {
+                        "from": "horarios",
+                        "localField": "hora_inicio", 
+                        "foreignField": "_id",
+                        "as": "horario_info"
+                    }
+                },
+                {"$unwind": "$horario_info"},
+                {
+                    "$addFields": {
+                        "fecha_dt": {
+                            "$dateFromString": {
+                                "dateString": {
+                                    "$concat": [
+                                        {"$substr": ["$fecha", 6, 4]}, "-",
+                                        {"$substr": ["$fecha", 3, 2]}, "-", 
+                                        {"$substr": ["$fecha", 0, 2]}
+                                    ]
+                                }
+                            }
+                        }
+                    }
+                },
+                {
+                    "$match": {
+                        "fecha_dt": {"$lt": argentina_tz}
+                    }
+                },
+                {"$count": "total_partidos"}
+            ]
+            
+            result = list(db_client.reservas.aggregate(pipeline))
+            return result[0]["total_partidos"] if result else 0
+        else:
+            return db_client.reservas.count_documents({"usuario": user_object_id})
+    else:
         return db_client.reservas.count_documents({
-            "usuarios.id": user_oid,
+            "usuario": user_object_id,
             "estado": estado_completada["_id"]
         })
-
-    # Fallback si no existe "Completada": partidas anteriores a ahora y no canceladas
-    estado_cancelada = db_client.estadoreserva.find_one({"nombre": "Cancelada"})
-    now_ar = datetime.now(pytz.timezone("America/Argentina/Buenos_Aires"))
-
-    match_cond = {"usuarios.id": user_oid}
-    if estado_cancelada:
-        match_cond["estado"] = {"$ne": estado_cancelada["_id"]}
-
-    pipeline = [
-        {"$match": match_cond},
-        {"$lookup": {"from": "horarios", "localField": "hora_inicio", "foreignField": "_id", "as": "horario_info"}},
-        {"$unwind": "$horario_info"},
-        {"$addFields": {
-            "fecha_dt": {
-                "$dateFromString": {
-                    "dateString": {"$concat": [
-                        {"$substr": ["$fecha", 6, 4]}, "-",
-                        {"$substr": ["$fecha", 3, 2]}, "-",
-                        {"$substr": ["$fecha", 0, 2]}
-                    ]},
-                    "timezone": "America/Argentina/Buenos_Aires"
-                }
-            }
-        }},
-        {"$match": {"fecha_dt": {"$lt": now_ar}}},
-        {"$count": "total_partidos"}
-    ]
-    result = list(db_client.reservas.aggregate(pipeline))
-    return result[0]["total_partidos"] if result else 0
 
 
 def get_preference_vector(user_id: str) -> Tuple[List[float], List[float], List[float]]:
@@ -349,40 +398,6 @@ def get_training_data_from_completed_reservations() -> List[Tuple[str, str, int]
     return training_data
 
 
-def get_training_data_from_reservas() -> List[Tuple[str, str, int]]:
-    """
-    Genera (i, j, label) desde reservas 'Completada':
-      - label=1 si i y j jugaron juntos (pares dirigidos en usuarios[])
-      - label=1/0 según si un j notificado por i terminó (o no) en usuarios[].
-    """
-    estado_completada = db_client.estadoreserva.find_one({"nombre": "Completada"})
-    if not estado_completada:
-        return []
-
-    rs = list(db_client.reservas.aggregate([
-        {"$match": {"estado": estado_completada["_id"]}},
-        {"$project": {"usuarios": 1, "notificaciones": 1}}
-    ]))
-
-    out: set[Tuple[str, str, int]] = set()
-    for r in rs:
-        usuarios_ids = [str(u["id"]) for u in r.get("usuarios", []) if u.get("id")]
-        # pares que jugaron (dirigidos)
-        for i, ui in enumerate(usuarios_ids):
-            for uj in usuarios_ids[i+1:]:
-                out.add((ui, uj, 1))
-                out.add((uj, ui, 1))
-        # feedback desde notificaciones embebidas
-        for notif in r.get("notificaciones", []):
-            origen = str(notif.get("usuario_origen")) if notif.get("usuario_origen") else None
-            if not origen:
-                continue
-            notificados = [str(x) for x in notif.get("usuarios_notificados", [])]
-            for j in notificados:
-                out.add((origen, j, 1 if j in usuarios_ids else 0))
-    return list(out)
-
-
 def calculate_loss(beta: float, training_data: List[Tuple[str, str, int]]) -> float:
     alpha = 1 - beta
     total_loss = 0.0
@@ -434,44 +449,85 @@ def optimize_weights() -> Tuple[float, float]:
 
 def optimize_weights() -> Dict[str, Tuple[float, float]]:
     """
-    Optimiza α y β por usuario i usando training de reservas + notificaciones embebidas.
+    Optimiza los pesos alpha y beta para cada usuario basado en datos de reservas completadas
+    usando backpropagation
     """
-    from collections import defaultdict
-    training = get_training_data_from_reservas()
-    if not training:
-        print("No hay datos de entrenamiento disponibles"); return {}
-
-    user_training = defaultdict(list)  # i -> [(j, y_ij)]
-    for i, j, y in training:
-        user_training[i].append((j, y))
-
-    updated = {}
-    lr, iters = 0.01, 100
-    for i, data in user_training.items():
-        if len(data) < 2:  # mínimo
+    training_data = get_training_data_from_completed_reservations()
+    
+    if not training_data:
+        print("No hay datos de entrenamiento disponibles")
+        return {}
+    
+    print(f"Optimizando pesos con {len(training_data)} ejemplos de entrenamiento...")
+    
+    # Agrupar datos por usuario i (quien hizo la reserva)
+    user_training_data = defaultdict(list)
+    for user_i, user_j, label in training_data:
+        user_training_data[user_i].append((user_j, label))
+    
+    updated_weights = {}
+    learning_rate = 0.01
+    iterations = 100
+    
+    for user_i, user_data in user_training_data.items():
+        if len(user_data) < 2:  # Necesitamos al menos 2 ejemplos para entrenar
             continue
-        alpha, beta, _ = get_user_weights(i, data[0][0])
-        for _ in range(iters):
-            grad = 0.0; n = 0; loss = 0.0
-            for j, y in data:
-                try:
-                    s, hist = S(i, j), J(i, j)
-                    a = (1 - beta) * s + beta * hist
-                    err = a - y
-                    grad += 2 * err * (hist - s)
-                    loss += err * err
-                    n += 1
-                except Exception:
-                    continue
-            if n == 0: break
-            grad /= n; loss /= n
-            beta = max(0.0, min(1.0, beta - lr * grad))
-            if loss < 1e-3: break
-        alpha = 1 - beta
-        for j, _ in data:
-            update_user_weights(i, j, alpha, beta)
-        updated[i] = (alpha, beta)
-    return updated
+            
+        try:
+            # Obtener pesos actuales o usar valores por defecto
+            current_alpha, current_beta, _ = get_user_weights(user_i, user_data[0][0])
+            beta = current_beta
+            
+            # Optimización usando gradient descent
+            for iteration in range(iterations):
+                gradient = 0.0
+                total_loss = 0.0
+                
+                for user_j, y_ij in user_data:
+                    try:
+                        alpha = 1 - beta
+                        s_ij = S(user_i, user_j)
+                        j_ij = J(user_i, user_j)
+                        a_ij = alpha * s_ij + beta * j_ij
+                        
+                        # Calcular gradiente: ∂L/∂β = 2(A(i,j) - y_ij)(J(i,j) - S(i,j))
+                        error = a_ij - y_ij
+                        gradient += 2 * error * (j_ij - s_ij)
+                        total_loss += error ** 2
+                        
+                    except (ValueError, ZeroDivisionError):
+                        continue
+                
+                if len(user_data) > 0:
+                    gradient /= len(user_data)
+                    total_loss /= len(user_data)
+                
+                # Actualizar beta
+                beta = beta - learning_rate * gradient
+                
+                # Mantener beta en el rango [0, 1]
+                beta = max(0.0, min(1.0, beta))
+                
+                # Early stopping si la pérdida es muy pequeña
+                if total_loss < 0.001:
+                    break
+            
+            new_alpha = 1 - beta
+            new_beta = beta
+            
+            # Actualizar pesos para todas las relaciones de este usuario
+            for user_j, _ in user_data:
+                update_user_weights(user_i, user_j, new_alpha, new_beta)
+            
+            updated_weights[user_i] = (new_alpha, new_beta)
+            print(f"Usuario {user_i}: α={new_alpha:.3f}, β={new_beta:.3f}")
+            
+        except Exception as e:
+            print(f"Error optimizando pesos para usuario {user_i}: {e}")
+            continue
+    
+    print(f"✅ Optimización completada. Se actualizaron pesos para {len(updated_weights)} usuarios.")
+    return updated_weights
 
 
 def train_model_with_feedback(pares_feedback: Dict[Tuple[str, str], int]):
