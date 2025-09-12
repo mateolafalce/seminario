@@ -84,7 +84,7 @@ async def reservar(reserva: Reserva, user: dict = Depends(current_user)):
 
         # --- Validación de horarios pasados (solo para el día de hoy) ---
         if fecha_reserva_dt == hoy_dt:
-            hora_inicio_str = reserva.horario.split('-')[0]
+            hora_inicio_str = reserva.horario.split('-')[0]  # "09:00"
             hora_reserva_dt = ahora_dt.replace(
                 hour=int(hora_inicio_str.split(':')[0]),
                 minute=int(hora_inicio_str.split(':')[1]),
@@ -94,9 +94,11 @@ async def reservar(reserva: Reserva, user: dict = Depends(current_user)):
             if (hora_reserva_dt - ahora_dt) < timedelta(hours=1):
                 raise ValueError("No puedes reservar en un horario que ya pasó o con menos de 1 hora de antelación.")
 
-        # Verificar usuario
+        # Verificar que tenemos un ID de usuario válido
         if not user.get("id") or not ObjectId.is_valid(user["id"]):
             raise HTTPException(status_code=400, detail="ID de usuario no válido")
+
+        # Validar si el usuario está habilitado para hacer reservas
         if user.get("habilitado") is not True:
             raise HTTPException(status_code=403, detail="Usuario no habilitado para hacer reservas")
 
@@ -114,14 +116,14 @@ async def reservar(reserva: Reserva, user: dict = Depends(current_user)):
 
             # --- Estados ---
             estado_reservada = db_client.estadoreserva.find_one({"nombre": "Reservada"})
-            estado_confirmada = db_client.estadoreserva.find_one({"nombre": "Confirmada"})
-            estado_cancelada = db_client.estadoreserva.find_one({"nombre": "Cancelada"})
-            if not estado_reservada or not estado_confirmada:
-                raise ValueError("Faltan estados 'Reservada' o 'Confirmada' en estadoreserva")
-
+            if not estado_reservada:
+                raise ValueError('No se encontró el estado "Reservada"')
             estado_reservada_id = estado_reservada["_id"]
+
+            estado_confirmada = db_client.estadoreserva.find_one({"nombre": "Confirmada"})
+            if not estado_confirmada:
+                raise ValueError('No se encontró el estado "Confirmada"')
             estado_confirmada_id = estado_confirmada["_id"]
-            estado_cancelada_id = estado_cancelada["_id"] if estado_cancelada else None
 
             # --- Máximo 2 reservas activas por usuario ---
             reservas_activas = db_client.reservas.count_documents({
@@ -131,7 +133,7 @@ async def reservar(reserva: Reserva, user: dict = Depends(current_user)):
             if reservas_activas >= 2:
                 raise ValueError("No puedes tener más de 2 reservas activas.")
 
-            # --- Bloqueo mismo día+horario para el mismo usuario (en cualquier cancha) ---
+            # === PUNTO B: BLOQUEO MISMO DÍA+HORARIO PARA EL MISMO USUARIO (en cualquier cancha) ===
             conflicto_mismo_slot = db_client.reservas.find_one({
                 "fecha": reserva.fecha,
                 "hora_inicio": horario_id,
@@ -141,47 +143,108 @@ async def reservar(reserva: Reserva, user: dict = Depends(current_user)):
             if conflicto_mismo_slot:
                 raise ValueError("Ya tenés una reserva activa en ese horario y fecha (aunque sea en otra cancha).")
 
-            # === NUEVO: buscar SIEMPRE la reserva padre del slot, sin importar si está Reservada o Confirmada ===
-            filtro_slot = {
+            # --- Buscar si existe una reserva 'padre' para este slot en esta cancha ---
+            reserva_existente = db_client.reservas.find_one({
                 "cancha": cancha_id,
                 "fecha": reserva.fecha,
                 "hora_inicio": horario_id,
-            }
-            if estado_cancelada_id:
-                filtro_slot["estado"] = {"$ne": estado_cancelada_id}
+                "estado": estado_reservada_id
+            })
 
-            reserva_padre = db_client.reservas.find_one(filtro_slot)
-
-            # función para agregar usuario con anti-duplicado y control de cupo
-            def agregar_usuario_a_reserva(res_doc_id: ObjectId):
-                # Control de cupo con doc fresco
-                doc = db_client.reservas.find_one({"_id": res_doc_id})
-                if len(doc.get("usuarios", [])) >= 6:
+            if reserva_existente:
+                # Verificar cupo
+                if len(reserva_existente.get("usuarios", [])) >= 6:
                     raise ValueError("No hay cupo disponible para esta cancha en ese horario")
 
+                # Agregar usuario si NO está ya en la lista (filtro anti-duplicado)
                 result = db_client.reservas.update_one(
-                    {"_id": res_doc_id, "usuarios.id": {"$ne": ObjectId(user["id"])}},
-                    {"$push": {"usuarios": {
-                        "id": ObjectId(user["id"]),
-                        "confirmado": False,
-                        "fecha_reserva": datetime.now(argentina_tz)
-                    }}}
+                    {
+                        "_id": reserva_existente["_id"],
+                        "usuarios.id": {"$ne": ObjectId(user["id"])}
+                    },
+                    {
+                        "$push": {"usuarios": {
+                            "id": ObjectId(user["id"]),
+                            "confirmado": False,
+                            "fecha_reserva": datetime.now(argentina_tz)
+                        }}
+                    }
                 )
                 if result.modified_count == 0:
+                    # Ya estaba en la reserva o no cumplió filtro
                     raise ValueError("Ya tenés una reserva en ese horario y fecha")
-                return db_client.reservas.find_one({"_id": res_doc_id})
 
-            if reserva_padre:
-                # Ya existe el slot (reservada o confirmada): agrego usuario
-                reserva_padre = agregar_usuario_a_reserva(reserva_padre["_id"])
-            else:
-                # Crear nueva reserva padre. Si hay condición de carrera/índice único, re-leo y agrego
+                # Refrescar doc
+                reserva_existente = db_client.reservas.find_one({"_id": reserva_existente["_id"]})
+
+                # (Notificaciones / recordatorios igual que tenías)
                 try:
-                    insert_doc = {
+                    usuarios_a_notificar = a_notificar(user["id"])
+                    for usuario_id in usuarios_a_notificar:
+                        if ObjectId.is_valid(usuario_id):
+                            usuario_notificado = db_client.users.find_one({"_id": ObjectId(usuario_id)})
+                            if usuario_notificado:
+                                notificar_posible_matcheo(
+                                    to=usuario_notificado["email"],
+                                    day=reserva.fecha,
+                                    hora=reserva.horario,
+                                    cancha=reserva.cancha
+                                )
+                except Exception as e:
+                    print(f"Error enviando notificaciones: {e}")
+
+                try:
+                    from services.scheduler import programar_recordatorio_usuario
+                    hora_inicio_str = reserva.horario.split('-')[0]
+                    programar_recordatorio_usuario(
+                        str(reserva_existente["_id"]),
+                        user["id"],
+                        reserva.fecha,
+                        hora_inicio_str
+                    )
+                except Exception as e:
+                    print(f"Error programando recordatorio: {e}")
+
+                return reserva_existente
+
+            else:
+                # Crear nueva reserva padre (upsert por slot en esta cancha)
+                try:
+                    result = db_client.reservas.update_one(
+                        {
+                            "cancha": cancha_id,
+                            "fecha": reserva.fecha,
+                            "hora_inicio": horario_id,
+                            "estado": estado_reservada_id
+                        },
+                        {
+                            "$setOnInsert": {
+                                "cancha": cancha_id,
+                                "fecha": reserva.fecha,
+                                "hora_inicio": horario_id,
+                                "estado": estado_reservada_id,
+                                "usuarios": [{
+                                    "id": ObjectId(user["id"]),
+                                    "confirmado": False,
+                                    "fecha_reserva": datetime.now(argentina_tz)
+                                }],
+                                "notificaciones": [],
+                                "fecha_creacion": datetime.now(argentina_tz)
+                            }
+                        },
+                        upsert=True
+                    )
+                except DuplicateKeyError:
+                    # Blindaje por índice único (si lo creás): traducimos a mensaje claro
+                    raise ValueError("Ya tenés una reserva activa en ese horario y fecha.")
+
+                if result.upserted_id:
+                    nueva_reserva = {
+                        "_id": result.upserted_id,
                         "cancha": cancha_id,
                         "fecha": reserva.fecha,
                         "hora_inicio": horario_id,
-                        "estado": estado_reservada_id,  # se confirmará luego con >=2 confirmaciones
+                        "estado": estado_reservada_id,
                         "usuarios": [{
                             "id": ObjectId(user["id"]),
                             "confirmado": False,
@@ -190,81 +253,69 @@ async def reservar(reserva: Reserva, user: dict = Depends(current_user)):
                         "notificaciones": [],
                         "fecha_creacion": datetime.now(argentina_tz)
                     }
-                    resultado_insert = db_client.reservas.insert_one(insert_doc)
-                    reserva_padre = db_client.reservas.find_one({"_id": resultado_insert.inserted_id})
-                except DuplicateKeyError:
-                    # Otro proceso creó el slot (o ya había uno Confirmado): re-leo y agrego
-                    reserva_padre = db_client.reservas.find_one(filtro_slot)
-                    if not reserva_padre:
-                        # fallback: leer sin filtro de estado por si 'Cancelada' interfiere
-                        reserva_padre = db_client.reservas.find_one({
-                            "cancha": cancha_id, "fecha": reserva.fecha, "hora_inicio": horario_id
-                        })
-                    if not reserva_padre:
-                        raise ValueError("No se pudo crear ni encontrar la reserva del slot, reintente.")
-                    reserva_padre = agregar_usuario_a_reserva(reserva_padre["_id"])
-
-            # --- Notificaciones (nuevo modelo con notificados_globales) ---
-            try:
-                # Ensure field exists
-                db_client.reservas.update_one(
-                    {"_id": reserva_padre["_id"], "notificados_globales": {"$exists": False}},
-                    {"$set": {"notificados_globales": []}}
-                )
-
-                usuarios_a_notificar = a_notificar(user["id"])
-                doc = db_client.reservas.find_one({"_id": reserva_padre["_id"]}, {"notificados_globales": 1})
-                ya_notificados = set(str(x) for x in doc.get("notificados_globales", []))
-
-                destinatarios_ok = []
-                for usuario_id in usuarios_a_notificar:
-                    if not ObjectId.is_valid(usuario_id):
-                        continue
-                    if usuario_id in ya_notificados:
-                        continue
-
-                    usuario_notificado = db_client.users.find_one({"_id": ObjectId(usuario_id)})
-                    if not usuario_notificado or not usuario_notificado.get("email"):
-                        continue
-
-                    ok = notificar_posible_matcheo(
-                        to=usuario_notificado["email"],
-                        day=reserva.fecha,
-                        hora=reserva.horario,
-                        cancha=reserva.cancha
-                    )
-                    if ok:
-                        destinatarios_ok.append(ObjectId(usuario_id))
-
-                if destinatarios_ok:
+                else:
+                    # Ya existía esa reserva padre en esta cancha/slot: por si entraron 2 al mismo tiempo
+                    nueva_reserva = db_client.reservas.find_one({
+                        "cancha": cancha_id,
+                        "fecha": reserva.fecha,
+                        "hora_inicio": horario_id,
+                        "estado": estado_reservada_id
+                    })
+                    # Y nos aseguramos de que el usuario esté agregado (con filtro anti-dup)
                     db_client.reservas.update_one(
-                        {"_id": reserva_padre["_id"]},
                         {
-                            "$push": {"notificaciones": {
-                                "usuario_origen": ObjectId(user["id"]),
-                                "usuarios_notificados": destinatarios_ok,
-                                "fecha": datetime.now(argentina_tz)
-                            }},
-                            "$addToSet": {"notificados_globales": {"$each": destinatarios_ok}}
+                            "_id": nueva_reserva["_id"],
+                            "usuarios.id": {"$ne": ObjectId(user["id"])}
+                        },
+                        {
+                            "$push": {"usuarios": {
+                                "id": ObjectId(user["id"]),
+                                "confirmado": False,
+                                "fecha_reserva": datetime.now(argentina_tz)
+                            }}
                         }
                     )
-            except Exception as e:
-                print(f"Error enviando/registrando notificaciones: {e}")
 
-            # --- Recordatorio (igual que tu código actual) ---
-            try:
-                from services.scheduler import programar_recordatorio_usuario
-                hora_inicio_str = reserva.horario.split('-')[0]
-                programar_recordatorio_usuario(
-                    str(reserva_padre["_id"]),
-                    user["id"],
-                    reserva.fecha,
-                    hora_inicio_str
-                )
-            except Exception as e:
-                print(f"Error programando recordatorio: {e}")
+                # Notificaciones y recordatorio (como ya tenías)
+                try:
+                    usuarios_a_notificar = a_notificar(user["id"])
+                    notificados = []
+                    for usuario_id in usuarios_a_notificar:
+                        if ObjectId.is_valid(usuario_id):
+                            usuario_notificado = db_client.users.find_one({"_id": ObjectId(usuario_id)})
+                            if usuario_notificado:
+                                notificar_posible_matcheo(
+                                    to=usuario_notificado["email"],
+                                    day=reserva.fecha,
+                                    hora=reserva.horario,
+                                    cancha=reserva.cancha
+                                )
+                                notificados.append(ObjectId(usuario_id))
+                    if notificados:
+                        db_client.reservas.update_one(
+                            {"_id": nueva_reserva["_id"]},
+                            {"$push": {"notificaciones": {
+                                "usuario_origen": ObjectId(user["id"]),
+                                "usuarios_notificados": notificados,
+                                "fecha": datetime.now(argentina_tz)
+                            }}}
+                        )
+                except Exception as e:
+                    print(f"Error enviando o guardando notificaciones: {e}")
 
-            return reserva_padre
+                try:
+                    from services.scheduler import programar_recordatorio_usuario
+                    hora_inicio_str = reserva.horario.split('-')[0]
+                    programar_recordatorio_usuario(
+                        str(nueva_reserva["_id"]),
+                        user["id"],
+                        reserva.fecha,
+                        hora_inicio_str
+                    )
+                except Exception as e:
+                    print(f"Error programando recordatorio: {e}")
+
+                return nueva_reserva
 
         resultado = await asyncio.to_thread(operaciones_sincronas)
         return {"msg": "Reserva guardada", "reserva": clean_mongo_doc(resultado)}
@@ -275,7 +326,6 @@ async def reservar(reserva: Reserva, user: dict = Depends(current_user)):
         raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error al guardar la reserva: {str(e)}")
-
 
 
 @router.get("/mis-reservas")
