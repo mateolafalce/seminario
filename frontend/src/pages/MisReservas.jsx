@@ -201,7 +201,7 @@ function MisReservas() {
         </div>
 
         {/* Contenido */}
-        {vista === 'proximos' ? (
+        {vista === 'proximos' ? (                              
           <div>
             {proximasReservas.length === 0 ? (
               <p className="text-gray-300 text-center">No tienes ninguna reserva activa.</p>
