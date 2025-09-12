@@ -9,6 +9,7 @@ from bson import ObjectId
 from db.client import db_client
 from dotenv import load_dotenv
 import os
+import pytz
 
 load_dotenv()
 
@@ -67,69 +68,44 @@ def gi(user_id_1: str, user_id_2: str) -> int:
 def g(user_id: str) -> int:
     if not ObjectId.is_valid(user_id):
         raise ValueError("ID de usuario no válido")
-    
-    user_object_id = ObjectId(user_id)
-    # Buscar el estado "Completada" en la colección estadoreserva
+    user_oid = ObjectId(user_id)
+
     estado_completada = db_client.estadoreserva.find_one({"nombre": "Completada"})
-    # Si no existe el estado "Completada", intentar con otros estados que indiquen partidos jugados
-    if not estado_completada:
-        # Alternativamente, buscar reservas que ya pasaron en el tiempo
-        # y que no estén canceladas como aproximación a partidos jugados
-        estados_cancelada = db_client.estadoreserva.find_one({"nombre": "Cancelada"})
-        
-        if estados_cancelada:
-            # Contar reservas que no están canceladas y que ya pasaron
-            argentina_tz = datetime.now()
-            fecha_hoy = argentina_tz.strftime("%d-%m-%Y")
-            
-            pipeline = [
-                {
-                    "$match": {
-                        "usuarios.id": user_object_id,
-                        "estado": {"$ne": estados_cancelada["_id"]}
-                    }
-                },
-                {
-                    "$lookup": {
-                        "from": "horarios",
-                        "localField": "hora_inicio", 
-                        "foreignField": "_id",
-                        "as": "horario_info"
-                    }
-                },
-                {"$unwind": "$horario_info"},
-                {
-                    "$addFields": {
-                        "fecha_dt": {
-                            "$dateFromString": {
-                                "dateString": {
-                                    "$concat": [
-                                        {"$substr": ["$fecha", 6, 4]}, "-",
-                                        {"$substr": ["$fecha", 3, 2]}, "-", 
-                                        {"$substr": ["$fecha", 0, 2]}
-                                    ]
-                                }
-                            }
-                        }
-                    }
-                },
-                {
-                    "$match": {
-                        "fecha_dt": {"$lt": argentina_tz}
-                    }
-                },
-                {"$count": "total_partidos"}
-            ]
-            
-            result = list(db_client.reservas.aggregate(pipeline))
-            return result[0]["total_partidos"] if result else 0
-        else:
-            return db_client.reservas.count_documents({"usuarios.id": user_object_id})
-    else:
+    if estado_completada:
         return db_client.reservas.count_documents({
-            "usuarios.id": user_object_id,
+            "usuarios.id": user_oid,
             "estado": estado_completada["_id"]
         })
+
+    # Fallback si no existe "Completada": partidas anteriores a ahora y no canceladas
+    estado_cancelada = db_client.estadoreserva.find_one({"nombre": "Cancelada"})
+    now_ar = datetime.now(pytz.timezone("America/Argentina/Buenos_Aires"))
+
+    match_cond = {"usuarios.id": user_oid}
+    if estado_cancelada:
+        match_cond["estado"] = {"$ne": estado_cancelada["_id"]}
+
+    pipeline = [
+        {"$match": match_cond},
+        {"$lookup": {"from": "horarios", "localField": "hora_inicio", "foreignField": "_id", "as": "horario_info"}},
+        {"$unwind": "$horario_info"},
+        {"$addFields": {
+            "fecha_dt": {
+                "$dateFromString": {
+                    "dateString": {"$concat": [
+                        {"$substr": ["$fecha", 6, 4]}, "-",
+                        {"$substr": ["$fecha", 3, 2]}, "-",
+                        {"$substr": ["$fecha", 0, 2]}
+                    ]},
+                    "timezone": "America/Argentina/Buenos_Aires"
+                }
+            }
+        }},
+        {"$match": {"fecha_dt": {"$lt": now_ar}}},
+        {"$count": "total_partidos"}
+    ]
+    result = list(db_client.reservas.aggregate(pipeline))
+    return result[0]["total_partidos"] if result else 0
 
 
 def get_preference_vector(user_id: str) -> Tuple[List[float], List[float], List[float]]:
@@ -384,6 +360,51 @@ def get_training_data_from_completed_reservations() -> List[Tuple[str, str, int]
                             training_data.append((usuario_i, usuario_j, 0))
     
     return training_data
+
+
+def get_training_data_from_reservas() -> List[Tuple[str, str, int]]:
+    """
+    Construye (i, j, label) así:
+      - label=1 para pares de usuarios que JUGARON juntos (reservas Completadas)
+      - De notificaciones embebidas: para cada evento (i -> [j...]):
+          * si j terminó en usuarios de esa reserva Completada => (i, j, 1)
+          * si j NO terminó en usuarios => (i, j, 0)
+    Deduplica pares dentro de la misma reserva.
+    """
+    estado_completada = db_client.estadoreserva.find_one({"nombre": "Completada"})
+    if not estado_completada:
+        return []
+
+    pipeline = [
+        {"$match": {"estado": estado_completada["_id"]}},
+        {"$project": {
+            "usuarios": "$usuarios",
+            "notificaciones": "$notificaciones"
+        }}
+    ]
+    rs = list(db_client.reservas.aggregate(pipeline))
+    out: set[Tuple[str, str, int]] = set()
+
+    for r in rs:
+        usuarios_ids = [str(u["id"]) for u in r.get("usuarios", []) if u.get("id")]
+        # Pares que jugaron juntos => label 1 (dirigido i->j)
+        for i, ui in enumerate(usuarios_ids):
+            for uj in usuarios_ids[i+1:]:
+                out.add((ui, uj, 1))
+                out.add((uj, ui, 1))
+
+        # Feedback de notificaciones embebidas
+        notif_list = r.get("notificaciones", [])
+        for notif in notif_list:
+            origen = str(notif.get("usuario_origen")) if notif.get("usuario_origen") else None
+            if not origen:
+                continue
+            notificados = [str(x) for x in notif.get("usuarios_notificados", [])]
+            for j in notificados:
+                label = 1 if j in usuarios_ids else 0
+                out.add((origen, j, label))
+
+    return list(out)
 
 
 def calculate_loss(beta: float, training_data: List[Tuple[str, str, int]]) -> float:

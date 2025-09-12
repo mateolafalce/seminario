@@ -51,8 +51,8 @@ def enviar_recordatorio_especifico(reserva_id: str):
         reserva = reserva_completa[0]
         
         # Verificar que la reserva aún esté en estado "Reservada"
-        if reserva["estado_info"]["nombre"] != "Reservada":
-            print(f"ℹ️ Reserva {reserva_id} ya no está en estado 'Reservada' (estado actual: {reserva['estado_info']['nombre']})")
+        if reserva["estado_info"]["nombre"] not in ("Reservada", "Confirmada"):
+            print(f"ℹ️ Reserva {reserva_id} no requiere recordatorio (estado: {reserva['estado_info']['nombre']})")
             return
         
         # En lugar de un solo usuario, ahora recorremos el array de usuarios
@@ -358,6 +358,20 @@ def cancelar_recordatorio_reserva(reserva_id: str):
             return False
     except Exception as e:
         print(f"❌ Error cancelando recordatorio para reserva {reserva_id}: {e}")
+        return False
+
+def cancelar_recordatorio_usuario(reserva_id: str, usuario_id: str) -> bool:
+    job_id = f"recordatorio_{reserva_id}_{usuario_id}"
+    try:
+        job = scheduler.get_job(job_id)
+        if job:
+            scheduler.remove_job(job_id)
+            print(f"🗑️ Recordatorio cancelado para usuario {usuario_id} en reserva {reserva_id}")
+            return True
+        print(f"ℹ️ No había recordatorio para usuario {usuario_id} en reserva {reserva_id}")
+        return False
+    except Exception as e:
+        print(f"❌ Error cancelando recordatorio usuario {usuario_id} en reserva {reserva_id}: {e}")
         return False
 
 def schedule_jobs():
