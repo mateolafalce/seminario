@@ -177,59 +177,56 @@ async def reservar(reserva: Reserva, user: dict = Depends(current_user)):
                 # Refrescar doc
                 reserva_existente = db_client.reservas.find_one({"_id": reserva_existente["_id"]})
 
-                # (Notificaciones / recordatorios igual que tenías)
+                # Programar recordatorio (por reserva)
                 try:
-                    usuarios_a_notificar = a_notificar(user["id"])
-                    for usuario_id in usuarios_a_notificar:
-                        if ObjectId.is_valid(usuario_id):
-                            usuario_notificado = db_client.users.find_one({"_id": ObjectId(usuario_id)})
-                            if usuario_notificado:
-                                notificar_posible_matcheo(
-                                    to=usuario_notificado["email"],
-                                    day=reserva.fecha,
-                                    hora=reserva.horario,
-                                    cancha=reserva.cancha
-                                )
-                except Exception as e:
-                    print(f"Error enviando notificaciones: {e}")
-
-                # Programar recordatorio (por usuario)
-                try:
-                    from services.scheduler import programar_recordatorio_usuario
+                    from services.scheduler import programar_recordatorio_nueva_reserva
                     hora_inicio_str = reserva.horario.split('-')[0]
-                    programar_recordatorio_usuario(
+                    programar_recordatorio_nueva_reserva(
                         str(reserva_existente["_id"]),
-                        user["id"],
                         reserva.fecha,
                         hora_inicio_str
                     )
                 except Exception as e:
                     print(f"Error programando recordatorio: {e}")
 
-                # Notificaciones de matcheo (mejoradas) + persistencia en reserva
+                # Notificaciones de matcheo (mejoradas) + persistencia en reserva (dedupe por usuario y email)
                 try:
                     usuarios_a_notificar = a_notificar(user["id"])
 
                     origen_oid = ObjectId(user["id"])
                     notificados: list[ObjectId] = []
-                    vistos: set[ObjectId] = set()
+                    vistos_usuarios: set[ObjectId] = set()
+                    vistos_emails: set[str] = set()
+
+                    # Construir set de usuarios ya notificados anteriormente en este slot
+                    ya_notificados: set[ObjectId] = set()
+                    for notif_ant in reserva_existente.get("notificaciones", []):
+                        for uid in notif_ant.get("usuarios_notificados", []):
+                            if isinstance(uid, ObjectId):
+                                ya_notificados.add(uid)
+                            else:
+                                try:
+                                    ya_notificados.add(ObjectId(uid))
+                                except:
+                                    pass
 
                     for usuario_id in usuarios_a_notificar:
                         if not ObjectId.is_valid(usuario_id):
                             continue
                         oid = ObjectId(usuario_id)
 
-                        # No notificar a sí mismo ni repetir
-                        if oid == origen_oid or oid in vistos:
+                        # No notificar a sí mismo, no repetir en el mismo envío, ni re-notificar históricos del mismo slot
+                        if oid == origen_oid or oid in vistos_usuarios or oid in ya_notificados:
                             continue
-                        vistos.add(oid)
+                        vistos_usuarios.add(oid)
 
                         u = db_client.users.find_one({"_id": oid, "habilitado": True})
                         if not u:
                             continue
 
                         email = u.get("email")
-                        if not email:
+                        # Dedupe por email (para ambientes de test con mismos emails)
+                        if not email or email in vistos_emails:
                             continue
 
                         ok = notificar_posible_matcheo(
@@ -240,6 +237,7 @@ async def reservar(reserva: Reserva, user: dict = Depends(current_user)):
                         )
                         if ok:
                             notificados.append(oid)
+                            vistos_emails.add(email)
 
                     if notificados:
                         db_client.reservas.update_one(
@@ -247,7 +245,7 @@ async def reservar(reserva: Reserva, user: dict = Depends(current_user)):
                             {"$push": {"notificaciones": {
                                 "usuario_origen": origen_oid,
                                 "usuarios_notificados": notificados,
-                                "fecha": datetime.now(argentina_tz)
+                                "fecha": datetime.now(pytz.timezone("America/Argentina/Buenos_Aires"))
                             }}}
                         )
                 except Exception as e:
@@ -321,30 +319,44 @@ async def reservar(reserva: Reserva, user: dict = Depends(current_user)):
                         }
                     )
 
-                # Notificaciones de matcheo (mejoradas)
+                # Notificaciones de matcheo (mejoradas) (dedupe por usuario y email)
                 try:
                     usuarios_a_notificar = a_notificar(user["id"])
 
                     origen_oid = ObjectId(user["id"])
                     notificados: list[ObjectId] = []
-                    vistos: set[ObjectId] = set()
+                    vistos_usuarios: set[ObjectId] = set()
+                    vistos_emails: set[str] = set()
+
+                    # Construir set de usuarios ya notificados anteriormente en este slot
+                    ya_notificados: set[ObjectId] = set()
+                    for notif_ant in nueva_reserva.get("notificaciones", []):
+                        for uid in notif_ant.get("usuarios_notificados", []):
+                            if isinstance(uid, ObjectId):
+                                ya_notificados.add(uid)
+                            else:
+                                try:
+                                    ya_notificados.add(ObjectId(uid))
+                                except:
+                                    pass
 
                     for usuario_id in usuarios_a_notificar:
                         if not ObjectId.is_valid(usuario_id):
                             continue
                         oid = ObjectId(usuario_id)
 
-                        # No notificar a sí mismo ni repetir
-                        if oid == origen_oid or oid in vistos:
+                        # No notificar a sí mismo, no repetir en el mismo envío, ni re-notificar históricos del mismo slot
+                        if oid == origen_oid or oid in vistos_usuarios or oid in ya_notificados:
                             continue
-                        vistos.add(oid)
+                        vistos_usuarios.add(oid)
 
                         u = db_client.users.find_one({"_id": oid, "habilitado": True})
                         if not u:
                             continue
 
                         email = u.get("email")
-                        if not email:
+                        # Dedupe por email (para ambientes de test con mismos emails)
+                        if not email or email in vistos_emails:
                             continue
 
                         ok = notificar_posible_matcheo(
@@ -355,6 +367,7 @@ async def reservar(reserva: Reserva, user: dict = Depends(current_user)):
                         )
                         if ok:
                             notificados.append(oid)
+                            vistos_emails.add(email)
 
                     if notificados:
                         db_client.reservas.update_one(
@@ -362,18 +375,17 @@ async def reservar(reserva: Reserva, user: dict = Depends(current_user)):
                             {"$push": {"notificaciones": {
                                 "usuario_origen": origen_oid,
                                 "usuarios_notificados": notificados,
-                                "fecha": datetime.now(argentina_tz)
+                                "fecha": datetime.now(pytz.timezone("America/Argentina/Buenos_Aires"))
                             }}}
                         )
                 except Exception as e:
-                    print(f"Error enviando o guardando notificaciones: {e}")
+                    print(f"Error enviando/generando notificaciones: {e}")
 
                 try:
-                    from services.scheduler import programar_recordatorio_usuario
+                    from services.scheduler import programar_recordatorio_nueva_reserva
                     hora_inicio_str = reserva.horario.split('-')[0]
-                    programar_recordatorio_usuario(
+                    programar_recordatorio_nueva_reserva(
                         str(nueva_reserva["_id"]),
-                        user["id"],
                         reserva.fecha,
                         hora_inicio_str
                     )
@@ -540,10 +552,13 @@ async def cancelar_reserva(
                 lambda: db_client.reservas.find_one({"_id": reserva_oid})
             )
             
-            if not reserva_actualizada.get("usuarios"):
-                await asyncio.to_thread(
-                    lambda: db_client.reservas.delete_one({"_id": reserva_oid})
-                )
+            # Si la reserva ya no existe (o la borraste al ser admin), cancelá el job
+            if not reserva_actualizada:
+                try:
+                    from services.scheduler import cancelar_recordatorio_reserva
+                    cancelar_recordatorio_reserva(str(reserva_id))
+                except Exception as e:
+                    print(f"Error cancelando recordatorio: {e}")
         else:
             # Si es admin, cancelar toda la reserva
             await asyncio.to_thread(

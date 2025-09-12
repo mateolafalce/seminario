@@ -26,16 +26,17 @@ def get_recommendation_split() -> Tuple[int, int]:
 def a_notificar(usuario_id: str) -> List[str]:
     primer_valor, segundo_valor = get_recommendation_split()
     usuarios_a_notificar = []
-    
-    # Obtener los mejores matches usando la tabla pesos
+
     mejores_matches = get_top_matches_from_db(usuario_id, top_x=primer_valor)
     usuarios_a_notificar.extend([match[0] for match in mejores_matches])
-    
-    # Seleccionar aleatoriamente usuarios para el segundo grupo
-    # Excluir usuarios ya seleccionados y el usuario actual
+
     usuarios_excluidos = [usuario_id] + usuarios_a_notificar
     usuarios_aleatorios = get_random_users(exclude_user_ids=usuarios_excluidos, count=segundo_valor)
     usuarios_a_notificar.extend(usuarios_aleatorios)
+
+    # Dedupe preservando orden
+    seen = set()
+    usuarios_a_notificar = [u for u in usuarios_a_notificar if not (u in seen or seen.add(u))]
 
     return usuarios_a_notificar
 
@@ -272,7 +273,7 @@ def get_training_data() -> List[Tuple[str, str, int]]:
         for user2 in all_users:
             if user1["_id"] != user2["_id"]:
                 pair_exists = any(
-                    (str(user1["_id"]), str(user2["_id"]), 1) in training_data or 
+                    (str(user1["_id"]), str(user2["_Id"]), 1) in training_data or 
                     (str(user2["_Id"]), str(user1["_id"]), 1) in training_data
                     for _ in [None]
                 )
@@ -413,23 +414,6 @@ def calculate_gradient(beta: float, training_data: List[Tuple[str, str, int]]) -
             continue
     
     return gradient / len(training_data) if training_data else 0.0
-
-
-def optimize_weights() -> Tuple[float, float]:
-    learning_rate = 0.1
-    beta = 0.5
-    
-    if not training_data:
-        return 0.5, 0.5
-    
-    for _ in range(iterations):
-        gradient = calculate_gradient(beta, training_data)
-        beta = beta - learning_rate * gradient
-        
-        beta = max(0.0, min(1.0, beta))
-    
-    alpha = 1 - beta
-    return alpha, beta
 
 
 def optimize_weights() -> Dict[str, Tuple[float, float]]:

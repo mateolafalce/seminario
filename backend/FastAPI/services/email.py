@@ -12,6 +12,21 @@ load_dotenv()
 def enviar_email(to: str, subject: str, html: str) -> bool:
     resend.api_key = os.getenv("RESEND_TOKEN")
     resend_email = os.getenv("RESEND_EMAIL")
+
+    # Validaciones defensivas
+    if not to or "@" not in to:
+        print(f"[WARN] No se envía email: 'to' inválido: {to!r}")
+        return False
+    if not subject or not subject.strip():
+        print("[WARN] No se envía email: subject vacío")
+        return False
+    if not html or not html.strip():
+        print("[WARN] No se envía email: html vacío")
+        return False
+    if not resend_email or not resend_email.strip():
+        print("[WARN] No se envía email: RESEND_EMAIL no configurado")
+        return False
+
     try:
         resend.Emails.send({
             "from": resend_email,
