@@ -205,6 +205,53 @@ async def reservar(reserva: Reserva, user: dict = Depends(current_user)):
                 except Exception as e:
                     print(f"Error programando recordatorio: {e}")
 
+                # Notificaciones de matcheo (mejoradas)
+                try:
+                    usuarios_a_notificar = a_notificar(user["id"])
+
+                    origen_oid = ObjectId(user["id"])
+                    notificados: list[ObjectId] = []
+                    vistos: set[ObjectId] = set()
+
+                    for usuario_id in usuarios_a_notificar:
+                        if not ObjectId.is_valid(usuario_id):
+                            continue
+                        oid = ObjectId(usuario_id)
+
+                        # No notificar a sí mismo ni repetir
+                        if oid == origen_oid or oid in vistos:
+                            continue
+                        vistos.add(oid)
+
+                        u = db_client.users.find_one({"_id": oid, "habilitado": True})
+                        if not u:
+                            continue
+
+                        email = u.get("email")
+                        if not email:
+                            continue
+
+                        ok = notificar_posible_matcheo(
+                            to=email,
+                            day=reserva.fecha,
+                            hora=reserva.horario,
+                            cancha=reserva.cancha
+                        )
+                        if ok:
+                            notificados.append(oid)
+
+                    if notificados:
+                        db_client.reservas.update_one(
+                            {"_id": reserva_existente["_id"]},
+                            {"$push": {"notificaciones": {
+                                "usuario_origen": origen_oid,
+                                "usuarios_notificados": notificados,
+                                "fecha": datetime.now(argentina_tz)
+                            }}}
+                        )
+                except Exception as e:
+                    print(f"Error enviando/generando notificaciones: {e}")
+
                 return reserva_existente
 
             else:
@@ -235,7 +282,6 @@ async def reservar(reserva: Reserva, user: dict = Depends(current_user)):
                         upsert=True
                     )
                 except DuplicateKeyError:
-                    # Blindaje por índice único (si lo creás): traducimos a mensaje claro
                     raise ValueError("Ya tenés una reserva activa en ese horario y fecha.")
 
                 if result.upserted_id:
@@ -254,14 +300,12 @@ async def reservar(reserva: Reserva, user: dict = Depends(current_user)):
                         "fecha_creacion": datetime.now(argentina_tz)
                     }
                 else:
-                    # Ya existía esa reserva padre en esta cancha/slot: por si entraron 2 al mismo tiempo
                     nueva_reserva = db_client.reservas.find_one({
                         "cancha": cancha_id,
                         "fecha": reserva.fecha,
                         "hora_inicio": horario_id,
                         "estado": estado_reservada_id
                     })
-                    # Y nos aseguramos de que el usuario esté agregado (con filtro anti-dup)
                     db_client.reservas.update_one(
                         {
                             "_id": nueva_reserva["_id"],
@@ -276,26 +320,46 @@ async def reservar(reserva: Reserva, user: dict = Depends(current_user)):
                         }
                     )
 
-                # Notificaciones y recordatorio (como ya tenías)
+                # Notificaciones de matcheo (mejoradas)
                 try:
                     usuarios_a_notificar = a_notificar(user["id"])
-                    notificados = []
+
+                    origen_oid = ObjectId(user["id"])
+                    notificados: list[ObjectId] = []
+                    vistos: set[ObjectId] = set()
+
                     for usuario_id in usuarios_a_notificar:
-                        if ObjectId.is_valid(usuario_id):
-                            usuario_notificado = db_client.users.find_one({"_id": ObjectId(usuario_id)})
-                            if usuario_notificado:
-                                notificar_posible_matcheo(
-                                    to=usuario_notificado["email"],
-                                    day=reserva.fecha,
-                                    hora=reserva.horario,
-                                    cancha=reserva.cancha
-                                )
-                                notificados.append(ObjectId(usuario_id))
+                        if not ObjectId.is_valid(usuario_id):
+                            continue
+                        oid = ObjectId(usuario_id)
+
+                        # No notificar a sí mismo ni repetir
+                        if oid == origen_oid or oid in vistos:
+                            continue
+                        vistos.add(oid)
+
+                        u = db_client.users.find_one({"_id": oid, "habilitado": True})
+                        if not u:
+                            continue
+
+                        email = u.get("email")
+                        if not email:
+                            continue
+
+                        ok = notificar_posible_matcheo(
+                            to=email,
+                            day=reserva.fecha,
+                            hora=reserva.horario,
+                            cancha=reserva.cancha
+                        )
+                        if ok:
+                            notificados.append(oid)
+
                     if notificados:
                         db_client.reservas.update_one(
                             {"_id": nueva_reserva["_id"]},
                             {"$push": {"notificaciones": {
-                                "usuario_origen": ObjectId(user["id"]),
+                                "usuario_origen": origen_oid,
                                 "usuarios_notificados": notificados,
                                 "fecha": datetime.now(argentina_tz)
                             }}}
