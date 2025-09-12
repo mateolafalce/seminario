@@ -7,7 +7,7 @@ from routers.defs import *
 from db.models.user import User, UserDB
 from db.client import db_client
 from datetime import datetime
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from typing import Optional
 from datetime import datetime
 from routers.users_b import *
@@ -19,7 +19,7 @@ import asyncio
 import pytz  
 from fastapi import Query
 from datetime import datetime, timedelta
-from services.matcheo import a_notificar
+from services.matcheo import a_notificar, optimize_weights
 from services.email import notificar_posible_matcheo
 from pymongo.errors import DuplicateKeyError
 
@@ -31,7 +31,7 @@ class Reserva(BaseModel):
     cancha: str
     horario: str
     fecha: str
-    usuarios: List[ReservaUsuario] = []
+    usuarios: List[ReservaUsuario] = Field(default_factory=list)
 
 router = APIRouter(prefix="/reservas",
                    tags=["reservas"],
@@ -193,6 +193,7 @@ async def reservar(reserva: Reserva, user: dict = Depends(current_user)):
                 except Exception as e:
                     print(f"Error enviando notificaciones: {e}")
 
+                # Programar recordatorio (por usuario)
                 try:
                     from services.scheduler import programar_recordatorio_usuario
                     hora_inicio_str = reserva.horario.split('-')[0]
@@ -205,7 +206,7 @@ async def reservar(reserva: Reserva, user: dict = Depends(current_user)):
                 except Exception as e:
                     print(f"Error programando recordatorio: {e}")
 
-                # Notificaciones de matcheo (mejoradas)
+                # Notificaciones de matcheo (mejoradas) + persistencia en reserva
                 try:
                     usuarios_a_notificar = a_notificar(user["id"])
 
@@ -789,9 +790,12 @@ def actualizar_reservas_completadas():
         
         print(f"✅ Se actualizaron {result.modified_count} reservas a estado 'Completada'")
         
-        # Entrenar el modelo con los datos recolectados
-        if datos_entrenamiento:
-            print(f"🤖 Entrenando modelo con {len(datos_entrenamiento)} pares de feedback...")
+        # Entrenar/optimizar el modelo con reservas completadas y notificaciones embebidas
+        try:
+            optimize_weights()
+            print("✅ Optimización de pesos completada")
+        except Exception as e:
+            print(f"❌ Error optimizando pesos: {e}")
             
 @router.get("/detalle")
 async def detalle_reserva(cancha: str, horario: str, fecha: str, usuario_id: str = None):

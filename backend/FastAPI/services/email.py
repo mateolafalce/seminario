@@ -1,6 +1,7 @@
 import resend
 from dotenv import load_dotenv
 import os
+from urllib.parse import quote
 
 load_dotenv()
 
@@ -8,7 +9,7 @@ load_dotenv()
 # 100/dia
 # 3000/mes
 # Gratarola 🤠
-def enviar_email(to: str, subject: str, html: str):
+def enviar_email(to: str, subject: str, html: str) -> bool:
     resend.api_key = os.getenv("RESEND_TOKEN")
     resend_email = os.getenv("RESEND_EMAIL")
     try:
@@ -18,23 +19,25 @@ def enviar_email(to: str, subject: str, html: str):
             "subject": subject,
             "html": html
         })
+        return True
     except Exception as e:
         print(f"[ERROR] Falló el envío de email a {to}: {e}")
+        return False
 
-def enviar_email_habilitacion(to: str, token: str):
-    dominio = os.getenv("DOMINIO")
+def enviar_email_habilitacion(to: str, token: str) -> bool:
+    dominio = os.getenv("DOMINIO", "")
     subject = "Habilitación de cuenta"
+    url = f"https://{dominio}/api/users_b/habilitar?token={quote(token)}"
     html = f"""
-    <p>Para habilitar tu cuenta, hace clic en el siguiente enlace:</p>
-    <a href="https://{dominio}/api/users_b/habilitar?token={token}">Habilitar cuenta</a>
+    <p>Para habilitar tu cuenta, hacé clic en el siguiente enlace:</p>
+    <a href="{url}">Habilitar cuenta</a>
     """
-    enviar_email(to, subject, html)
+    return enviar_email(to, subject, html)
 
-def notificar_posible_matcheo(to: str, day: str, hora: str, cancha: str):
-    dominio = os.getenv("DOMINIO")
+def notificar_posible_matcheo(to: str, day: str, hora: str, cancha: str) -> bool:
+    dominio = os.getenv("DOMINIO", "")
     subject = f"Posible matcheo para jugar el {day} a las {hora} en la {cancha}"
-    # para tester http://localhost:8080/reserva?fecha=28-08-2025&cancha=Blindex%20A&horario=21:00-22:30
-    url = f"https://{dominio}/reserva?fecha={day}&cancha={cancha}&horario={hora}"
+    url = f"https://{dominio}/reserva?fecha={quote(day)}&cancha={quote(cancha)}&horario={quote(hora)}"
     html = f"""
     <p>Se ha encontrado un posible matcheo con:</p>
     <ul>
@@ -42,12 +45,11 @@ def notificar_posible_matcheo(to: str, day: str, hora: str, cancha: str):
         <li><strong>Hora:</strong> {hora}</li>
         <li><strong>Cancha:</strong> {cancha}</li>
     </ul>
-    <p>Para más información, visita <a href="{url}">el detalle de la reserva</a>.</p>
+    <p>Para más información, visitá <a href="{url}">el detalle de la reserva</a>.</p>
     """
-    enviar_email(to, subject, html)
+    return enviar_email(to, subject, html)
 
-def notificar_recordatorio(to: str, day: str, hora: str, cancha: str):
-    dominio = os.getenv("DOMINIO")
+def notificar_recordatorio(to: str, day: str, hora: str, cancha: str) -> bool:
     subject = f"Recordatorio de reserva para el {day} a las {hora} en {cancha}"
     html = f"""
     <p>Este es un recordatorio de tu reserva:</p>
@@ -57,12 +59,12 @@ def notificar_recordatorio(to: str, day: str, hora: str, cancha: str):
         <li><strong>Cancha:</strong> {cancha}</li>
     </ul>
     """
-    enviar_email(to, subject, html)
+    return enviar_email(to, subject, html)
 
-def notificar_cancelacion_reserva(to: str, day: str, hora: str, cancha: str, nombre: str, apellido: str):
-    dominio = os.getenv("DOMINIO")
+def notificar_cancelacion_reserva(to: str, day: str, hora: str, cancha: str, nombre: str, apellido: str) -> bool:
+    dominio = os.getenv("DOMINIO", "")
     subject = f"Un usuario canceló su reserva para el {day} a las {hora} en {cancha}"
-    url = f"https://{dominio}/reserva?fecha={day}&cancha={cancha}&horario={hora}"
+    url = f"https://{dominio}/reserva?fecha={quote(day)}&cancha={quote(cancha)}&horario={quote(hora)}"
     html = f"""
     <p>El jugador {nombre} {apellido} ha cancelado su reserva para:</p>
     <ul>
@@ -70,6 +72,6 @@ def notificar_cancelacion_reserva(to: str, day: str, hora: str, cancha: str, nom
         <li><strong>Hora:</strong> {hora}</li>
         <li><strong>Cancha:</strong> {cancha}</li>
     </ul>
-    <p>Puedes ver el detalle y cancelar tu reserva si lo deseas en <a href="{url}">este enlace</a>.</p>
+    <p>Podés ver el detalle y cancelar tu reserva si lo deseás en <a href="{url}">este enlace</a>.</p>
     """
-    enviar_email(to, subject, html)
+    return enviar_email(to, subject, html)
