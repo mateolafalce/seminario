@@ -38,8 +38,7 @@ export const createApi = (handleUnauthorized) => {
     // --- MANEJO CENTRALIZADO DE SESIÓN EXPIRADA ---
     if (response.status === 401) {
       handleUnauthorized();
-      // Lanzamos un error para detener la ejecución del código que llamó a apiFetch
-      throw new Error('Sesión expirada');
+      return response; // No throw, solo manejo global
     }
 
     return response;

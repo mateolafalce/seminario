@@ -349,14 +349,20 @@ function MisDatos() {
           </div>
 
           <ul className="space-y-4">
-            {reviews.length === 0 && (
+            {reviews.length === 0 ? (
               <li className="text-gray-400 text-center py-4">
                 No hay reseñas para mostrar.
               </li>
+            ) : (
+              reviews.map((r, idx) => {
+                // key robusta: _id, o autor + fecha + idx como fallback
+                const itemKey =
+                  r?._id ??
+                  `${r?.autor?.id ?? r?.autor?.username ?? "anon"}-${r?.fecha ?? ""}-${idx}`;
+
+                return <ReviewCard key={itemKey} r={r} />;
+              })
             )}
-            {reviews.map((r) => (
-              <ReviewCard key={r.id} r={r} />
-            ))}
           </ul>
 
           <Pagination

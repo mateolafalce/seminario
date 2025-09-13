@@ -176,7 +176,7 @@ export default function PreferenciasUsuario() {
   }
 
   return (
-    <div className="flex flex-col items-center min-h-[70vh] bg-[#101a2a] py-8 px-2">
+    <div className="flex flex-col items-center min-h-[70vh] py-8 px-2">
       <div className="bg-gray-800 rounded-2xl shadow-lg p-8 w-full max-w-3xl mb-8 border border-gray-700">
         <h2 className="text-2xl font-bold text-[#eaff00] mb-6 text-center">Tus Preferencias</h2>
         <form onSubmit={handleSubmit} className="space-y-6">

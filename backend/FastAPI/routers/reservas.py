@@ -88,11 +88,14 @@ def should_notify_slot(reserva_doc, argentina_tz):
     return True
 
 def tiene_conflicto_slot(user_oid, fecha, horario_id):
-    est_res, est_conf = get_estado_ids_activos()
+    """Conflicto SOLO si ya tiene una reserva en estado 'Reservada' en ese mismo slot."""
+    est_res = db_client.estadoreserva.find_one({"nombre": "Reservada"})
+    if not est_res:
+        raise ValueError("Falta estado 'Reservada' en estadoreserva")
     return db_client.reservas.find_one({
         "fecha": fecha,
         "hora_inicio": horario_id,
-        "estado": {"$in": [est_res, est_conf]},
+        "estado": est_res["_id"],      # <-- solo Reservada
         "usuarios.id": user_oid
     }) is not None
 
@@ -231,10 +234,10 @@ async def reservar(reserva: Reserva, user: dict = Depends(current_user)):
                 raise ValueError('No se encontró el estado "Confirmada"')
             estado_confirmada_id = estado_confirmada["_id"]
 
-            # --- Máximo 2 reservas activas por usuario ---
+            # --- Máximo 2 reservas activas por usuario (solo 'Reservada') ---
             reservas_activas = db_client.reservas.count_documents({
                 "usuarios.id": ObjectId(user["id"]),
-                "estado": {"$in": [estado_reservada_id, estado_confirmada_id]}
+                "estado": estado_reservada_id
             })
             if reservas_activas >= 2:
                 raise ValueError("No puedes tener más de 2 reservas activas.")
@@ -243,7 +246,7 @@ async def reservar(reserva: Reserva, user: dict = Depends(current_user)):
             conflicto_mismo_slot = db_client.reservas.find_one({
                 "fecha": reserva.fecha,
                 "hora_inicio": horario_id,
-                "estado": {"$in": [estado_reservada_id, estado_confirmada_id]},
+                "estado": estado_reservada_id,   # <-- solo Reservada
                 "usuarios.id": ObjectId(user["id"])
             })
             if conflicto_mismo_slot:
@@ -864,3 +867,121 @@ async def confirmar_asistencia(reserva_id: str, user: dict = Depends(current_use
         import traceback
         traceback.print_exc()
         raise HTTPException(status_code=500, detail=f"Error al confirmar asistencia: {str(e)}")
+
+def es_empleado(user_id: str) -> bool:
+    try:
+        return db_client.empleados.find_one({"user": ObjectId(user_id)}) is not None
+    except Exception:
+        return False
+
+@router.get("/listar")
+async def listar_reservas_por_fecha(
+    fecha: str = Query(..., description="Fecha en formato DD-MM-YYYY"),
+    user: dict = Depends(current_user)
+) -> List[Dict]:
+    """
+    Devuelve reservas Confirmadas para una fecha dada, con:
+    - _id (str)
+    - cancha (nombre)
+    - horario ("HH:MM-HH:MM")
+    - usuario_nombre (nombres y apellidos unidos por coma)
+    - estado (lowercase: 'confirmada')
+    - resultado (si existe)
+    """
+
+    # 🔐 Solo empleados (si querés abrirlo a todos, comenta este bloque)
+    if not es_empleado(user["id"]):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Solo empleados pueden listar reservas"
+        )
+
+    # 🗓️ Validar fecha
+    try:
+        datetime.strptime(fecha, "%d-%m-%Y")
+    except ValueError:
+        raise HTTPException(status_code=400, detail="Formato de fecha inválido. Use DD-MM-YYYY.")
+
+    # 🔎 Obtener ID del estado 'Confirmada'
+    estado_confirmada = await asyncio.to_thread(
+        lambda: db_client.estadoreserva.find_one({"nombre": "Confirmada"}, {"_id": 1})
+    )
+    if not estado_confirmada:
+        raise HTTPException(status_code=500, detail="Estado 'Confirmada' no encontrado en la base de datos")
+
+    estado_id = estado_confirmada["_id"]
+
+    # 🧮 Pipeline para traer datos normalizados
+    pipeline = [
+        {"$match": {
+            "fecha": fecha,
+            "estado": estado_id
+        }},
+        # canchas
+        {"$lookup": {
+            "from": "canchas",
+            "localField": "cancha",
+            "foreignField": "_id",
+            "as": "cancha_info"
+        }},
+        {"$unwind": "$cancha_info"},
+        # horarios
+        {"$lookup": {
+            "from": "horarios",
+            "localField": "hora_inicio",
+            "foreignField": "_id",
+            "as": "horario_info"
+        }},
+        {"$unwind": "$horario_info"},
+        # users (los jugadores)
+        {"$lookup": {
+            "from": "users",
+            "localField": "usuarios.id",
+            "foreignField": "_id",
+            "as": "usuarios_info"
+        }},
+        # proyectar lo que necesitamos (más resultado si existe)
+        {"$project": {
+            "_id": 1,
+            "fecha": 1,
+            "resultado": 1,
+            "cancha": "$cancha_info.nombre",
+            "horario": "$horario_info.hora",
+            "usuarios_info": {
+                "$map": {
+                    "input": "$usuarios_info",
+                    "as": "u",
+                    "in": {
+                        "nombre": {"$ifNull": ["$$u.nombre", ""]},
+                        "apellido": {"$ifNull": ["$$u.apellido", ""]}
+                    }
+                }
+            }
+        }},
+        {"$sort": {"horario": 1, "_id": 1}}
+    ]
+
+    docs = await asyncio.to_thread(lambda: list(db_client.reservas.aggregate(pipeline)))
+
+    # 🧹 Formatear salida para el frontend
+    salida: List[Dict] = []
+    for d in docs:
+        nombres = []
+        for u in d.get("usuarios_info", []):
+            nom = (u.get("nombre") or "").strip()
+            ape = (u.get("apellido") or "").strip()
+            full = f"{nom} {ape}".strip()
+            if full:
+                nombres.append(full)
+        usuario_nombre = ", ".join(nombres) if nombres else ""
+
+        salida.append({
+            "_id": str(d["_id"]),
+            "cancha": d.get("cancha", ""),
+            "horario": d.get("horario", ""),
+            "usuario_nombre": usuario_nombre,
+            "estado": "confirmada",  # ⚠️ en minúsculas (como espera tu frontend)
+            "resultado": d.get("resultado", "")
+        })
+
+    return salida

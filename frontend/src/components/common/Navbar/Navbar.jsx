@@ -1,5 +1,5 @@
 import React, { useContext, useEffect, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 import { AuthContext } from "../../../context/AuthContext";
 import Button from "../Button/Button";
 import logoCompleto from "../../../assets/icons/logoCompletoBlanco.svg";
@@ -12,7 +12,7 @@ const centerLinks = [
   { label: "Turnos", path: "/reserva", show: ({ isAuthenticated }) => isAuthenticated },
   { label: "Reservas", path: "/mis-reservas", show: ({ isAuthenticated }) => isAuthenticated },
   { label: "Preferencias", path: "/preferencias", show: ({ isAuthenticated }) => isAuthenticated },
-  { label: "Datos", path: "/mis-datos", show: ({ isAuthenticated }) => isAuthenticated },
+  { label: "Datos", path: "/mis-datos", show: ({ isAuthenticated }) => isAuthenticated },   
   { label: "Cargar Resultados", path: "/cargar-resultados", show: ({ isAuthenticated, isEmpleado }) => isAuthenticated && isEmpleado },
   { label: "Panel", path: "/admin/dashboard", show: ({ isAuthenticated, isAdmin }) => isAuthenticated && isAdmin },
 ];
@@ -41,6 +41,7 @@ const NavLinks = ({ links, isAuthenticated, isAdmin, isEmpleado, onClick, classN
 
 function CustomNavbar() {
   const navigate = useNavigate();
+  const location = useLocation();
   const { isAuthenticated, logout, isAdmin, isEmpleado } = useContext(AuthContext);
   const [scrolled, setScrolled] = useState(false);
   const [showOffcanvas, setShowOffcanvas] = useState(false);
@@ -63,8 +64,8 @@ function CustomNavbar() {
 
   const handleLogout = () => {
     logout();
-    navigate("/login");
     setShowOffcanvas(false);
+    window.location.replace("/home"); // redirige al home tras logout
   };
 
   const handleNavigate = (path) => {
@@ -106,6 +107,10 @@ function CustomNavbar() {
     link.show({ isAuthenticated, isAdmin, isEmpleado })
   );
 
+  // Estilo base y activo para los links
+  const navButtonBase = "relative text-white font-bold px-2 rounded transition-colors duration-300 text-base group hover:text-[#E5FF00]";
+  const navButtonActive = "text-[#E5FF00]";
+
   return (
     <>
       {/* navbar */}
@@ -126,7 +131,7 @@ function CustomNavbar() {
         <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-12 h-full flex items-center justify-between">
 
           {/* Logo (Izquierda) */}
-          <div className="flex items-center cursor-pointer select-none" onClick={() => handleNavigate("/home")}>
+          <div className="flex items-center cursor-pointer select-none" onClick={() => navigate("/home")}>
             <img
               src={logoCompleto}
               alt="Boulevard81 Logo"
@@ -139,16 +144,26 @@ function CustomNavbar() {
           {/* Links de navegación (Centrados absolutamente) - SOLO DESKTOP */}
           <div className="hidden lg:block absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2">
             <div className="flex items-center gap-2">
-              {visibleLinks.map(link => (
-                <button
-                  key={link.label}
-                  onClick={() => handleNavigate(link.path)}
-                  className="text-white font-semibold px-2 py-1 rounded transition-colors duration-300 text-base hover:text-[#E5FF00]"
-                  style={{ fontFamily: "inherit" }}
-                >
-                  {link.label}
-                </button>
-              ))}
+              {visibleLinks.map(link => {
+                const isActive = location.pathname === link.path;
+                return (
+                  <button
+                    key={link.label}
+                    onClick={() => navigate(link.path)}
+                    className={
+                      navButtonBase + (isActive ? " " + navButtonActive : "")
+                    }
+                    style={{ fontFamily: "inherit", position: "relative" }}
+                  >
+                    {link.label}
+                    <span
+                      className={`block absolute left-0 bottom-0 h-[2px] bg-[#E5FF00] transition-all duration-300 ${
+                        isActive ? "w-full" : "w-0 group-hover:w-full"
+                      }`}
+                    />
+                  </button>
+                );
+              })}
             </div>
           </div>
 
@@ -198,16 +213,25 @@ function CustomNavbar() {
             {/* contenido ultra minimalista */}
             <div className="h-full flex flex-col justify-center items-center">
               <nav className="flex flex-col space-y-8 mb-12">
-                {visibleLinks.map(link => (
-                  <button
-                    key={link.label}
-                    type="button"
-                    onClick={() => handleNavigate(link.path)}
-                    className="text-white text-3xl font-extralight text-center py-2 transition-all duration-300 hover:text-[#E5FF00] hover:scale-105"
-                  >
-                    {link.label}
-                  </button>
-                ))}
+                {visibleLinks.map(link => {
+                  const isActive = location.pathname === link.path;
+                  return (
+                    <button
+                      key={link.label}
+                      type="button"
+                      onClick={() => { navigate(link.path); setShowOffcanvas(false); }}
+                      className={`relative text-white text-3xl font-extralight text-center py-2 transition-all duration-300 hover:text-[#E5FF00] hover:scale-105 group ${isActive ? 'text-[#E5FF00]' : ''}`}
+                      style={{ fontFamily: "inherit" }}
+                    >
+                      {link.label}
+                      <span
+                        className={`block absolute left-0 bottom-0 h-[2px] bg-[#E5FF00] transition-all duration-300 ${
+                          isActive ? "w-full" : "w-0 group-hover:w-full"
+                        }`}
+                      />
+                    </button>
+                  );
+                })}
               </nav>
               {/* botones de sesion minimalistas */}
               {!isAuthenticated ? (
