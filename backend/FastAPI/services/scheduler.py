@@ -1,6 +1,6 @@
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from db.client import db_client
-from routers.reservas import actualizar_reservas_completadas
+from routers.reservas import cerrar_reservas_vencidas
 from services.matcheo import calculate_and_store_relations
 from services.email import notificar_recordatorio
 from datetime import datetime, timedelta
@@ -238,7 +238,7 @@ def schedule_jobs():
     try:
         # Programar la actualización de reservas cada 1:30
         scheduler.add_job(
-            actualizar_reservas_completadas,
+            cerrar_reservas_vencidas,
             'interval',
             hours=1,
             minutes=30,

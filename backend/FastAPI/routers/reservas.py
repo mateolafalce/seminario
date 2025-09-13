@@ -673,6 +673,87 @@ async def obtener_cantidad_reservas(fecha: str):
         )
 
 
+def cerrar_reservas_vencidas():
+    """
+    Cierra reservas cuyo horario FIN ya pasó:
+      - Si confirmaciones < 2 => Cancelada
+      - Si confirmaciones >= 2 => Confirmada (si no lo estaba)
+    Luego dispara optimize_weights() usando reservas Confirmadas.
+    """
+    argentina_tz = pytz.timezone("America/Argentina/Buenos_Aires")
+    ahora = datetime.now(argentina_tz)
+
+    print(f"🕐 Hora actual: {ahora}")
+
+    est_res = db_client.estadoreserva.find_one({"nombre": "Reservada"})
+    est_conf = db_client.estadoreserva.find_one({"nombre": "Confirmada"})
+    est_canc = db_client.estadoreserva.find_one({"nombre": "Cancelada"})
+
+    if not (est_res and est_conf and est_canc):
+        print("❌ Faltan estados en estadoreserva")
+        return 0
+
+    # Traigo reservas en estado RESERVADA (las que pueden pasar a Cancelada/Confirmada)
+    pipeline = [
+        {"$match": {"estado": est_res["_id"]}},
+        {"$lookup": {"from": "horarios", "localField": "hora_inicio", "foreignField": "_id", "as": "horario_info"}},
+        {"$unwind": "$horario_info"},
+        {"$addFields": {
+            "hora_fin": {"$arrayElemAt": [{"$split": ["$horario_info.hora", "-"]}, 1]}
+        }},
+        {"$project": {"fecha": 1, "usuarios": 1, "hora_fin": 1}}
+    ]
+    reservas = list(db_client.reservas.aggregate(pipeline))
+    print(f"📋 Reservas 'Reservada' a revisar: {len(reservas)}")
+
+    to_cancel = []
+    to_confirm = []
+
+    for r in reservas:
+        try:
+            fin_naive = datetime.strptime(f"{r['fecha']} {r['hora_fin']}", "%d-%m-%Y %H:%M")
+            try:
+                fin = argentina_tz.localize(fin_naive)
+            except ValueError:
+                fin = argentina_tz.localize(fin_naive, is_dst=None)
+
+            if fin > ahora:
+                continue  # aún no terminó
+
+            confirmados = sum(1 for u in r.get("usuarios", []) if u.get("confirmado", False))
+
+            if confirmados >= 2:
+                to_confirm.append(r["_id"])   # la dejamos/ponemos en Confirmada
+            else:
+                to_cancel.append(r["_id"])    # la pasamos a Cancelada
+
+        except Exception as e:
+            print(f"❌ Error con reserva {r.get('_id')}: {e}")
+            continue
+
+    if to_cancel:
+        res1 = db_client.reservas.update_many(
+            {"_id": {"$in": to_cancel}},
+            {"$set": {"estado": est_canc["_id"]}}
+        )
+        print(f"🗑️ Canceladas: {res1.modified_count}")
+
+    if to_confirm:
+        res2 = db_client.reservas.update_many(
+            {"_id": {"$in": to_confirm}},
+            {"$set": {"estado": est_conf["_id"]}}
+        )
+        print(f"✅ Confirmadas al cerrar: {res2.modified_count}")
+
+    # Optimización de pesos usando Confirmadas (ver cambios en services.matcheo)
+    try:
+        optimize_weights()
+        print("🎯 optimize_weights() ejecutado sobre reservas Confirmadas")
+    except Exception as e:
+        print(f"❌ Error en optimize_weights: {e}")
+
+    return len(to_cancel) + len(to_confirm)
+
 def actualizar_reservas_completadas():
     """Actualiza las reservas que ya pasaron de 'Reservada' a 'Completada'"""
     argentina_tz = pytz.timezone("America/Argentina/Buenos_Aires")
