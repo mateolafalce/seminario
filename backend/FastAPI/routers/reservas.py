@@ -23,6 +23,7 @@ from services.matcheo import a_notificar, optimize_weights
 from services.email import notificar_posible_matcheo
 from pymongo.errors import DuplicateKeyError
 import os
+from collections import OrderedDict  
 
 class ReservaUsuario(BaseModel):
     id: str
@@ -178,6 +179,25 @@ def enviar_notificaciones_slot(reserva_doc, origen_user_id, hora_str, cancha_nom
         )
 
 
+def build_reserva_doc(fecha: str, estado_id, cancha_id, horario_id, user_id: str, tz):
+    # Orden canónico de campos
+    return OrderedDict([
+        ("fecha", fecha),                     
+        ("estado", estado_id),              
+        ("cancha", cancha_id),               
+        ("hora_inicio", horario_id),         
+        ("fecha_creacion", datetime.now(tz)),
+        ("notificaciones", []),
+        ("usuarios", [
+            OrderedDict([
+                ("id", ObjectId(user_id)),
+                ("confirmado", False),
+                ("fecha_reserva", datetime.now(tz)),
+            ])
+        ]),
+        ("resultado", ""),  
+    ])
+
 @router.post("/reservar")
 async def reservar(reserva: Reserva, user: dict = Depends(current_user)):
     argentina_tz = pytz.timezone("America/Argentina/Buenos_Aires")
@@ -234,30 +254,47 @@ async def reservar(reserva: Reserva, user: dict = Depends(current_user)):
                 raise ValueError('No se encontró el estado "Confirmada"')
             estado_confirmada_id = estado_confirmada["_id"]
 
-            # --- Máximo 2 reservas activas por usuario (solo 'Reservada') ---
-            reservas_activas = db_client.reservas.count_documents({
-                "usuarios.id": ObjectId(user["id"]),
-                "estado": estado_reservada_id
-            })
-            if reservas_activas >= 2:
-                raise ValueError("No puedes tener más de 2 reservas activas.")
+            # --- Máximo 2 reservas activas SOLO en estado 'Reservada' ---
+            # (Confirmadas NO cuentan para el límite)
+            horarios_map = {
+                h["_id"]: h["hora"]
+                for h in db_client.horarios.find({}, {"_id": 1, "hora": 1})
+            }
 
-            # === PUNTO B: BLOQUEO MISMO DÍA+HORARIO PARA EL MISMO USUARIO (en cualquier cancha) ===
-            conflicto_mismo_slot = db_client.reservas.find_one({
-                "fecha": reserva.fecha,
-                "hora_inicio": horario_id,
-                "estado": estado_reservada_id,   # <-- solo Reservada
-                "usuarios.id": ObjectId(user["id"])
-            })
-            if conflicto_mismo_slot:
-                raise ValueError("Ya tenés una reserva activa en ese horario y fecha (aunque sea en otra cancha).")
+            def _parse_dt_local(fecha_str: str, hhmm: str, tz):
+                dt = datetime.strptime(f"{fecha_str} {hhmm}", "%d-%m-%Y %H:%M")
+                try:
+                    return tz.localize(dt)
+                except ValueError:
+                    return tz.localize(dt, is_dst=None)
 
-            # --- Buscar si existe una reserva 'padre' para este slot en esta cancha ---
+            docs_user = list(db_client.reservas.find(
+                {
+                    "usuarios.id": ObjectId(user["id"]),
+                    "estado": estado_reservada_id
+                },
+                {"fecha": 1, "hora_inicio": 1}
+            ))
+
+            reservadas_futuras = 0
+            for d in docs_user:
+                hora = horarios_map.get(d["hora_inicio"])
+                if not hora:
+                    continue
+                hora_inicio = hora.split("-")[0].strip()
+                dt_inicio = _parse_dt_local(d["fecha"], hora_inicio, argentina_tz)
+                if dt_inicio >= ahora_dt:  # cuenta sólo si todavía no empezó
+                    reservadas_futuras += 1
+
+            if reservadas_futuras >= 2:
+                raise ValueError("No puedes tener más de 2 reservas activas (pendientes).")
+
+            # --- Buscar si existe una reserva 'padre' para este slot en esta cancha (Reservada o Confirmada) ---
             reserva_existente = db_client.reservas.find_one({
                 "cancha": cancha_id,
                 "fecha": reserva.fecha,
                 "hora_inicio": horario_id,
-                "estado": estado_reservada_id
+                "estado": {"$in": [estado_reservada_id, estado_confirmada_id]}
             })
 
             if reserva_existente:
@@ -308,29 +345,23 @@ async def reservar(reserva: Reserva, user: dict = Depends(current_user)):
                 )
                 return reserva_existente
             else:
-                # Crear nueva reserva padre (upsert por slot en esta cancha)
+                # Crear nueva reserva padre (upsert por slot en esta cancha, sin filtrar por estado)
                 try:
                     result = db_client.reservas.update_one(
                         {
                             "cancha": cancha_id,
                             "fecha": reserva.fecha,
-                            "hora_inicio": horario_id,
-                            "estado": estado_reservada_id
+                            "hora_inicio": horario_id
                         },
                         {
-                            "$setOnInsert": {
-                                "cancha": cancha_id,
-                                "fecha": reserva.fecha,
-                                "hora_inicio": horario_id,
-                                "estado": estado_reservada_id,
-                                "usuarios": [{
-                                    "id": ObjectId(user["id"]),
-                                    "confirmado": False,
-                                    "fecha_reserva": datetime.now(argentina_tz)
-                                }],
-                                "notificaciones": [],
-                                "fecha_creacion": datetime.now(argentina_tz)
-                            }
+                            "$setOnInsert": build_reserva_doc(
+                                fecha=reserva.fecha,
+                                estado_id=estado_reservada_id,
+                                cancha_id=cancha_id,
+                                horario_id=horario_id,
+                                user_id=user["id"],
+                                tz=argentina_tz
+                            )
                         },
                         upsert=True
                     )
@@ -338,26 +369,20 @@ async def reservar(reserva: Reserva, user: dict = Depends(current_user)):
                     raise ValueError("Ya tenés una reserva activa en ese horario y fecha.")
 
                 if result.upserted_id:
-                    nueva_reserva = {
-                        "_id": result.upserted_id,
-                        "cancha": cancha_id,
-                        "fecha": reserva.fecha,
-                        "hora_inicio": horario_id,
-                        "estado": estado_reservada_id,
-                        "usuarios": [{
-                            "id": ObjectId(user["id"]),
-                            "confirmado": False,
-                            "fecha_reserva": datetime.now(argentina_tz)
-                        }],
-                        "notificaciones": [],
-                        "fecha_creacion": datetime.now(argentina_tz)
-                    }
+                    nueva_reserva = build_reserva_doc(
+                        fecha=reserva.fecha,
+                        estado_id=estado_reservada_id,
+                        cancha_id=cancha_id,
+                        horario_id=horario_id,
+                        user_id=user["id"],
+                        tz=argentina_tz
+                    )
+                    nueva_reserva["_id"] = result.upserted_id
                 else:
                     nueva_reserva = db_client.reservas.find_one({
                         "cancha": cancha_id,
                         "fecha": reserva.fecha,
-                        "hora_inicio": horario_id,
-                        "estado": estado_reservada_id
+                        "hora_inicio": horario_id
                     })
                     db_client.reservas.update_one(
                         {
@@ -663,62 +688,67 @@ async def obtener_cantidad_reservas(fecha: str):
 
 def cerrar_reservas_vencidas():
     """
-    Cierra reservas cuyo horario FIN ya pasó:
-      - Si confirmaciones < 2 => Cancelada
-      - Si confirmaciones >= 2 => Confirmada (si no lo estaba)
-    Luego dispara optimize_weights() usando reservas Confirmadas.
+    Fast path:
+      - Escanea solo reservas RESERVADAS con fecha <= hoy
+      - No usa $lookup (precarga horarios en memoria)
+      - Trae solo campos necesarios
+      - Hace 2 update_many
     """
     argentina_tz = pytz.timezone("America/Argentina/Buenos_Aires")
     ahora = datetime.now(argentina_tz)
+    hoy_str = ahora.strftime("%d-%m-%Y")
 
-    print(f"🕐 Hora actual: {ahora}")
-
-    est_res = db_client.estadoreserva.find_one({"nombre": "Reservada"})
+    # Estados
+    est_res  = db_client.estadoreserva.find_one({"nombre": "Reservada"})
     est_conf = db_client.estadoreserva.find_one({"nombre": "Confirmada"})
     est_canc = db_client.estadoreserva.find_one({"nombre": "Cancelada"})
-
     if not (est_res and est_conf and est_canc):
         print("❌ Faltan estados en estadoreserva")
         return 0
 
-    # Traigo reservas en estado RESERVADA (las que pueden pasar a Cancelada/Confirmada)
-    pipeline = [
-        {"$match": {"estado": est_res["_id"]}},
-        {"$lookup": {"from": "horarios", "localField": "hora_inicio", "foreignField": "_id", "as": "horario_info"}},
-        {"$unwind": "$horario_info"},
-        {"$addFields": {
-            "hora_fin": {"$arrayElemAt": [{"$split": ["$horario_info.hora", "-"]}, 1]}
-        }},
-        {"$project": {"fecha": 1, "usuarios": 1, "hora_fin": 1}}
-    ]
-    reservas = list(db_client.reservas.aggregate(pipeline))
-    print(f"📋 Reservas 'Reservada' a revisar: {len(reservas)}")
+    # Precargar horarios (id -> "HH:MM-HH:MM")
+    horarios_map = {
+        h["_id"]: h["hora"]
+        for h in db_client.horarios.find({}, {"_id": 1, "hora": 1})
+    }
 
-    to_cancel = []
-    to_confirm = []
+    # Traer SOLO lo necesario y SOLO hasta hoy
+    cursor = db_client.reservas.find(
+        {"estado": est_res["_id"], "fecha": {"$lte": hoy_str}},
+        {"_id": 1, "fecha": 1, "hora_inicio": 1, "usuarios.confirmado": 1}
+    )
 
-    for r in reservas:
+    to_cancel, to_confirm = [], []
+
+    for r in cursor:
+        hora_str = horarios_map.get(r["hora_inicio"])
+        if not hora_str:
+            continue
+        # fin del slot
         try:
-            fin_naive = datetime.strptime(f"{r['fecha']} {r['hora_fin']}", "%d-%m-%Y %H:%M")
-            try:
-                fin = argentina_tz.localize(fin_naive)
-            except ValueError:
-                fin = argentina_tz.localize(fin_naive, is_dst=None)
-
-            if fin > ahora:
-                continue  # aún no terminó
-
-            confirmados = sum(1 for u in r.get("usuarios", []) if u.get("confirmado", False))
-
-            if confirmados >= 2:
-                to_confirm.append(r["_id"])   # la dejamos/ponemos en Confirmada
-            else:
-                to_cancel.append(r["_id"])    # la pasamos a Cancelada
-
+            hora_fin = hora_str.split("-")[1].strip()  # "09:00-10:30" -> "10:30"
+            fin_naive = datetime.strptime(f"{r['fecha']} {hora_fin}", "%d-%m-%Y %H:%M")
+            fin = argentina_tz.localize(fin_naive)
         except Exception as e:
-            print(f"❌ Error con reserva {r.get('_id')}: {e}")
+            print(f"❌ Error parseando horario para {r.get('_id')}: {e}")
             continue
 
+        # si todavía no terminó, skip
+        if fin > ahora:
+            continue
+
+        # contar confirmados (solo trajimos usuarios.confirmado)
+        confirmados = 0
+        for u in r.get("usuarios", []):
+            if u.get("confirmado", False):
+                confirmados += 1
+
+        if confirmados >= 2:
+            to_confirm.append(r["_id"])
+        else:
+            to_cancel.append(r["_id"])
+
+    # Updates en lote
     if to_cancel:
         res1 = db_client.reservas.update_many(
             {"_id": {"$in": to_cancel}},
@@ -733,7 +763,7 @@ def cerrar_reservas_vencidas():
         )
         print(f"✅ Confirmadas al cerrar: {res2.modified_count}")
 
-    # Optimización de pesos usando Confirmadas (ver cambios en services.matcheo)
+    # (opcional) optimización de pesos
     try:
         optimize_weights()
         print("🎯 optimize_weights() ejecutado sobre reservas Confirmadas")
@@ -823,7 +853,7 @@ async def confirmar_asistencia(reserva_id: str, user: dict = Depends(current_use
         user_id = ObjectId(user["id"])
         reserva_id_obj = ObjectId(reserva_id)
         
-        # Obtener estado confirmado
+        # Obtener estado confirmado de la reserva
         estado_confirmada = db_client.estadoreserva.find_one({"nombre": "Confirmada"})
         if not estado_confirmada:
             raise HTTPException(status_code=500, detail="Estado 'Confirmada' no encontrado en la base de datos")
@@ -980,7 +1010,7 @@ async def listar_reservas_por_fecha(
             "cancha": d.get("cancha", ""),
             "horario": d.get("horario", ""),
             "usuario_nombre": usuario_nombre,
-            "estado": "confirmada",  # ⚠️ en minúsculas (como espera tu frontend)
+            "estado": "confirmada",  
             "resultado": d.get("resultado", "")
         })
 

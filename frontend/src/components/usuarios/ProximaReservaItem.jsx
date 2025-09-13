@@ -11,7 +11,7 @@ const getFechaInicioReserva = (fechaStr, horarioStr) => {
 const ProximaReservaItem = ({ reserva, onConfirmar, onCancelar }) => {
   const ahora = new Date();
   const inicioReserva = getFechaInicioReserva(reserva.fecha, reserva.horario); 
-  const limite24Horas = new Date(inicioReserva.getTime() - 20000 * 60 * 60 * 1000);
+  const limite24Horas = new Date(inicioReserva.getTime() - 24 * 60 * 60 * 1000);
   const usuarioConfirmo = reserva.asistenciaConfirmada === true;
   const puedeConfirmar = ahora >= limite24Horas;
 

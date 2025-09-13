@@ -110,7 +110,7 @@ function CargarResultados() {
   };
 
   return (
-    <div className="flex flex-col items-center mt-8 min-h-[70vh] bg-[#101a2a] w-full py-6">
+    <div className="flex flex-col items-center mt-8 min-h-[70vh] w-full py-6">
       <h2 className="text-xl font-bold text-white mb-4 text-center">Cargar Resultados de Reservas</h2>
       <div className="mb-6 w-full max-w-xs">
         <label htmlFor="fecha-select" className="block text-sm font-medium text-gray-300 mb-2 text-center">Selecciona una fecha:</label>
