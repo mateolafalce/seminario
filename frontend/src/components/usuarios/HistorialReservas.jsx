@@ -1,5 +1,5 @@
 import React from "react";
-import { FiUsers } from "react-icons/fi";
+import { FiUsers, FiStar } from "react-icons/fi";
 
 const estadoColor = {
   Confirmada: "bg-green-800 text-green-300",
@@ -12,6 +12,7 @@ const HistorialReservas = ({
   historial,
   onVerJugadores,
   onConfirmarAsistencia,
+  onCalificarJugador, // 👈 NUEVO
 }) => (
   <div>
     {historial.length === 0 ? (
@@ -19,7 +20,6 @@ const HistorialReservas = ({
     ) : (
       <ul className="space-y-4">
         {historial.map((reserva) => {
-          // Puedes adaptar estos campos según lo que recibas del backend
           const estado = reserva.estado || "Reservada";
           const color = estadoColor[estado] || "bg-gray-700 text-gray-300";
           const confirmada = reserva.asistenciaConfirmada;
@@ -55,6 +55,15 @@ const HistorialReservas = ({
                 >
                   <FiUsers className="mr-1" /> Ver jugadores
                 </button>
+                {/* Solo mostrar "Calificar jugadores" si la reserva está Confirmada */}
+                {reserva.estado === "Confirmada" && (
+                  <button
+                    onClick={() => onCalificarJugador(reserva)}
+                    className="text-blue-400 hover:text-blue-300 text-sm flex items-center"
+                  >
+                    <FiStar className="mr-1" /> Calificar jugadores
+                  </button>
+                )}
                 {!confirmada && (
                   <button
                     onClick={() => onConfirmarAsistencia(reserva)}

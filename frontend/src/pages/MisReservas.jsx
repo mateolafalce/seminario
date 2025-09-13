@@ -37,8 +37,8 @@ function MisReservas() {
   // Nuevo estado para guardar el detalle completo de la reserva
   const [detalleReserva, setDetalleReserva] = useState(null);
 
-  const urlProximas = '/api/reservas/mis-reservas?estados=Reservada,Confirmada&incluir_pasadas=false';
-  const urlHistorial = '/api/reservas/mis-reservas?estados=Completada,Cancelada&incluir_pasadas=true';
+  const urlProximas = '/api/reservas/mis-reservas?estados=Reservada&incluir_pasadas=false';
+  const urlHistorial = '/api/reservas/mis-reservas?estados=Confirmada,Completada,Cancelada&incluir_pasadas=true';
 
   async function cargarListas() {
     setLoading(true);

@@ -70,10 +70,13 @@ def _buscar_reserva_compartida(i_oid: ObjectId, j_oid: ObjectId, reserva_id: Opt
         r = db_client.reservas.find_one({"_id": ObjectId(reserva_id), **filtro_base})
         if not r:
             return None
-        fin = _slot_datetime_fin(r)
-        if not fin:
-            return None
-        return r if fin <= datetime.now(ARG_TZ) else None
+        # ⚠️ Validación de que ya haya pasado el horario fin (desactivada temporalmente)
+        # fin = _slot_datetime_fin(r)
+        # if not fin:
+        #     return None
+        # return r if fin <= datetime.now(ARG_TZ) else None
+        # ✅ Siempre devolver la reserva si está en estado Confirmada y ambos jugadores están
+        return r
 
     # si no se envió reserva_id, buscamos la última confirmada que ya terminó
     candidatos = list(db_client.reservas.find(filtro_base).sort("fecha", -1))
