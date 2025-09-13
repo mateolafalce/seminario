@@ -749,7 +749,6 @@ async def detalle_reserva(cancha: str, horario: str, fecha: str, usuario_id: str
             raise HTTPException(status_code=404, detail="Cancha u horario no encontrados")
 
         estado_cancelada = db_client.estadoreserva.find_one({"nombre": "Cancelada"})
-        
         # Buscar la reserva padre para este slot
         filtro = {
             "cancha": cancha_doc["_id"],
@@ -757,12 +756,8 @@ async def detalle_reserva(cancha: str, horario: str, fecha: str, usuario_id: str
             "fecha": fecha,
             "estado": {"$ne": estado_cancelada["_id"]}
         }
-        
-        # Con nuestro nuevo modelo, solo hay una reserva por slot, con múltiples usuarios
         reserva = await asyncio.to_thread(lambda: db_client.reservas.find_one(filtro))
-        
         if not reserva:
-            # No hay reserva en este slot, devolvemos una estructura vacía
             return {
                 "usuarios": [],
                 "cancha": cancha,
@@ -771,26 +766,35 @@ async def detalle_reserva(cancha: str, horario: str, fecha: str, usuario_id: str
                 "cantidad": 0,
                 "estado_cancelada": str(estado_cancelada["_id"])
             }
-        
-        # Procesamos los usuarios de la reserva
+
+        # === NUEVO: precargar calificados por el viewer ===
+        viewer_oid = None
+        if usuario_id and ObjectId.is_valid(usuario_id):
+            viewer_oid = ObjectId(usuario_id)
+        calificados_set = set()
+        if viewer_oid:
+            reseñas = list(db_client.resenias.find(
+                {"i": viewer_oid, "reserva": reserva["_id"]},
+                {"j": 1}
+            ))
+            calificados_set = {str(r["j"]) for r in reseñas}
+
         usuarios_info = []
         for usuario_data in reserva.get("usuarios", []):
             usuario_id_obj = usuario_data.get("id")
             if not usuario_id_obj:
                 continue
-                
             usuario = await asyncio.to_thread(lambda: db_client.users.find_one({"_id": usuario_id_obj}))
             if not usuario:
                 continue
-                
             usuarios_info.append({
                 "nombre": usuario.get("nombre", ""),
                 "apellido": usuario.get("apellido", ""),
                 "reserva_id": str(reserva["_id"]),
                 "usuario_id": str(usuario["_id"]),
-                "estado": str(reserva["estado"])
+                "estado": str(reserva["estado"]),
+                "calificado": (viewer_oid is not None and str(usuario["_id"]) in calificados_set)
             })
-        
         return {
             "usuarios": usuarios_info,
             "cancha": cancha,
@@ -800,7 +804,6 @@ async def detalle_reserva(cancha: str, horario: str, fecha: str, usuario_id: str
             "estado_cancelada": str(estado_cancelada["_id"]),
             "reserva_id": str(reserva["_id"])
         }
-    
     except Exception as e:
         print(f"Error al obtener detalles de reserva: {str(e)}")
         import traceback

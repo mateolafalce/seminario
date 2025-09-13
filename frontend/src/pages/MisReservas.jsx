@@ -22,7 +22,7 @@ function MisReservas() {
   const [proximasReservas, setProximasReservas] = useState([]);
   const [historial, setHistorial] = useState([]);
   const [loading, setLoading] = useState(true);
-  const { isAuthenticated, apiFetch } = useContext(AuthContext);
+  const { isAuthenticated, apiFetch, user } = useContext(AuthContext);
 
   // Modal jugadores
   const [modalJugadoresAbierto, setModalJugadoresAbierto] = useState(false);
@@ -33,6 +33,9 @@ function MisReservas() {
   // Calificación
   const [modalCalificacionAbierto, setModalCalificacionAbierto] = useState(false);
   const [jugadorSeleccionado, setJugadorSeleccionado] = useState(null);
+
+  // Nuevo estado para guardar el detalle completo de la reserva
+  const [detalleReserva, setDetalleReserva] = useState(null);
 
   const urlProximas = '/api/reservas/mis-reservas?estados=Reservada,Confirmada&incluir_pasadas=false';
   const urlHistorial = '/api/reservas/mis-reservas?estados=Completada,Cancelada&incluir_pasadas=true';
@@ -120,23 +123,26 @@ function MisReservas() {
     setModalJugadoresAbierto(true);
 
     try {
-      // Tu backend expuesto: GET /reservas/detalle?cancha=...&horario=...&fecha=...
       const qs = new URLSearchParams({
         cancha: reserva.cancha,
         horario: reserva.horario,
         fecha: reserva.fecha,
+        usuario_id: user?.id || ''
       });
       const response = await apiFetch(`/api/reservas/detalle?${qs.toString()}`);
       const data = await safeJson(response);
 
       if (response.ok) {
-        const usuarios = (data.usuarios || []).map(u => ({
-          _id: u.usuario_id,             // clave para la lista
-          nombre: u.nombre,
-          apellido: u.apellido,
-          username: u.username || "",    // tolerante: puede no venir
-          calificado: !!u.calificado,    // tolerante: puede no venir
-        }));
+        setDetalleReserva(data); // guarda el detalle completo, incluyendo reserva_id
+        const usuarios = (data.usuarios || [])
+          .filter(u => u.usuario_id !== user?.id) // no mostrarme a mí para calificarme
+          .map(u => ({
+            _id: u.usuario_id,
+            nombre: u.nombre,
+            apellido: u.apellido,
+            username: u.username || "",
+            calificado: !!u.calificado,
+          }));
         setJugadoresReserva(usuarios);
       } else {
         safeToast(data.detail || "No se pudieron obtener los jugadores");
@@ -285,6 +291,7 @@ function MisReservas() {
         {jugadorSeleccionado && (
           <FormularioReseña
             jugadorAReseñar={jugadorSeleccionado}
+            reservaId={detalleReserva?.reserva_id}   // <-- clave para validar en backend
             onReseñaEnviada={handleReseñaExitosa}
             onCancelar={() => setModalCalificacionAbierto(false)}
           />

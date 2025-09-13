@@ -10,7 +10,7 @@ import Button from '../common/Button/Button'; // ← ¡Ruta corregida!
 // - onReseñaEnviada: Función que se ejecuta cuando la reseña se envía con éxito.
 // - onCancelar: Función para cerrar o cancelar la acción.
 
-const FormularioReseña = ({ jugadorAReseñar, onReseñaEnviada, onCancelar }) => {
+const FormularioReseña = ({ jugadorAReseñar, reservaId, onReseñaEnviada, onCancelar }) => {
   const { apiFetch } = useContext(AuthContext);
 
   // Estados internos del formulario
@@ -54,6 +54,7 @@ const FormularioReseña = ({ jugadorAReseñar, onReseñaEnviada, onCancelar }) =
           con: jugadorAReseñar._id, // Usamos el ID del jugador recibido por props
           calificacion: calificacion,
           observacion: observacion,
+          reserva_id: reservaId, // <-- importante
         }),
       });
 
