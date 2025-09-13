@@ -1,6 +1,6 @@
 import asyncio
 from fastapi import FastAPI
-from routers import users_b, admin_users, reservas, preferencias, canchas, empleado, horarios, resenias
+from routers import users_b, admin_users, reservas, preferencias, canchas, empleado, horarios, resenias, resenias_publicas
 from db.client import db_client
 from services.scheduler import start_scheduler, shutdown_scheduler
 from services.matcheo import calculate_and_store_relations  
@@ -17,6 +17,7 @@ app.include_router(canchas.router, prefix="/api")
 app.include_router(empleado.router, prefix="/api") 
 app.include_router(horarios.router, prefix="/api") 
 app.include_router(resenias.router, prefix="/api")
+app.include_router(resenias_publicas.router)
 
 app.add_middleware(
     CORSMiddleware,

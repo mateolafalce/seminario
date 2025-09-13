@@ -218,6 +218,6 @@ async def listar_reseñas_recibidas(
                 }
             }}
         ]))
-        return {"total": total, "page": page, "limit": limit, "reseñas": rese}
+        return {"total": total, "page": page, "limit": limit, "resenias": rese}
 
     return await asyncio.to_thread(_work)
