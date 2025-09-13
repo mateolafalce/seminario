@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useContext, memo } from "react";
+import React, { useEffect, useState, useContext, memo, useMemo } from "react";
 import { AuthContext } from "../context/AuthContext";
 import { toast } from "react-toastify";
 import Modal from "../components/common/Modal/Modal";
@@ -10,26 +10,26 @@ import {
   FiClock,
   FiTag,
   FiEdit,
+  FiArrowLeft,
+  FiArrowRight,
   FiLoader as SpinnerIcon,
 } from "react-icons/fi";
 
-// --- Helper para formatear la fecha y hora en formato 24hs ---
+// Formato fecha/hora 24hs AR
 const formatDateTime24h = (isoString) => {
   if (!isoString) return "Nunca";
   const date = new Date(isoString);
-  // Opciones para forzar el formato 24hs y el estilo deseado
   const options = {
-    day: '2-digit',
-    month: '2-digit',
-    year: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit',
-    second: '2-digit',
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
     hour12: false,
   };
-  return date.toLocaleString('es-AR', options).replace(',', ''); // Usamos 'es-AR' o tu locale preferido
+  return date.toLocaleString("es-AR", options).replace(",", "");
 };
-
 
 const ProfileDataItem = memo(({ icon, label, value }) => {
   const icons = {
@@ -40,49 +40,163 @@ const ProfileDataItem = memo(({ icon, label, value }) => {
     clock: <FiClock className="w-6 h-6 text-yellow-400" />,
     tag: <FiTag className="w-6 h-6 text-yellow-400" />,
   };
-
   return (
-    <article className="flex items-start gap-4 p-4 bg-slate-800/50 rounded-lg shadow-inner transition-all duration-300 hover:bg-slate-700/50">
+    <article className="flex items-start gap-4 p-4 bg-slate-800/50 rounded-lg shadow-inner transition-colors duration-200 hover:bg-slate-700/50">
       <div className="flex-shrink-0">{icons[icon]}</div>
       <div>
         <p className="text-sm font-medium text-slate-400">{label}</p>
-        <p className="text-lg font-semibold text-white">{value}</p>
+        <p className="text-lg font-semibold text-white break-words">{value}</p>
       </div>
     </article>
   );
 });
 
+const StarRating = ({ value = 0, size = "text-lg" }) => {
+  const cl = `text-yellow-400 ${size}`;
+  const stars = Array.from({ length: 5 }, (_, i) => (
+    <span key={i} aria-hidden="true">
+      {i < value ? "★" : "☆"}
+    </span>
+  ));
+  return (
+    <span className={cl} aria-label={`Valoración: ${value} de 5`}>
+      {stars}
+    </span>
+  );
+};
+
+const ReviewCard = ({ r }) => (
+  <li className="bg-gray-800/80 p-4 rounded-lg border border-gray-700 shadow">
+    <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 mb-2">
+      <div className="flex items-center gap-2 text-white font-semibold">
+        <FiUser />
+        <span>
+          {r?.autor?.nombre} {r?.autor?.apellido}
+        </span>
+        {r?.autor?.username && (
+          <span className="text-gray-400 text-sm ml-2">@{r.autor.username}</span>
+        )}
+      </div>
+      <span className="text-sm text-gray-400">
+        {r?.fecha ? new Date(r.fecha).toLocaleDateString("es-AR") : ""}
+      </span>
+    </div>
+    <StarRating value={r?.numero ?? 0} />
+    {r?.observacion && <p className="text-gray-200 mt-2 italic">“{r.observacion}”</p>}
+  </li>
+);
+
+const Pagination = ({ page, total, limit, onPrev, onNext }) => {
+  const totalPages = Math.max(1, Math.ceil(total / limit));
+  return (
+    <div className="flex justify-between items-center mt-6">
+      <button
+        onClick={onPrev}
+        disabled={page <= 1}
+        className="bg-[#eaff00] text-[#101a2a] px-4 py-2 rounded font-bold disabled:opacity-50 disabled:cursor-not-allowed transition-colors hover:bg-yellow-300"
+      >
+        <FiArrowLeft className="inline-block mr-1" />
+        Anterior
+      </button>
+      <span className="text-gray-300">
+        Página {page} de {totalPages}
+      </span>
+      <button
+        onClick={onNext}
+        disabled={page >= totalPages}
+        className="bg-[#eaff00] text-[#101a2a] px-4 py-2 rounded font-bold disabled:opacity-50 disabled:cursor-not-allowed transition-colors hover:bg-yellow-300"
+      >
+        Siguiente
+        <FiArrowRight className="inline-block ml-1" />
+      </button>
+    </div>
+  );
+};
+
+const ProfileSkeleton = () => (
+  <div className="animate-pulse space-y-4">
+    <div className="h-10 bg-slate-700/60 rounded w-2/3" />
+    <div className="h-4 bg-slate-700/60 rounded w-1/2" />
+    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-6">
+      {Array.from({ length: 6 }).map((_, i) => (
+        <div key={i} className="h-20 bg-slate-700/60 rounded" />
+      ))}
+    </div>
+  </div>
+);
+
+const ReviewsSkeleton = () => (
+  <div className="animate-pulse space-y-4">
+    {Array.from({ length: 3 }).map((_, i) => (
+      <div key={i} className="h-24 bg-slate-700/60 rounded" />
+    ))}
+  </div>
+);
+
 function MisDatos() {
   const { apiFetch } = useContext(AuthContext);
   const [datos, setDatos] = useState(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [form, setForm] = useState({
-    nombre: "",
-    apellido: "",
-    email: "",
-  });
-  const [loading, setLoading] = useState(true);
+  const [form, setForm] = useState({ nombre: "", apellido: "", email: "" });
+  const [loadingPerfil, setLoadingPerfil] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
+  // Reseñas (idéntico a Jugadores.jsx)
+  const [reviews, setReviews] = useState([]);
+  const [page, setPage] = useState(1);
+  const [limit, setLimit] = useState(5);
+  const [totalReviews, setTotalReviews] = useState(0);
+  const [loadingResenias, setLoadingResenias] = useState(false);
+
   useEffect(() => {
-    const fetchPerfil = async () => {
-      setLoading(true);
+    let active = true;
+    (async () => {
+      setLoadingPerfil(true);
       try {
         const response = await apiFetch("/api/users_b/perfil");
+        if (!active) return;
         if (response.ok) {
           const data = await response.json();
           setDatos(data);
         } else {
           toast.error("No se pudieron cargar los datos del perfil.");
         }
-      } catch (error) {
+      } catch {
         toast.error("Error de red al cargar el perfil.");
       } finally {
-        setLoading(false);
+        if (active) setLoadingPerfil(false);
       }
-    };
-    fetchPerfil();
+    })();
+    return () => { active = false; };
   }, [apiFetch]);
+
+  useEffect(() => {
+    let active = true;
+    (async () => {
+      setLoadingResenias(true);
+      try {
+        const basePath = encodeURI("/api/users_b/reseñas/listar");
+        const url = `${basePath}?page=${page}&limit=${limit}`;
+        const response = await apiFetch(url);
+        if (!active) return;
+        if (response.ok) {
+          const data = await response.json();
+          const lista = data?.reseñas || data?.resenias || data?.results || data?.items || [];
+          setReviews(Array.isArray(lista) ? lista : []);
+          setTotalReviews(Number(data?.total) || lista.length || 0);
+        } else {
+          setReviews([]);
+          setTotalReviews(0);
+          toast.error("Error al obtener reseñas");
+        }
+      } catch {
+        toast.error("Error al conectar con el servidor");
+      } finally {
+        if (active) setLoadingResenias(false);
+      }
+    })();
+    return () => { active = false; };
+  }, [apiFetch, page, limit]);
 
   const handleOpenEditModal = () => {
     if (datos) {
@@ -125,8 +239,22 @@ function MisDatos() {
     }
   };
 
+  const handlePrevPage = () => {
+    setPage((prev) => Math.max(prev - 1, 1));
+  };
+
+  const handleNextPage = () => {
+    const totalPages = Math.ceil(totalReviews / limit);
+    setPage((prev) => Math.min(prev + 1, totalPages));
+  };
+
+  const handleLimitChange = (e) => {
+    setLimit(Number(e.target.value));
+    setPage(1); // Reiniciar a la primera página al cambiar el límite
+  };
+
   // --- No se muestra NADA mientras carga o si no hay datos (hasta que falle) ---
-  if (loading) {
+  if (loadingPerfil) {
     return null;
   }
 
@@ -139,6 +267,8 @@ function MisDatos() {
         <p className="text-red-300">No se pudieron cargar los datos.</p>
       </div>
     );
+
+  const totalPages = Math.ceil(totalReviews / limit);
 
   return (
     <>
@@ -194,6 +324,49 @@ function MisDatos() {
             value={datos.categoria}
           />
         </section>
+
+        <div className="mt-8">
+          <h2 className="text-2xl font-bold text-white mb-4">
+            Reseñas Recibidas
+          </h2>
+
+          {/* Selector de cantidad de reseñas por página */}
+          <div className="mb-4">
+            <label className="text-slate-200 text-sm font-semibold mb-2 block">
+              Reseñas por página:
+            </label>
+            <select
+              value={limit}
+              onChange={handleLimitChange}
+              className="bg-slate-900 text-white rounded-lg border border-slate-700 focus:outline-none focus:ring-2 focus:ring-[#fdc700] focus:border-[#fdc700] transition-all duration-200"
+            >
+              {[5, 10, 15, 20].map((option) => (
+                <option key={option} value={option}>
+                  {option}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <ul className="space-y-4">
+            {reviews.length === 0 && (
+              <li className="text-gray-400 text-center py-4">
+                No hay reseñas para mostrar.
+              </li>
+            )}
+            {reviews.map((r) => (
+              <ReviewCard key={r.id} r={r} />
+            ))}
+          </ul>
+
+          <Pagination
+            page={page}
+            total={totalReviews}
+            limit={limit}
+            onPrev={handlePrevPage}
+            onNext={handleNextPage}
+          />
+        </div>
       </div>
 
       <Modal
@@ -262,6 +435,19 @@ function MisDatos() {
           </div>
         </form>
       </Modal>
+
+      {/* Skeletons para carga */}
+      {loadingPerfil && (
+        <div className="w-full max-w-3xl mx-auto p-4 md:p-8">
+          <ProfileSkeleton />
+          <div className="mt-8">
+            <h2 className="text-2xl font-bold text-white mb-4">
+              Reseñas Recibidas
+            </h2>
+            <ReviewsSkeleton />
+          </div>
+        </div>
+      )}
     </>
   );
 }

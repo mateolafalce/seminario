@@ -1,8 +1,6 @@
-// src/pages/ReseniasPublicas.jsx
 import React, { useEffect, useState } from "react";
 import { FiUser } from "react-icons/fi";
 
-// igual que en tus otras pantallas
 const BACKEND_URL = `http://${window.location.hostname}:8000`;
 const API_BASE =
   window.location.hostname === "localhost"
@@ -11,10 +9,7 @@ const API_BASE =
 
 async function getJSON(url) {
   const resp = await fetch(url);
-  if (!resp.ok) {
-    const txt = await resp.text();
-    throw new Error(`${resp.status} ${resp.statusText}: ${txt}`);
-  }
+  if (!resp.ok) throw new Error(`${resp.status} ${resp.statusText}`);
   return resp.json();
 }
 
@@ -34,7 +29,7 @@ const ReseniasPublicas = () => {
         setTopJugadores(Array.isArray(top) ? top : []);
         setUltimasResenias(Array.isArray(ult) ? ult : []);
       } catch (e) {
-        console.error("Error cargando reseñas públicas:", e);
+        console.error(e);
         setErrorMsg("No pudimos cargar los datos de reseñas.");
       } finally {
         setLoading(false);
@@ -49,17 +44,12 @@ const ReseniasPublicas = () => {
       </h1>
 
       {loading && <p className="text-center">Cargando...</p>}
-      {!loading && errorMsg && (
-        <p className="text-center text-red-400">{errorMsg}</p>
-      )}
+      {!loading && errorMsg && <p className="text-center text-red-400">{errorMsg}</p>}
 
       {!loading && !errorMsg && (
         <>
-          {/* 🏆 Top jugadores */}
           <section className="mb-10">
-            <h2 className="text-2xl font-bold mb-4">
-              🏆 Top Jugadores Mejor Calificados
-            </h2>
+            <h2 className="text-2xl font-bold mb-4">🏆 Top Jugadores Mejor Calificados</h2>
             {topJugadores.length === 0 ? (
               <p className="text-gray-400">Aún no hay jugadores rankeados.</p>
             ) : (
@@ -73,9 +63,7 @@ const ReseniasPublicas = () => {
                       <p className="font-semibold text-lg">
                         {idx + 1}. {jugador.nombre} {jugador.apellido}
                         {jugador.username && (
-                          <span className="text-sm text-gray-400 ml-2">
-                            @{jugador.username}
-                          </span>
+                          <span className="text-sm text-gray-400 ml-2">@{jugador.username}</span>
                         )}
                       </p>
                     </div>
@@ -84,8 +72,7 @@ const ReseniasPublicas = () => {
                         ⭐ {Number(jugador.promedio).toFixed(2)} / 5
                       </p>
                       <p className="text-sm text-gray-400">
-                        {jugador.cantidad} reseña
-                        {jugador.cantidad === 1 ? "" : "s"}
+                        {jugador.cantidad} reseña{jugador.cantidad === 1 ? "" : "s"}
                       </p>
                     </div>
                   </li>
@@ -94,7 +81,6 @@ const ReseniasPublicas = () => {
             )}
           </section>
 
-          {/* 💬 Últimas reseñas */}
           <section>
             <h2 className="text-2xl font-bold mb-4">🆕 Últimas Reseñas</h2>
             {ultimasResenias.length === 0 ? (
@@ -102,36 +88,20 @@ const ReseniasPublicas = () => {
             ) : (
               <ul className="space-y-4">
                 {ultimasResenias.map((r, i) => (
-                  <li
-                    key={r._id || i}
-                    className="bg-gray-900 p-4 rounded-md border border-gray-700"
-                  >
+                  <li key={r._id || i} className="bg-gray-900 p-4 rounded-md border border-gray-700">
                     <div className="flex justify-between text-sm text-gray-400 mb-2">
                       <span>
                         <FiUser className="inline-block mr-1" />
-                        <b>
-                          {r.autor?.nombre} {r.autor?.apellido}
-                        </b>{" "}
-                        reseñó a{" "}
-                        <b>
-                          {r.destinatario?.nombre} {r.destinatario?.apellido}
-                        </b>
+                        <b>{r.autor?.nombre} {r.autor?.apellido}</b> reseñó a{" "}
+                        <b>{r.destinatario?.nombre} {r.destinatario?.apellido}</b>
                       </span>
-                      <span>
-                        {r.fecha
-                          ? new Date(r.fecha).toLocaleDateString("es-AR")
-                          : ""}
-                      </span>
+                      <span>{r.fecha ? new Date(r.fecha).toLocaleDateString("es-AR") : ""}</span>
                     </div>
                     <div className="text-yellow-400 text-lg">
                       {"★".repeat(Number(r.numero) || 0)}
                       {"☆".repeat(5 - (Number(r.numero) || 0))}
                     </div>
-                    {r.observacion && (
-                      <p className="text-gray-200 italic mt-2">
-                        “{r.observacion}”
-                      </p>
-                    )}
+                    {r.observacion && <p className="text-gray-200 italic mt-2">“{r.observacion}”</p>}
                   </li>
                 ))}
               </ul>
