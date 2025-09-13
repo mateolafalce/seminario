@@ -16,88 +16,55 @@ router = APIRouter(prefix="/preferencias", tags=["Preferencias"])
 
 
 @router.post("/guardar")
-async def guardar_preferencias(
-        preferencias: PreferenciasInput,
-        user: dict = Depends(current_user)):
-    # Validar si el usuario está habilitado para hacer reservas
+async def guardar_preferencias(preferencias: PreferenciasInput, user: dict = Depends(current_user)):
     if user.get("habilitado") is not True:
-        raise HTTPException(
-            status_code=403,
-            detail="Usuario no habilitado para hacer reservas")
+        raise HTTPException(status_code=403, detail="Usuario no habilitado para hacer reservas")
 
-    # Validación del usuario
     if not user or not user.get("id") or not ObjectId.is_valid(user["id"]):
         raise HTTPException(status_code=401, detail="Usuario no autenticado")
 
-    # >>> INICIO: Lógica para limitar a 7 preferencias <<<
+    # Evitar vacíos
+    if not preferencias.dias or not preferencias.horarios or not preferencias.canchas:
+        raise HTTPException(status_code=400, detail="Debes elegir al menos un día, un horario y una cancha.")
+
+    # Límite de 7 docs por usuario (como ya tenías)
     user_id = ObjectId(user["id"])
     if db_client.preferencias.count_documents({"usuario_id": user_id}) >= 7:
-        raise HTTPException(
-            status_code=400,
-            detail="Has alcanzado el límite máximo de 7 preferencias.")
-    # >>> FIN: Lógica para limitar a 7 preferencias <<<
+        raise HTTPException(status_code=400, detail="Has alcanzado el límite máximo de 7 preferencias.")
 
-    # Validaciones contra la base de datos
-    dias_validos = db_client.dias.find()  # Obtener todos los días válidos
-    # Obtener todos los horarios válidos
-    horarios_validos = db_client.horarios.find()
-    canchas_validas = db_client.canchas.find()  # Obtener todas las canchas válidas
+    # Maps
+    dias_oid_map = {d["nombre"]: d["_id"] for d in db_client.dias.find()}
+    horarios_oid_map = {h["hora"]: h["_id"] for h in db_client.horarios.find()}
+    canchas_oid_map = {c["nombre"]: c["_id"] for c in db_client.canchas.find()}
 
-    # Crear diccionarios para obtener los OIDs
-    dias_oid_map = {dia["nombre"]: dia["_id"] for dia in dias_validos}
-    horarios_oid_map = {hora["hora"]: hora["_id"] for hora in horarios_validos}
-    canchas_oid_map = {cancha["nombre"]: cancha["_id"]
-                       for cancha in canchas_validas}
+    # Dedupe + validación
+    dias_nombres = list(dict.fromkeys(preferencias.dias))
+    horarios_nombres = list(dict.fromkeys(preferencias.horarios))
+    canchas_nombres = list(dict.fromkeys(preferencias.canchas))
 
-    # Convertir los nombres de días, horarios y canchas a OIDs
-    dias_invalidos = []
-    horarios_invalidos = []
-    canchas_invalidas = []
+    dias_oid, horarios_oid, canchas_oid = [], [], []
+    dias_invalidos, horarios_invalidos, canchas_invalidas = [], [], []
 
-    # Reemplazar los nombres por los OIDs y verificar si son válidos
-    dias_oid = []
-    for dia in preferencias.dias:
-        if dia in dias_oid_map:
-            dias_oid.append(dias_oid_map[dia])
-        else:
-            dias_invalidos.append(dia)
+    for d in dias_nombres:
+        (dias_oid if d in dias_oid_map else dias_invalidos).append(dias_oid_map.get(d, d))
+    for h in horarios_nombres:
+        (horarios_oid if h in horarios_oid_map else horarios_invalidos).append(horarios_oid_map.get(h, h))
+    for c in canchas_nombres:
+        (canchas_oid if c in canchas_oid_map else canchas_invalidas).append(canchas_oid_map.get(c, c))
 
-    horarios_oid = []
-    for hora in preferencias.horarios:
-        if hora in horarios_oid_map:
-            horarios_oid.append(horarios_oid_map[hora])
-        else:
-            horarios_invalidos.append(hora)
-
-    canchas_oid = []
-    for cancha in preferencias.canchas:
-        if cancha in canchas_oid_map:
-            canchas_oid.append(canchas_oid_map[cancha])
-        else:
-            canchas_invalidas.append(cancha)
-
-    # Si hay elementos inválidos, devolver un error
     if dias_invalidos or horarios_invalidos or canchas_invalidas:
-        raise HTTPException(
-            status_code=400,
-            detail={
-                "dias_invalidos": dias_invalidos,
-                "horarios_invalidos": horarios_invalidos,
-                "canchas_invalidas": canchas_invalidas
-            }
-        )
+        raise HTTPException(status_code=400, detail={
+            "dias_invalidos": [x for x in dias_invalidos if not isinstance(x, ObjectId)],
+            "horarios_invalidos": [x for x in horarios_invalidos if not isinstance(x, ObjectId)],
+            "canchas_invalidas": [x for x in canchas_invalidas if not isinstance(x, ObjectId)],
+        })
 
-    # Insertar siempre nuevas preferencias
-    nueva_preferencia = {
-        "usuario_id": ObjectId(user["id"]),
-        "dias": dias_oid,  # Guardar los OIDs de los días
-        "horarios": horarios_oid,  # Guardar los OIDs de los horarios
-        "canchas": canchas_oid  # Guardar los OIDs de las canchas
-    }
-
-    # Insertar las preferencias en la base de datos
-    db_client.preferencias.insert_one(nueva_preferencia)
-
+    db_client.preferencias.insert_one({
+        "usuario_id": user_id,
+        "dias": dias_oid,
+        "horarios": horarios_oid,
+        "canchas": canchas_oid
+    })
     return {"msg": "Preferencias guardadas con éxito"}
 
 

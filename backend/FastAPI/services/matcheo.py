@@ -10,6 +10,7 @@ from db.client import db_client
 from dotenv import load_dotenv
 import os
 import pytz
+from functools import lru_cache
 
 load_dotenv()
 
@@ -41,15 +42,14 @@ def a_notificar(usuario_id: str) -> List[str]:
     return usuarios_a_notificar
 
 def gi(user_id_1: str, user_id_2: str) -> int:
-    """Cantidad de partidos (completados) donde i y j compartieron reserva."""
     if not (ObjectId.is_valid(user_id_1) and ObjectId.is_valid(user_id_2)):
         raise ValueError("IDs de usuario no válidos")
     u1 = ObjectId(user_id_1); u2 = ObjectId(user_id_2)
 
-    estado_completada = db_client.estadoreserva.find_one({"nombre": "Completada"})
+    estado_confirmada = db_client.estadoreserva.find_one({"nombre": "Confirmada"})
     match = {"usuarios.id": {"$all": [u1, u2]}}
-    if estado_completada:
-        match["estado"] = estado_completada["_id"]
+    if estado_confirmada:
+        match["estado"] = estado_confirmada["_id"]
     return db_client.reservas.count_documents(match)
 
 
@@ -58,21 +58,19 @@ def g(user_id: str) -> int:
         raise ValueError("ID de usuario no válido")
     user_oid = ObjectId(user_id)
 
-    estado_completada = db_client.estadoreserva.find_one({"nombre": "Completada"})
-    if estado_completada:
+    estado_confirmada = db_client.estadoreserva.find_one({"nombre": "Confirmada"})
+    if estado_confirmada:
         return db_client.reservas.count_documents({
             "usuarios.id": user_oid,
-            "estado": estado_completada["_id"]
+            "estado": estado_confirmada["_id"]
         })
 
-    # Fallback si no existe "Completada": partidas anteriores a ahora y no canceladas
+    # Fallback (por si no existiera el estado en la BD)
     estado_cancelada = db_client.estadoreserva.find_one({"nombre": "Cancelada"})
     now_ar = datetime.now(pytz.timezone("America/Argentina/Buenos_Aires"))
-
     match_cond = {"usuarios.id": user_oid}
     if estado_cancelada:
         match_cond["estado"] = {"$ne": estado_cancelada["_id"]}
-
     pipeline = [
         {"$match": match_cond},
         {"$lookup": {"from": "horarios", "localField": "hora_inicio", "foreignField": "_id", "as": "horario_info"}},
@@ -96,6 +94,18 @@ def g(user_id: str) -> int:
     return result[0]["total_partidos"] if result else 0
 
 
+@lru_cache(maxsize=1)
+def get_dias_map():
+    return {str(dia["_id"]): idx for idx, dia in enumerate(db_client.dias.find())}
+
+@lru_cache(maxsize=1)
+def get_horarios_map():
+    return {str(hora["_id"]): idx for idx, hora in enumerate(db_client.horarios.find())}
+
+@lru_cache(maxsize=1)
+def get_canchas_map():
+    return {str(cancha["_id"]): idx for idx, cancha in enumerate(db_client.canchas.find())}
+
 def get_preference_vector(user_id: str) -> Tuple[List[float], List[float], List[float]]:
     if not ObjectId.is_valid(user_id):
         raise ValueError("ID de usuario no válido")
@@ -107,9 +117,9 @@ def get_preference_vector(user_id: str) -> Tuple[List[float], List[float], List[
     if not preferencias:
         return [], [], []
     
-    dias_map = {str(dia["_id"]): idx for idx, dia in enumerate(db_client.dias.find())}
-    horarios_map = {str(hora["_id"]): idx for idx, hora in enumerate(db_client.horarios.find())}
-    canchas_map = {str(cancha["_id"]): idx for idx, cancha in enumerate(db_client.canchas.find())}
+    dias_map = get_dias_map()
+    horarios_map = get_horarios_map()
+    canchas_map = get_canchas_map()
     
     max_dias = len(dias_map)
     max_horarios = len(horarios_map) 
@@ -155,6 +165,7 @@ def d(user_id_1: str, user_id_2: str) -> float:
     return math.sqrt(distancia_dias + distancia_horarios + distancia_canchas)
 
 
+@lru_cache(maxsize=1)
 def d_max() -> float:
     max_distancia_dias = db_client.dias.count_documents({})
     max_distancia_horarios = db_client.horarios.count_documents({})
@@ -165,11 +176,10 @@ def d_max() -> float:
 def S(user_id_1: str, user_id_2: str) -> float:
     distancia = d(user_id_1, user_id_2)
     distancia_maxima = d_max()
-    
     if distancia == float('inf') or distancia_maxima == 0:
         return 0.0
-    
-    return 1 - (distancia / distancia_maxima)
+    s = 1 - (distancia / distancia_maxima)
+    return max(0.0, min(1.0, s))
 
 
 def J(user_id_1: str, user_id_2: str) -> float:
@@ -237,143 +247,28 @@ def get_top_matches_from_db(user_id: str, exclude_user_ids: List[str] = None, to
     return [(peso["user_id"], peso["score"]) for peso in pesos]
 
 
-def get_training_data() -> List[Tuple[str, str, int]]:
-    pipeline = [
-        {
-            "$group": {
-                "_id": {
-                    "cancha": "$cancha",
-                    "fecha": "$fecha", 
-                    "hora_inicio": "$hora_inicio"
-                },
-                "usuarios": {"$addToSet": "$usuario"},
-                "count": {"$sum": 1}
-            }
-        },
-        {
-            "$match": {
-                "count": {"$gte": 2}
-            }
-        }
-    ]
-    
-    reservas_agrupadas = list(db_client.reservas.aggregate(pipeline))
-    
-    training_data = []
-    all_users = list(db_client.users.find({"habilitado": True}, {"_id": 1}))
-    
-    for grupo in reservas_agrupadas:
-        usuarios_en_partido = grupo["usuarios"]
-        for i, user1 in enumerate(usuarios_en_partido):
-            for j, user2 in enumerate(usuarios_en_partido):
-                if i != j:
-                    training_data.append((str(user1), str(user2), 1))
-    
-    for user1 in all_users:
-        for user2 in all_users:
-            if user1["_id"] != user2["_id"]:
-                pair_exists = any(
-                    (str(user1["_id"]), str(user2["_Id"]), 1) in training_data or 
-                    (str(user2["_Id"]), str(user1["_id"]), 1) in training_data
-                    for _ in [None]
-                )
-                if not pair_exists:
-                    training_data.append((str(user1["_id"]), str(user2["_id"]), 0))
-    
-    return training_data
-
-
-def get_training_data_from_completed_reservations() -> List[Tuple[str, str, int]]:
-    """
-    Obtiene datos de entrenamiento basados en reservas completadas y sus notificaciones
-    """
-    estado_completada = db_client.estadoreserva.find_one({"nombre": "Completada"})
-    if not estado_completada:
-        return []
-    
-    # Pipeline para obtener reservas completadas con sus notificaciones
-    pipeline = [
-        {"$match": {"estado": estado_completada["_id"], "notificacion_id": {"$ne": None}}},
-        {
-            "$lookup": {
-                "from": "notificaciones",
-                "localField": "notificacion_id",
-                "foreignField": "_id",
-                "as": "notificacion_info"
-            }
-        },
-        {"$unwind": "$notificacion_info"},
-        {
-            "$group": {
-                "_id": {
-                    "cancha": "$cancha",
-                    "fecha": "$fecha", 
-                    "hora_inicio": "$hora_inicio"
-                },
-                "usuarios": {"$addToSet": "$usuario"},
-                "notificaciones": {"$addToSet": "$notificacion_info"}
-            }
-        },
-        {
-            "$match": {
-                "$expr": {"$gte": [{"$size": "$usuarios"}, 2]}
-            }
-        }
-    ]
-    
-    reservas_completadas = list(db_client.reservas.aggregate(pipeline))
-    training_data = []
-    
-    for grupo in reservas_completadas:
-        usuarios_en_partido = grupo["usuarios"]
-        notificaciones = grupo["notificaciones"]
-        
-        # Para cada notificación en este partido
-        for notif in notificaciones:
-            usuario_i = str(notif["i"])  # Usuario que hizo la reserva
-            usuarios_j = [str(j_id) for j_id in notif["j"]]  # Usuarios notificados
-            
-            # Para cada usuario que efectivamente jugó en este partido
-            for usuario_en_partido in usuarios_en_partido:
-                usuario_en_partido_str = str(usuario_en_partido)
-                
-                if usuario_en_partido_str != usuario_i:  # No comparar consigo mismo
-                    # Si el usuario que jugó estaba en la lista de notificados (j), label = 1
-                    if usuario_en_partido_str in usuarios_j:
-                        training_data.append((usuario_i, usuario_en_partido_str, 1))
-                    
-                    # Para los usuarios notificados que NO jugaron, label = 0
-                    for usuario_j in usuarios_j:
-                        if usuario_j not in [str(u) for u in usuarios_en_partido]:
-                            training_data.append((usuario_i, usuario_j, 0))
-    
-    return training_data
-
-
 def get_training_data_from_reservas() -> List[Tuple[str, str, int]]:
     """
-    Genera (i, j, label) desde reservas 'Completada':
+    Genera (i, j, label) desde reservas 'Confirmada':
       - label=1 si i y j jugaron juntos (pares dirigidos en usuarios[])
       - label=1/0 según si un j notificado por i terminó (o no) en usuarios[].
     """
-    estado_completada = db_client.estadoreserva.find_one({"nombre": "Completada"})
-    if not estado_completada:
+    est_conf = db_client.estadoreserva.find_one({"nombre": "Confirmada"})
+    if not est_conf:
         return []
 
     rs = list(db_client.reservas.aggregate([
-        {"$match": {"estado": estado_completada["_id"]}},
+        {"$match": {"estado": est_conf["_id"]}},
         {"$project": {"usuarios": 1, "notificaciones": 1}}
     ]))
 
     out: set[Tuple[str, str, int]] = set()
     for r in rs:
         usuarios_ids = [str(u["id"]) for u in r.get("usuarios", []) if u.get("id")]
-        # pares que jugaron (dirigidos)
         for i, ui in enumerate(usuarios_ids):
             for uj in usuarios_ids[i+1:]:
                 out.add((ui, uj, 1))
                 out.add((uj, ui, 1))
-        # feedback desde notificaciones embebidas
         for notif in r.get("notificaciones", []):
             origen = str(notif.get("usuario_origen")) if notif.get("usuario_origen") else None
             if not origen:
@@ -800,3 +695,10 @@ def get_user_weights(user_id_1: str, user_id_2: str) -> Tuple[float, float, floa
     else:
         # Si no existe, devolver valores por defecto
         return 0.5, 0.5, 0.0
+
+# Helper para invalidar caches lru_cache de catálogos y d_max()
+def invalidate_catalog_caches():
+    get_dias_map.cache_clear()
+    get_horarios_map.cache_clear()
+    get_canchas_map.cache_clear()
+    d_max.cache_clear()

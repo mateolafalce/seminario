@@ -643,32 +643,20 @@ async def jugadores_con_quienes_jugo(user: dict = Depends(current_user)):
     user_id = ObjectId(user["id"])
 
     def obtener_jugadores():
-        # Obtener el ObjectId del estado "Confirmada"
-        estado_confirmada = db_client.estadoreserva.find_one({"nombre": "Confirmada"})
-        if not estado_confirmada:
+        estado = db_client.estadoreserva.find_one({"nombre": "Confirmada"})
+        if not estado:
             return []
-        estado_confirmada_id = estado_confirmada["_id"]
 
-        # Buscar reservas confirmadas del usuario
-        reservas_usuario = list(db_client.reservas.find({
-            "usuario": user_id,
-            "estado": estado_confirmada_id
-        }))
+        match = {"usuarios.id": user_id, "estado": estado["_id"]}
+        reservas_usuario = list(db_client.reservas.find(match, {"usuarios": 1}))
 
         otros_ids = set()
         for reserva in reservas_usuario:
-            # Buscar otras reservas con mismos criterios (cancha, fecha, hora, estado confirmado)
-            mismas_reservas = db_client.reservas.find({
-                "cancha": reserva["cancha"],
-                "fecha": reserva["fecha"],
-                "hora_inicio": reserva["hora_inicio"],
-                "estado": estado_confirmada_id
-            })
-            for r in mismas_reservas:
-                jugador_id = r.get("usuario")
-                if jugador_id != user_id:
-                    otros_ids.add(jugador_id)
-        # Buscar los datos de esos usuarios
+            for u in reserva.get("usuarios", []):
+                uid = u.get("id")
+                if uid and uid != user_id:
+                    otros_ids.add(uid)
+
         usuarios = list(db_client.users.find({"_id": {"$in": list(otros_ids)}}))
         resultado = []
         for u in usuarios:
@@ -709,23 +697,11 @@ async def crear_resena(
     estado_confirmada_id = estado_confirmada["_id"]
 
     def han_jugado_juntos():
-        # Buscar reservas confirmadas del usuario actual
-        reservas_jugador = list(db_client.reservas.find({
-            "usuario": jugador_oid,
-            "estado": estado_confirmada_id
-        }))
-        for reserva in reservas_jugador:
-            # Buscar si el otro usuario tiene una reserva confirmada en el mismo slot
-            reserva_con = db_client.reservas.find_one({
-                "usuario": con_oid,
-                "cancha": reserva["cancha"],
-                "fecha": reserva["fecha"],
-                "hora_inicio": reserva["hora_inicio"],
-                "estado": estado_confirmada_id
-            })
-            if reserva_con:
-                return True
-        return False
+        estado = db_client.estadoreserva.find_one({"nombre": "Confirmada"})
+        match = {"usuarios.id": {"$all": [jugador_oid, con_oid]}}
+        if estado:
+            match["estado"] = estado["_id"]
+        return db_client.reservas.count_documents(match) > 0
 
     juntos = await asyncio.to_thread(han_jugado_juntos)
     if not juntos:

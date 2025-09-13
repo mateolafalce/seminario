@@ -22,6 +22,7 @@ from datetime import datetime, timedelta
 from services.matcheo import a_notificar, optimize_weights
 from services.email import notificar_posible_matcheo
 from pymongo.errors import DuplicateKeyError
+import os
 
 class ReservaUsuario(BaseModel):
     id: str
@@ -68,10 +69,115 @@ def clean_mongo_doc(doc):
     else:
         return doc
 
+NOTIFY_ON_COUNTS = set(int(x) for x in os.getenv("NOTIFY_ON_COUNTS", "1,3,5").split(",") if x.strip())
+NOTIFY_COOLDOWN_MIN = int(os.getenv("NOTIFY_COOLDOWN_MIN", "120"))  # 2 horas por defecto
+
+def should_notify_slot(reserva_doc, argentina_tz):
+    # umbral por cantidad de usuarios
+    cant = len(reserva_doc.get("usuarios", []))
+    if NOTIFY_ON_COUNTS and cant not in NOTIFY_ON_COUNTS:
+        return False
+
+    # cooldown por última notificación del slot
+    notifs = reserva_doc.get("notificaciones", [])
+    if notifs:
+        last = max([n.get("fecha") for n in notifs if isinstance(n.get("fecha"), datetime)], default=None)
+        if last and (datetime.now(argentina_tz) - last) < timedelta(minutes=NOTIFY_COOLDOWN_MIN):
+            return False
+
+    return True
+
+def tiene_conflicto_slot(user_oid, fecha, horario_id):
+    est_res, est_conf = get_estado_ids_activos()
+    return db_client.reservas.find_one({
+        "fecha": fecha,
+        "hora_inicio": horario_id,
+        "estado": {"$in": [est_res, est_conf]},
+        "usuarios.id": user_oid
+    }) is not None
+
+def match_preferencia(user_oid, fecha, horario_id, cancha_id):
+    # si querés que sea opcional, hacé que esto siempre devuelva True
+    # y solo activalo cuando quieras
+    try:
+        dia_nombre = ["Lunes","Martes","Miércoles","Jueves","Viernes","Sábado","Domingo"][datetime.strptime(fecha, "%d-%m-%Y").weekday()]
+        dia_doc = db_client.dias.find_one({"nombre": dia_nombre})
+        dia_id = dia_doc["_id"] if dia_doc else None
+        query = {
+            "usuario_id": user_oid,
+            "horarios": {"$in": [horario_id]},
+            "canchas": {"$in": [cancha_id]}
+        }
+        if dia_id:
+            query["dias"] = {"$in": [dia_id]}
+        return db_client.preferencias.find_one(query) is not None
+    except:
+        return True  # en caso de error, no bloquear
+
+def enviar_notificaciones_slot(reserva_doc, origen_user_id, hora_str, cancha_nombre):
+    argentina_tz = pytz.timezone("America/Argentina/Buenos_Aires")
+    if not should_notify_slot(reserva_doc, argentina_tz):
+        return
+
+    cancha_id = reserva_doc["cancha"]
+    horario_id = reserva_doc["hora_inicio"]
+    fecha_str = reserva_doc["fecha"]
+
+    ya_notificados = set()
+    for notif_ant in reserva_doc.get("notificaciones", []):
+        for uid in notif_ant.get("usuarios_notificados", []):
+            try:
+                ya_notificados.add(uid if isinstance(uid, ObjectId) else ObjectId(uid))
+            except:
+                pass
+
+    origen_oid = ObjectId(origen_user_id)
+    candidatos = a_notificar(origen_user_id)
+
+    notificados = []
+    vistos_usuarios = set()
+    vistos_emails = set()
+
+    for usuario_id in candidatos:
+        if not ObjectId.is_valid(usuario_id):
+            continue
+        oid = ObjectId(usuario_id)
+        if oid == origen_oid or oid in vistos_usuarios or oid in ya_notificados:
+            continue
+        if tiene_conflicto_slot(oid, fecha_str, horario_id):
+            continue
+        u = db_client.users.find_one({"_id": oid, "habilitado": True})
+        if not u:
+            continue
+        email = u.get("email")
+        if not email or email in vistos_emails:
+            continue
+        if not match_preferencia(oid, fecha_str, horario_id, cancha_id):
+            continue
+        ok = notificar_posible_matcheo(
+            to=email,
+            day=fecha_str,
+            hora=hora_str,
+            cancha=cancha_nombre
+        )
+        if ok:
+            notificados.append(oid)
+            vistos_emails.add(email)
+            vistos_usuarios.add(oid)
+    if notificados:
+        db_client.reservas.update_one(
+            {"_id": reserva_doc["_id"]},
+            {"$push": {"notificaciones": {
+                "usuario_origen": origen_oid,
+                "usuarios_notificados": notificados,
+                "fecha": datetime.now(argentina_tz)
+            }}}
+        )
+
+
 @router.post("/reservar")
 async def reservar(reserva: Reserva, user: dict = Depends(current_user)):
     argentina_tz = pytz.timezone("America/Argentina/Buenos_Aires")
-
     try:
         # --- Validación de la fecha ---
         fecha_reserva_dt = datetime.strptime(reserva.fecha, "%d-%m-%Y").date()
@@ -189,70 +295,15 @@ async def reservar(reserva: Reserva, user: dict = Depends(current_user)):
                 except Exception as e:
                     print(f"Error programando recordatorio: {e}")
 
-                # Notificaciones de matcheo (mejoradas) + persistencia en reserva (dedupe por usuario y email)
-                try:
-                    usuarios_a_notificar = a_notificar(user["id"])
-
-                    origen_oid = ObjectId(user["id"])
-                    notificados: list[ObjectId] = []
-                    vistos_usuarios: set[ObjectId] = set()
-                    vistos_emails: set[str] = set()
-
-                    # Construir set de usuarios ya notificados anteriormente en este slot
-                    ya_notificados: set[ObjectId] = set()
-                    for notif_ant in reserva_existente.get("notificaciones", []):
-                        for uid in notif_ant.get("usuarios_notificados", []):
-                            if isinstance(uid, ObjectId):
-                                ya_notificados.add(uid)
-                            else:
-                                try:
-                                    ya_notificados.add(ObjectId(uid))
-                                except:
-                                    pass
-
-                    for usuario_id in usuarios_a_notificar:
-                        if not ObjectId.is_valid(usuario_id):
-                            continue
-                        oid = ObjectId(usuario_id)
-
-                        # No notificar a sí mismo, no repetir en el mismo envío, ni re-notificar históricos del mismo slot
-                        if oid == origen_oid or oid in vistos_usuarios or oid in ya_notificados:
-                            continue
-                        vistos_usuarios.add(oid)
-
-                        u = db_client.users.find_one({"_id": oid, "habilitado": True})
-                        if not u:
-                            continue
-
-                        email = u.get("email")
-                        # Dedupe por email (para ambientes de test con mismos emails)
-                        if not email or email in vistos_emails:
-                            continue
-
-                        ok = notificar_posible_matcheo(
-                            to=email,
-                            day=reserva.fecha,
-                            hora=reserva.horario,
-                            cancha=reserva.cancha
-                        )
-                        if ok:
-                            notificados.append(oid)
-                            vistos_emails.add(email)
-
-                    if notificados:
-                        db_client.reservas.update_one(
-                            {"_id": reserva_existente["_id"]},
-                            {"$push": {"notificaciones": {
-                                "usuario_origen": origen_oid,
-                                "usuarios_notificados": notificados,
-                                "fecha": datetime.now(pytz.timezone("America/Argentina/Buenos_Aires"))
-                            }}}
-                        )
-                except Exception as e:
-                    print(f"Error enviando/generando notificaciones: {e}")
-
+                # Centralizado: notificaciones de matcheo
+                hora_inicio_str = reserva.horario.split('-')[0]
+                enviar_notificaciones_slot(
+                    reserva_existente,
+                    user["id"],
+                    hora_inicio_str,
+                    reserva.cancha
+                )
                 return reserva_existente
-
             else:
                 # Crear nueva reserva padre (upsert por slot en esta cancha)
                 try:
@@ -318,80 +369,14 @@ async def reservar(reserva: Reserva, user: dict = Depends(current_user)):
                             }}
                         }
                     )
-
-                # Notificaciones de matcheo (mejoradas) (dedupe por usuario y email)
-                try:
-                    usuarios_a_notificar = a_notificar(user["id"])
-
-                    origen_oid = ObjectId(user["id"])
-                    notificados: list[ObjectId] = []
-                    vistos_usuarios: set[ObjectId] = set()
-                    vistos_emails: set[str] = set()
-
-                    # Construir set de usuarios ya notificados anteriormente en este slot
-                    ya_notificados: set[ObjectId] = set()
-                    for notif_ant in nueva_reserva.get("notificaciones", []):
-                        for uid in notif_ant.get("usuarios_notificados", []):
-                            if isinstance(uid, ObjectId):
-                                ya_notificados.add(uid)
-                            else:
-                                try:
-                                    ya_notificados.add(ObjectId(uid))
-                                except:
-                                    pass
-
-                    for usuario_id in usuarios_a_notificar:
-                        if not ObjectId.is_valid(usuario_id):
-                            continue
-                        oid = ObjectId(usuario_id)
-
-                        # No notificar a sí mismo, no repetir en el mismo envío, ni re-notificar históricos del mismo slot
-                        if oid == origen_oid or oid in vistos_usuarios or oid in ya_notificados:
-                            continue
-                        vistos_usuarios.add(oid)
-
-                        u = db_client.users.find_one({"_id": oid, "habilitado": True})
-                        if not u:
-                            continue
-
-                        email = u.get("email")
-                        # Dedupe por email (para ambientes de test con mismos emails)
-                        if not email or email in vistos_emails:
-                            continue
-
-                        ok = notificar_posible_matcheo(
-                            to=email,
-                            day=reserva.fecha,
-                            hora=reserva.horario,
-                            cancha=reserva.cancha
-                        )
-                        if ok:
-                            notificados.append(oid)
-                            vistos_emails.add(email)
-
-                    if notificados:
-                        db_client.reservas.update_one(
-                            {"_id": nueva_reserva["_id"]},
-                            {"$push": {"notificaciones": {
-                                "usuario_origen": origen_oid,
-                                "usuarios_notificados": notificados,
-                                "fecha": datetime.now(pytz.timezone("America/Argentina/Buenos_Aires"))
-                            }}}
-                        )
-                except Exception as e:
-                    print(f"Error enviando/generando notificaciones: {e}")
-
-                try:
-                    from services.scheduler import programar_recordatorio_nueva_reserva
-                    hora_inicio_str = reserva.horario.split('-')[0]
-                    programar_recordatorio_nueva_reserva(
-                        str(nueva_reserva["_id"]),
-                        reserva.fecha,
-                        hora_inicio_str
-                    )
-                except Exception as e:
-                    print(f"Error programando recordatorio: {e}")
-
+                # Centralizado: notificaciones de matcheo
+                hora_inicio_str = reserva.horario.split('-')[0]
+                enviar_notificaciones_slot(
+                    nueva_reserva,
+                    user["id"],
+                    hora_inicio_str,
+                    reserva.cancha
+                )
                 return nueva_reserva
 
         resultado = await asyncio.to_thread(operaciones_sincronas)
@@ -754,145 +739,6 @@ def cerrar_reservas_vencidas():
 
     return len(to_cancel) + len(to_confirm)
 
-def actualizar_reservas_completadas():
-    """Actualiza las reservas que ya pasaron de 'Reservada' a 'Completada'"""
-    argentina_tz = pytz.timezone("America/Argentina/Buenos_Aires")
-    ahora = datetime.now(argentina_tz)
-    
-    print(f"🕐 Hora actual: {ahora}")
-    print(f"📅 Fecha actual: {ahora.strftime('%d-%m-%Y %H:%M')}")
-    
-    # Obtener estados
-    estado_reservada = db_client.estadoreserva.find_one({"nombre": "Reservada"})
-    estado_completada = db_client.estadoreserva.find_one({"nombre": "Completada"})
-
-    if not estado_reservada:
-        print("❌ No se encontró el estado 'Reservada'")
-        return 0
-    
-    # Pipeline para encontrar reservas que ya pasaron
-    pipeline = [
-        {"$match": {"estado": estado_reservada["_id"]}},
-        {"$lookup": {
-            "from": "horarios",
-            "localField": "hora_inicio",
-            "foreignField": "_id",
-            "as": "horario_info"
-        }},
-        {"$unwind": "$horario_info"},
-        {"$addFields": {
-            "hora_fin": {
-                "$arrayElemAt": [
-                    {"$split": ["$horario_info.hora", "-"]}, 1
-                ]
-            }
-        }}
-    ]
-    
-    reservas = list(db_client.reservas.aggregate(pipeline))
-    print(f"📋 Se encontraron {len(reservas)} reservas en estado 'Reservada'")
-    
-    reservas_a_actualizar = []
-    datos_entrenamiento = {}  # Dict para almacenar feedback por pares
-    
-    for reserva in reservas:
-        try:
-            fecha_str = reserva["fecha"]
-            hora_fin_str = reserva["hora_fin"]
-            
-            print(f"\n🔍 Procesando reserva {reserva['_id']}:")
-            print(f"   📅 Fecha: {fecha_str}")
-            print(f"   🕐 Hora fin: {hora_fin_str}")
-            
-            # Convertir fecha DD-MM-YYYY y hora HH:MM a datetime naive
-            reserva_fin_dt_naive = datetime.strptime(f"{fecha_str} {hora_fin_str}", "%d-%m-%Y %H:%M")
-            print(f"   📅 DateTime naive: {reserva_fin_dt_naive}")
-            
-            # Localizar en timezone de Argentina
-            try:
-                reserva_fin_dt = argentina_tz.localize(reserva_fin_dt_naive)
-            except ValueError as e:
-                print(f"   ⚠️ Ambigüedad de timezone, usando is_dst=None: {e}")
-                reserva_fin_dt = argentina_tz.localize(reserva_fin_dt_naive, is_dst=None)
-            
-            print(f"   🌍 DateTime con timezone: {reserva_fin_dt}")
-            print(f"   🕐 Ahora: {ahora}")
-            print(f"   ⏰ Diferencia: {ahora - reserva_fin_dt}")
-            
-            ya_paso = reserva_fin_dt <= ahora
-            print(f"   ✅ ¿Ya pasó?: {ya_paso}")
-            
-            if ya_paso:
-                reservas_a_actualizar.append(reserva["_id"])
-                print(f"   ➕ Agregada para actualizar")
-                
-                # Procesar datos para entrenamiento del modelo usando todos los usuarios que reservaron
-                if len(reserva.get("usuarios", [])) > 1:
-                    print(f"   👥 Procesando interacciones entre {len(reserva['usuarios'])} usuarios")
-                    
-                    # Todos los usuarios confirmaron al jugar juntos
-                    usuarios_ids = [str(u["id"]) for u in reserva["usuarios"]]
-                    
-                    # Crear pares de usuarios que jugaron juntos
-                    for i, usuario_i in enumerate(usuarios_ids):
-                        for usuario_j in usuarios_ids[i+1:]:
-                            clave = (usuario_i, usuario_j)
-                            datos_entrenamiento[clave] = datos_entrenamiento.get(clave, 0) + 1
-                            print(f"   ✅ {usuario_i[:8]}... y {usuario_j[:8]}... jugaron juntos -> +1")
-                
-                # También procesar notificaciones si existen
-                for notificacion in reserva.get("notificaciones", []):
-                    usuario_origen = str(notificacion.get("usuario_origen"))
-                    usuarios_notificados = [str(uid) for uid in notificacion.get("usuarios_notificados", [])]
-                    
-                    if usuario_origen and usuarios_notificados:
-                        print(f"   📣 Usuario {usuario_origen[:8]}... notificó a {len(usuarios_notificados)} usuarios")
-                        
-                        # Verificar qué usuarios notificados efectivamente reservaron
-                        usuarios_reserva = [str(u["id"]) for u in reserva.get("usuarios", [])]
-                        
-                        for usuario_notificado in usuarios_notificados:
-                            clave = (usuario_origen, usuario_notificado)
-                            
-                            if usuario_notificado in usuarios_reserva:
-                                # El usuario notificado sí reservó -> +1
-                                datos_entrenamiento[clave] = datos_entrenamiento.get(clave, 0) + 1
-                                print(f"   ✅ {usuario_notificado[:8]}... fue notificado y SÍ reservó -> +1")
-                            else:
-                                # El usuario notificado no reservó -> +0
-                                datos_entrenamiento[clave] = datos_entrenamiento.get(clave, 0) + 0
-                                print(f"   ❌ {usuario_notificado[:8]}... fue notificado pero NO reservó -> +0")
-            else:
-                print(f"   ⏭️ Aún no ha pasado")
-                
-        except Exception as e:
-            print(f"❌ Error procesando reserva {reserva.get('_id', 'unknown')}: {e}")
-            import traceback
-            traceback.print_exc()
-            continue
-    
-    print(f"\n📊 Resumen:")
-    print(f"   📋 Total reservas revisadas: {len(reservas)}")
-    print(f"   ✅ Reservas a actualizar: {len(reservas_a_actualizar)}")
-    print(f"   🎯 Pares únicos con feedback: {len(datos_entrenamiento)}")
-    
-    # Actualizar en lote
-    if reservas_a_actualizar:
-        print(f"\n🔄 Actualizando {len(reservas_a_actualizar)} reservas...")
-        result = db_client.reservas.update_many(
-            {"_id": {"$in": reservas_a_actualizar}},
-            {"$set": {"estado": estado_completada["_id"]}}
-        )
-        
-        print(f"✅ Se actualizaron {result.modified_count} reservas a estado 'Completada'")
-        
-        # Entrenar/optimizar el modelo con reservas completadas y notificaciones embebidas
-        try:
-            optimize_weights()
-            print("✅ Optimización de pesos completada")
-        except Exception as e:
-            print(f"❌ Error optimizando pesos: {e}")
-            
 @router.get("/detalle")
 async def detalle_reserva(cancha: str, horario: str, fecha: str, usuario_id: str = None):
     """Obtiene el detalle de una reserva en un slot específico, incluyendo todos los usuarios"""
