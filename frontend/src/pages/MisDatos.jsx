@@ -344,9 +344,6 @@ function MisDatos() {
     <>
       {/* HEADER */}
       <div className="relative w-full overflow-hidden">
-        <div className="absolute inset-0 -z-10 bg-gradient-to-r from-slate-900 via-slate-900 to-slate-900" />
-        <div className="absolute -top-24 -left-24 h-72 w-72 rounded-full bg-amber-300/20 blur-3xl" />
-        <div className="absolute -bottom-24 -right-24 h-72 w-72 rounded-full bg-yellow-400/10 blur-3xl" />
         <div className="w-full max-w-6xl mx-auto px-4 pt-8 md:pt-12 pb-6">
           <div className="flex items-start gap-4">
             <div className="h-16 w-16 rounded-2xl bg-gradient-to-br from-amber-300 to-yellow-400 p-[2px]">

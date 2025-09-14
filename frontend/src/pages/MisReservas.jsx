@@ -6,8 +6,7 @@ import { toast } from "react-toastify";
 import Modal from '../components/common/Modal/Modal';
 import { FiUsers, FiStar } from 'react-icons/fi';
 import FormularioReseña from '../components/usuarios/FormularioResenias';
-import HistorialReservas from '../components/usuarios/HistorialReservas';
-import ProximaReservaItem from '../components/usuarios/ProximaReservaItem';
+import ReservaCard, { EmptyState } from '../components/common/Cards/CardReserva';
 
 function safeToast(message, color = "var(--color-red-400)") {
   toast(<MiToast mensaje={message} color={color} />);
@@ -211,32 +210,40 @@ function MisReservas() {
         </div>
 
         {/* Contenido */}
-        {vista === 'proximos' ? (                              
-          <div>
-            {proximasReservas.length === 0 ? (
-              <p className="text-gray-300 text-center">No tienes ninguna reserva activa.</p>
-            ) : (
-              <ul className="space-y-4">
-                {proximasReservas.map((reserva) => (
-                  <ProximaReservaItem
-                    key={reserva._id}
-                    reserva={reserva}
-                    onConfirmar={handleConfirmar}
-                    onCancelar={handleCancelar}
-                    // si querés ver jugadores desde próximas:
-                    onVerJugadores={() => handleVerJugadores(reserva)}
-                  />
-                ))}
-              </ul>
-            )}
-          </div>
+        {vista === 'proximos' ? (
+          proximasReservas.length === 0 ? (
+            <EmptyState />
+          ) : (
+            <ul className="space-y-4">
+              {proximasReservas.map((reserva) => (
+                <ReservaCard
+                  key={reserva._id}
+                  reserva={reserva}
+                  mode="proxima"
+                  onConfirmarAsistencia={handleConfirmar}
+                  onCancelar={handleCancelar}
+                  
+                />
+              ))}
+            </ul>
+          )
         ) : (
-          <HistorialReservas
-            historial={historial}
-            onVerJugadores={handleVerJugadores}
-            // si querés permitir confirmar desde historial (no suele aplicar):
-            // onConfirmarAsistencia={({ _id }) => handleConfirmar(_id)}
-          />
+          historial.length === 0 ? (
+            <EmptyState />
+          ) : (
+            <ul className="space-y-4">
+              {historial.map((reserva) => (
+                <ReservaCard
+                  key={reserva._id}
+                  reserva={reserva}
+                  mode="historial"
+                  onVerJugadores={handleVerJugadores}
+                  // Si querés permitir confirmar desde historial:
+                  // onConfirmarAsistencia={({ _id }) => handleConfirmar(_id)}
+                />
+              ))}
+            </ul>
+          )
         )}
       </div>
 

@@ -440,6 +440,7 @@ async def get_mis_reservas(
         {"$project": {
             "_id": 1,
             "fecha": 1,
+            "resultado": 1,  # <-- agrega esto
             "cancha": "$cancha_info.nombre",
             "horario": "$horario_info.hora",
             "usuarios": 1,
@@ -472,7 +473,8 @@ async def get_mis_reservas(
                 "horario": r["horario"],
                 "asistenciaConfirmada": confirmado,
                 "cantidad_usuarios": len(r.get("usuarios", [])),
-                "estado": r["estado"],  # <-- ahora llega el nombre del estado
+                "estado": r["estado"],
+                "resultado": r.get("resultado")  # <-- agrega esto
             }
 
             reservas_list.append(r_limpia)
