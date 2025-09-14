@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useContext, memo, useMemo } from "react";
+import React, { useEffect, useState, useContext, memo } from "react";
 import { AuthContext } from "../context/AuthContext";
 import { toast } from "react-toastify";
 import Modal from "../components/common/Modal/Modal";
@@ -14,6 +14,10 @@ import {
   FiArrowRight,
   FiLoader as SpinnerIcon,
 } from "react-icons/fi";
+
+/* ------------------------------------------
+   Utils
+------------------------------------------- */
 
 // Formato fecha/hora 24hs AR
 const formatDateTime24h = (isoString) => {
@@ -31,95 +35,154 @@ const formatDateTime24h = (isoString) => {
   return date.toLocaleString("es-AR", options).replace(",", "");
 };
 
-const ProfileDataItem = memo(({ icon, label, value }) => {
-  const icons = {
-    user: <FiUser className="w-6 h-6 text-yellow-400" />,
-    mail: <FiMail className="w-6 h-6 text-yellow-400" />,
-    shieldCheck: <FiShield className="w-6 h-6 text-yellow-400" />,
-    calendar: <FiCalendar className="w-6 h-6 text-yellow-400" />,
-    clock: <FiClock className="w-6 h-6 text-yellow-400" />,
-    tag: <FiTag className="w-6 h-6 text-yellow-400" />,
-  };
-  return (
-    <article className="flex items-start gap-4 p-4 bg-slate-800/50 rounded-lg shadow-inner transition-colors duration-200 hover:bg-slate-700/50">
-      <div className="flex-shrink-0">{icons[icon]}</div>
-      <div>
-        <p className="text-sm font-medium text-slate-400">{label}</p>
-        <p className="text-lg font-semibold text-white break-words">{value}</p>
-      </div>
-    </article>
-  );
-});
+const classNames = (...c) => c.filter(Boolean).join(" ");
 
-const StarRating = ({ value = 0, size = "text-lg" }) => {
-  const cl = `text-yellow-400 ${size}`;
-  const stars = Array.from({ length: 5 }, (_, i) => (
-    <span key={i} aria-hidden="true">
-      {i < value ? "★" : "☆"}
+/* ------------------------------------------
+   UI Pieces
+------------------------------------------- */
+
+const SectionTitle = ({ title, subtitle, right }) => (
+  <div className="flex items-start sm:items-end justify-between gap-4">
+    <div>
+      <h2 className="text-xl sm:text-2xl font-extrabold tracking-tight text-white">
+        {title}
+      </h2>
+      {subtitle && (
+        <p className="text-slate-400 text-sm mt-1">{subtitle}</p>
+      )}
+    </div>
+    {right}
+  </div>
+);
+
+const Card = ({ children, className }) => (
+  <div
+    className={classNames(
+      "rounded-2xl border border-white/5 bg-slate-900/60 backdrop-blur-xl shadow-[0_8px_30px_rgb(0,0,0,0.25)]",
+      className
+    )}
+  >
+    {children}
+  </div>
+);
+
+const InfoRow = ({ icon, label, value, subtle }) => (
+  <div className="flex items-center gap-3 py-2">
+    <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-amber-300/10 border border-amber-300/20">
+      {icon}
+    </div>
+    <div className="min-w-0">
+      <p className={classNames("text-xs uppercase tracking-wide", subtle ? "text-slate-400" : "text-slate-500")}>
+        {label}
+      </p>
+      <p className="text-base font-semibold text-white truncate">{value}</p>
+    </div>
+  </div>
+);
+
+const StatusBadge = ({ active }) => (
+  <span
+    className={classNames(
+      "inline-flex items-center gap-2 rounded-full px-3 py-1 text-xs font-semibold ring-1",
+      active
+        ? "bg-emerald-500/10 text-emerald-300 ring-emerald-400/30"
+        : "bg-rose-500/10 text-rose-300 ring-rose-400/30"
+    )}
+  >
+    <span
+      className={classNames(
+        "h-1.5 w-1.5 rounded-full",
+        active ? "bg-emerald-400" : "bg-rose-400"
+      )}
+    />
+    {active ? "Activo" : "Inactivo"}
+  </span>
+);
+
+const StarRating = ({ value = 0 }) => (
+  <div className="leading-none tracking-tight">
+    <span className="text-amber-300 text-lg">
+      {Array.from({ length: 5 }, (_, i) => (
+        <span key={i} aria-hidden="true">
+          {i < value ? "★" : "☆"}
+        </span>
+      ))}
     </span>
-  ));
-  return (
-    <span className={cl} aria-label={`Valoración: ${value} de 5`}>
-      {stars}
-    </span>
-  );
-};
+    <span className="sr-only">{`Valoración: ${value} de 5`}</span>
+  </div>
+);
 
 const ReviewCard = ({ r }) => (
-  <li className="bg-gray-800/80 p-4 rounded-lg border border-gray-700 shadow">
-    <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 mb-2">
-      <div className="flex items-center gap-2 text-white font-semibold">
-        <FiUser />
-        <span>
-          {r?.autor?.nombre} {r?.autor?.apellido}
-        </span>
-        {r?.autor?.username && (
-          <span className="text-gray-400 text-sm ml-2">@{r.autor.username}</span>
-        )}
+  <Card className="p-4 sm:p-5">
+    <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+      <div className="flex items-center gap-3 min-w-0">
+        <div className="h-10 w-10 rounded-full bg-gradient-to-br from-amber-300/40 to-yellow-400/20 ring-1 ring-white/10 flex items-center justify-center shrink-0">
+          <FiUser className="text-amber-300" />
+        </div>
+        <div className="min-w-0">
+          <p className="text-white font-semibold truncate">
+            {r?.autor?.nombre} {r?.autor?.apellido}
+          </p>
+          {r?.autor?.username && (
+            <p className="text-slate-400 text-sm truncate">@{r.autor.username}</p>
+          )}
+        </div>
       </div>
-      <span className="text-sm text-gray-400">
-        {r?.fecha ? new Date(r.fecha).toLocaleDateString("es-AR") : ""}
-      </span>
+
+      <div className="flex items-center gap-3">
+        <StarRating value={r?.numero ?? 0} />
+        <span className="text-xs text-slate-400">
+          {r?.fecha ? new Date(r.fecha).toLocaleDateString("es-AR") : ""}
+        </span>
+      </div>
     </div>
-    <StarRating value={r?.numero ?? 0} />
-    {r?.observacion && <p className="text-gray-200 mt-2 italic">“{r.observacion}”</p>}
-  </li>
+
+    {r?.observacion && (
+      <p className="text-slate-200 mt-3 italic leading-relaxed">
+        “{r.observacion}”
+      </p>
+    )}
+  </Card>
 );
 
 const Pagination = ({ page, total, limit, onPrev, onNext }) => {
   const totalPages = Math.max(1, Math.ceil(total / limit));
   return (
-    <div className="flex justify-between items-center mt-6">
+    <div className="sticky bottom-4 mt-6 flex items-center justify-between gap-3">
       <button
         onClick={onPrev}
         disabled={page <= 1}
-        className="bg-[#eaff00] text-[#101a2a] px-4 py-2 rounded font-bold disabled:opacity-50 disabled:cursor-not-allowed transition-colors hover:bg-yellow-300"
+        className="inline-flex items-center gap-2 rounded-xl bg-slate-800 px-4 py-2 text-sm font-bold text-white ring-1 ring-white/10 hover:bg-slate-700 disabled:opacity-40 disabled:hover:bg-slate-800 transition-colors"
       >
-        <FiArrowLeft className="inline-block mr-1" />
+        <FiArrowLeft />
         Anterior
       </button>
-      <span className="text-gray-300">
-        Página {page} de {totalPages}
+      <span className="text-slate-300 text-sm">
+        Página <span className="font-semibold">{page}</span> de{" "}
+        <span className="font-semibold">{totalPages}</span>
       </span>
       <button
         onClick={onNext}
         disabled={page >= totalPages}
-        className="bg-[#eaff00] text-[#101a2a] px-4 py-2 rounded font-bold disabled:opacity-50 disabled:cursor-not-allowed transition-colors hover:bg-yellow-300"
+        className="inline-flex items-center gap-2 rounded-xl bg-amber-300 px-4 py-2 text-sm font-extrabold text-slate-950 hover:bg-amber-200 disabled:opacity-40 transition-colors"
       >
         Siguiente
-        <FiArrowRight className="inline-block ml-1" />
+        <FiArrowRight />
       </button>
     </div>
   );
 };
 
+/* ------------------------------------------
+   Skeletons
+------------------------------------------- */
+
 const ProfileSkeleton = () => (
-  <div className="animate-pulse space-y-4">
-    <div className="h-10 bg-slate-700/60 rounded w-2/3" />
-    <div className="h-4 bg-slate-700/60 rounded w-1/2" />
-    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-6">
+  <div className="animate-pulse space-y-6">
+    <div className="h-32 rounded-2xl bg-slate-800/60" />
+    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
       {Array.from({ length: 6 }).map((_, i) => (
-        <div key={i} className="h-20 bg-slate-700/60 rounded" />
+        <div key={i} className="h-20 rounded-xl bg-slate-800/60" />
       ))}
     </div>
   </div>
@@ -128,10 +191,14 @@ const ProfileSkeleton = () => (
 const ReviewsSkeleton = () => (
   <div className="animate-pulse space-y-4">
     {Array.from({ length: 3 }).map((_, i) => (
-      <div key={i} className="h-24 bg-slate-700/60 rounded" />
+      <div key={i} className="h-24 rounded-xl bg-slate-800/60" />
     ))}
   </div>
 );
+
+/* ------------------------------------------
+   Main Component
+------------------------------------------- */
 
 function MisDatos() {
   const { apiFetch } = useContext(AuthContext);
@@ -141,13 +208,14 @@ function MisDatos() {
   const [loadingPerfil, setLoadingPerfil] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  // Reseñas (idéntico a Jugadores.jsx)
+  // Reseñas
   const [reviews, setReviews] = useState([]);
   const [page, setPage] = useState(1);
   const [limit, setLimit] = useState(5);
   const [totalReviews, setTotalReviews] = useState(0);
   const [loadingResenias, setLoadingResenias] = useState(false);
 
+  // Perfil
   useEffect(() => {
     let active = true;
     (async () => {
@@ -167,9 +235,12 @@ function MisDatos() {
         if (active) setLoadingPerfil(false);
       }
     })();
-    return () => { active = false; };
+    return () => {
+      active = false;
+    };
   }, [apiFetch]);
 
+  // Reseñas
   useEffect(() => {
     let active = true;
     (async () => {
@@ -195,7 +266,9 @@ function MisDatos() {
         if (active) setLoadingResenias(false);
       }
     })();
-    return () => { active = false; };
+    return () => {
+      active = false;
+    };
   }, [apiFetch, page, limit]);
 
   const handleOpenEditModal = () => {
@@ -209,9 +282,7 @@ function MisDatos() {
     }
   };
 
-  const handleChange = (e) => {
-    setForm({ ...form, [e.target.name]: e.target.value });
-  };
+  const handleChange = (e) => setForm({ ...form, [e.target.name]: e.target.value });
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -232,149 +303,208 @@ function MisDatos() {
         const error = await response.json();
         toast.error(error.detail || "Error al actualizar los datos");
       }
-    } catch (error) {
+    } catch {
       toast.error("Error de red al actualizar los datos.");
     } finally {
       setIsSubmitting(false);
     }
   };
 
-  const handlePrevPage = () => {
-    setPage((prev) => Math.max(prev - 1, 1));
-  };
-
+  const handlePrevPage = () => setPage((p) => Math.max(p - 1, 1));
   const handleNextPage = () => {
-    const totalPages = Math.ceil(totalReviews / limit);
-    setPage((prev) => Math.min(prev + 1, totalPages));
+    const totalPages = Math.max(1, Math.ceil(totalReviews / limit));
+    setPage((p) => Math.min(p + 1, totalPages));
   };
-
   const handleLimitChange = (e) => {
     setLimit(Number(e.target.value));
-    setPage(1); // Reiniciar a la primera página al cambiar el límite
+    setPage(1);
   };
 
-  // --- No se muestra NADA mientras carga o si no hay datos (hasta que falle) ---
+  // Cargando o error
   if (loadingPerfil) {
-    return null;
-  }
-
-  // --- Mensaje de error si la carga falló ---
-  if (!datos)
     return (
-      <div className="flex flex-col items-center justify-center h-full text-red-400 bg-red-900/20 p-8 rounded-lg">
-        <FiShield className="w-12 h-12" />
-        <p className="mt-4 text-lg font-semibold">Ocurrió un error</p>
-        <p className="text-red-300">No se pudieron cargar los datos.</p>
+      <div className="w-full max-w-6xl mx-auto p-4 md:p-8">
+        <ProfileSkeleton />
       </div>
     );
+  }
+  if (!datos) {
+    return (
+      <div className="flex flex-col items-center justify-center h-full text-rose-300 bg-rose-900/10 p-8 rounded-2xl">
+        <FiShield className="w-12 h-12" />
+        <p className="mt-4 text-lg font-semibold">Ocurrió un error</p>
+        <p className="text-rose-200">No se pudieron cargar los datos.</p>
+      </div>
+    );
+  }
 
-  const totalPages = Math.ceil(totalReviews / limit);
+  const fullName = `${datos.nombre ?? ""} ${datos.apellido ?? ""}`.trim();
 
   return (
     <>
-      <div className="w-full max-w-3xl mx-auto p-4 md:p-8">
-        <header className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-8">
-          <div>
-            <h1 className="text-4xl font-bold text-white tracking-tight">
-              ¡Hola, {datos.nombre}! 👋
-            </h1>
-            <p className="mt-1 text-slate-400">
-              Gestiona tu información personal y de tu cuenta.
-            </p>
-          </div>
-          <button
-            onClick={handleOpenEditModal}
-            className="mt-4 sm:mt-0 flex items-center gap-2 bg-yellow-400 text-slate-900 px-4 py-2 rounded-lg font-bold hover:bg-yellow-300 transition-all transform hover:scale-105 active:scale-100 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-slate-900 focus:ring-yellow-400"
-          >
-            <FiEdit className="w-5 h-5" />
-            Editar Perfil
-          </button>
-        </header>
-
-        <section className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          <ProfileDataItem
-            icon="user"
-            label="Nombre Completo"
-            value={`${datos.nombre} ${datos.apellido}`}
-          />
-          <ProfileDataItem icon="mail" label="Email" value={datos.email} />
-          <ProfileDataItem
-            icon="user"
-            label="Username"
-            value={datos.username}
-          />
-          <ProfileDataItem
-            icon="shieldCheck"
-            label="Estado"
-            value={datos.habilitado ? "Activo" : "Inactivo"}
-          />
-          <ProfileDataItem
-            icon="calendar"
-            label="Fecha de Registro"
-            value={formatDateTime24h(datos.fecha_registro)}
-          />
-          <ProfileDataItem
-            icon="clock"
-            label="Última Conexión"
-            value={formatDateTime24h(datos.ultima_conexion)}
-          />
-          <ProfileDataItem
-            icon="tag"
-            label="Categoría"
-            value={datos.categoria}
-          />
-        </section>
-
-        <div className="mt-8">
-          <h2 className="text-2xl font-bold text-white mb-4">
-            Reseñas Recibidas
-          </h2>
-
-          {/* Selector de cantidad de reseñas por página */}
-          <div className="mb-4">
-            <label className="text-slate-200 text-sm font-semibold mb-2 block">
-              Reseñas por página:
-            </label>
-            <select
-              value={limit}
-              onChange={handleLimitChange}
-              className="bg-slate-900 text-white rounded-lg border border-slate-700 focus:outline-none focus:ring-2 focus:ring-[#fdc700] focus:border-[#fdc700] transition-all duration-200"
+      {/* HEADER */}
+      <div className="relative w-full overflow-hidden">
+        <div className="absolute inset-0 -z-10 bg-gradient-to-r from-slate-900 via-slate-900 to-slate-900" />
+        <div className="absolute -top-24 -left-24 h-72 w-72 rounded-full bg-amber-300/20 blur-3xl" />
+        <div className="absolute -bottom-24 -right-24 h-72 w-72 rounded-full bg-yellow-400/10 blur-3xl" />
+        <div className="w-full max-w-6xl mx-auto px-4 pt-8 md:pt-12 pb-6">
+          <div className="flex items-start gap-4">
+            <div className="h-16 w-16 rounded-2xl bg-gradient-to-br from-amber-300 to-yellow-400 p-[2px]">
+              <div className="h-full w-full rounded-2xl bg-slate-900/90 flex items-center justify-center">
+                <FiUser className="text-amber-300 h-8 w-8" />
+              </div>
+            </div>
+            <div className="flex-1">
+              <h1 className="text-3xl md:text-4xl font-extrabold tracking-tight text-white">
+                ¡Hola, {datos.nombre}! <span className="align-middle">👋</span>
+              </h1>
+              <p className="text-slate-400 mt-1">
+                Gestiona tu información personal y de tu cuenta.
+              </p>
+            </div>
+            <button
+              onClick={handleOpenEditModal}
+              className="hidden sm:inline-flex items-center gap-2 rounded-xl bg-amber-300 px-4 py-2 font-extrabold text-slate-950 hover:bg-amber-200 active:scale-[0.99] transition"
             >
-              {[5, 10, 15, 20].map((option) => (
-                <option key={option} value={option}>
-                  {option}
-                </option>
-              ))}
-            </select>
+              <FiEdit className="h-5 w-5" />
+              Editar Perfil
+            </button>
           </div>
-
-          <ul className="space-y-4">
-            {reviews.length === 0 ? (
-              <li className="text-gray-400 text-center py-4">
-                No hay reseñas para mostrar.
-              </li>
-            ) : (
-              reviews.map((r, idx) => {
-                // key robusta: _id, o autor + fecha + idx como fallback
-                const itemKey =
-                  r?._id ??
-                  `${r?.autor?.id ?? r?.autor?.username ?? "anon"}-${r?.fecha ?? ""}-${idx}`;
-
-                return <ReviewCard key={itemKey} r={r} />;
-              })
-            )}
-          </ul>
-
-          <Pagination
-            page={page}
-            total={totalReviews}
-            limit={limit}
-            onPrev={handlePrevPage}
-            onNext={handleNextPage}
-          />
         </div>
       </div>
 
+      {/* CONTENT */}
+      <div className="w-full max-w-6xl mx-auto px-4 pb-10">
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+          {/* Sidebar */}
+          <aside className="lg:col-span-5 xl:col-span-4 space-y-6 lg:sticky lg:top-4 self-start">
+            <Card className="p-5">
+              <div className="flex items-start justify-between">
+                <div>
+                  <p className="text-sm text-slate-400">Usuario</p>
+                  <h3 className="text-white font-bold text-xl">{fullName || "—"}</h3>
+                </div>
+                <StatusBadge active={!!datos.habilitado} />
+              </div>
+
+              <div className="mt-4 grid grid-cols-1 gap-3">
+                <InfoRow
+                  icon={<FiUser className="text-amber-300" />}
+                  label="Username"
+                  value={datos.username || "—"}
+                />
+                <InfoRow
+                  icon={<FiMail className="text-amber-300" />}
+                  label="Email"
+                  value={datos.email || "—"}
+                />
+                <InfoRow
+                  icon={<FiCalendar className="text-amber-300" />}
+                  label="Fecha de Registro"
+                  value={formatDateTime24h(datos.fecha_registro)}
+                />
+                <InfoRow
+                  icon={<FiClock className="text-amber-300" />}
+                  label="Última Conexión"
+                  value={formatDateTime24h(datos.ultima_conexion)}
+                />
+                <InfoRow
+                  icon={<FiTag className="text-amber-300" />}
+                  label="Categoría"
+                  value={datos.categoria || "Sin categoría"}
+                  subtle
+                />
+              </div>
+
+              <button
+                onClick={handleOpenEditModal}
+                className="mt-5 w-full inline-flex items-center justify-center gap-2 rounded-xl bg-slate-800 px-4 py-2 text-sm font-bold text-white ring-1 ring-white/10 hover:bg-slate-700 transition"
+              >
+                <FiEdit />
+                Editar Perfil
+              </button>
+            </Card>
+
+            {/* Quick stats */}
+            <div className="grid grid-cols-2 gap-4">
+              <Card className="p-4 text-center">
+                <p className="text-xs uppercase tracking-wide text-slate-400">Reseñas</p>
+                <p className="mt-1 text-3xl font-extrabold text-white">
+                  {totalReviews}
+                </p>
+              </Card>
+              <Card className="p-4 text-center">
+                <p className="text-xs uppercase tracking-wide text-slate-400">Promedio</p>
+                <div className="mt-1 flex items-center justify-center gap-2">
+                  <StarRating
+                    value={
+                      reviews.length
+                        ? Math.round(
+                            (reviews.reduce((a, r) => a + (r?.numero ?? 0), 0) /
+                              reviews.length) * 10
+                          ) / 10
+                        : 0
+                    }
+                  />
+                </div>
+              </Card>
+            </div>
+          </aside>
+
+          {/* Main */}
+          <main className="lg:col-span-7 xl:col-span-8 space-y-4">
+            <SectionTitle
+              title="Reseñas recibidas"
+              subtitle="Lo que otros usuarios opinan sobre ti"
+              right={
+                <div className="flex items-center gap-2">
+                  <label className="text-slate-400 text-xs">Por página</label>
+                  <select
+                    value={limit}
+                    onChange={handleLimitChange}
+                    className="rounded-lg bg-slate-900 text-white border border-white/10 px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-amber-300"
+                  >
+                    {[5, 10, 15, 20].map((n) => (
+                      <option key={n} value={n}>
+                        {n}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              }
+            />
+
+            {loadingResenias ? (
+              <ReviewsSkeleton />
+            ) : reviews.length === 0 ? (
+              <Card className="p-8 text-center">
+                <p className="text-slate-300">
+                  No hay reseñas para mostrar.
+                </p>
+              </Card>
+            ) : (
+              <ul className="space-y-4">
+                {reviews.map((r, idx) => {
+                  const itemKey =
+                    r?._id ??
+                    `${r?.autor?.id ?? r?.autor?.username ?? "anon"}-${r?.fecha ?? ""}-${idx}`;
+                  return <ReviewCard key={itemKey} r={r} />;
+                })}
+              </ul>
+            )}
+
+            <Pagination
+              page={page}
+              total={totalReviews}
+              limit={limit}
+              onPrev={handlePrevPage}
+              onNext={handleNextPage}
+            />
+          </main>
+        </div>
+      </div>
+
+      {/* Modal Editar */}
       <Modal
         title="Editar Mis Datos"
         isOpen={isModalOpen}
@@ -382,11 +512,7 @@ function MisDatos() {
       >
         <form onSubmit={handleSubmit} className="flex flex-col gap-4 p-6">
           {["nombre", "apellido", "email"].map((field) => {
-            const labels = {
-              nombre: "Nombre",
-              apellido: "Apellido",
-              email: "Email",
-            };
+            const labels = { nombre: "Nombre", apellido: "Apellido", email: "Email" };
             const types = { nombre: "text", apellido: "text", email: "email" };
             const icons = {
               nombre: <FiUser className="w-5 h-5 text-slate-400" />,
@@ -411,7 +537,7 @@ function MisDatos() {
                     name={field}
                     value={form[field]}
                     onChange={handleChange}
-                    className="w-full pl-10 pr-3 py-2 rounded-xl bg-slate-900 text-white border border-slate-700 placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-[#fdc700] focus:border-[#fdc700] transition-all duration-200"
+                    className="w-full pl-10 pr-3 py-2 rounded-xl bg-slate-900 text-white border border-white/10 placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-amber-300"
                     required
                     autoComplete="off"
                     placeholder={labels[field]}
@@ -421,10 +547,10 @@ function MisDatos() {
             );
           })}
 
-          <div className="flex gap-3 mt-6 justify-end pt-4 border-t border-slate-700">
+          <div className="flex gap-3 mt-6 justify-end pt-4 border-t border-white/10">
             <button
               type="button"
-              className="px-5 py-2 rounded-lg font-semibold bg-slate-600 text-white hover:bg-slate-500 transition-colors disabled:opacity-50"
+              className="px-5 py-2 rounded-lg font-semibold bg-slate-700 text-white hover:bg-slate-600 transition-colors disabled:opacity-50"
               onClick={() => setIsModalOpen(false)}
               disabled={isSubmitting}
             >
@@ -432,7 +558,7 @@ function MisDatos() {
             </button>
             <button
               type="submit"
-              className="flex items-center justify-center gap-2 px-5 py-2 rounded-lg font-semibold bg-[#fdc700] text-[#0D1B2A] hover:bg-yellow-400 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              className="flex items-center justify-center gap-2 px-5 py-2 rounded-lg font-extrabold bg-amber-300 text-slate-950 hover:bg-amber-200 transition-colors disabled:opacity-50"
               disabled={isSubmitting}
             >
               {isSubmitting && <SpinnerIcon className="w-5 h-5 animate-spin" />}
@@ -441,19 +567,6 @@ function MisDatos() {
           </div>
         </form>
       </Modal>
-
-      {/* Skeletons para carga */}
-      {loadingPerfil && (
-        <div className="w-full max-w-3xl mx-auto p-4 md:p-8">
-          <ProfileSkeleton />
-          <div className="mt-8">
-            <h2 className="text-2xl font-bold text-white mb-4">
-              Reseñas Recibidas
-            </h2>
-            <ReviewsSkeleton />
-          </div>
-        </div>
-      )}
     </>
   );
 }

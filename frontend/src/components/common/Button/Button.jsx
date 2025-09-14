@@ -1,17 +1,21 @@
 import React from "react";
 
 const variants = {
-  primary:
-    "text-[#0D1B2A] bg-[#E5FF00] hover:bg-[#eaff00] focus:bg-[#E5FF00] active:bg-[#E5FF00] hover:text-[#0D1B2A]",
-  yellow:
-    "text-[#0D1B2A] bg-[#fdc700] hover:bg-yellow-400 focus:bg-[#fdc700] active:bg-[#fdc700] hover:text-[#0D1B2A]",
-  secondary:
-    "text-white bg-slate-600 hover:bg-slate-500 focus:bg-slate-600 active:bg-slate-600 hover:text-white",
-  disabled:
-    "bg-gray-600 text-gray-400 cursor-not-allowed",
+  primary:   "bg-amber-300 text-slate-950 hover:bg-amber-200 focus-visible:ring-2 focus-visible:ring-amber-300",
+  yellow:    "bg-yellow-400 text-slate-950 hover:bg-yellow-300 focus-visible:ring-2 focus-visible:ring-yellow-400",
+  secondary: "bg-slate-700 text-white hover:bg-slate-600 focus-visible:ring-2 focus-visible:ring-white/30",
+  danger:    "bg-rose-500 text-white hover:bg-rose-400 focus-visible:ring-2 focus-visible:ring-rose-400",
+  disabled:  "bg-slate-700 text-slate-400 cursor-not-allowed",
 };
 
-const baseClasses = "text-[#0D1B2A] cursor-pointer bg-[#E5FF00] font-medium shadow-md transition-all duration-200 ease-in-out rounded-full focus:outline-none active:translate-y-[1px] active:shadow-sm hover:text-[#0D1B2A] hover:shadow-lg hover:bg-[#eaff00] hover:-translate-y-1 focus:bg-[#E5FF00] focus:text-[#0D1B2A] active:bg-[#E5FF00] active:text-[#0D1B2A] px-3 py-1 text-sm";
+const sizes = {
+  sm: "px-3 py-1.5 text-sm rounded-lg",
+  md: "px-4 py-2 text-sm rounded-xl",
+  lg: "px-5 py-2.5 text-base rounded-xl",
+};
+
+const base =
+  "inline-flex items-center justify-center font-extrabold transition-all active:translate-y-[1px] shadow-sm hover:shadow focus:outline-none select-none";
 
 const Button = ({
   texto,
@@ -19,18 +23,22 @@ const Button = ({
   type = "button",
   disabled = false,
   className = "",
-  variant = "primary", // por defecto es primary, así no rompe nada
+  variant = "primary",
+  size = "md",
   ...props
-}) => (
-  <button
-    type={type}
-    className={`${baseClasses} ${variants[variant] || variants.primary} ${className}`}
-    onClick={onClick}
-    disabled={disabled}
-    {...props}
-  >
-    {texto}
-  </button>
-);
+}) => {
+  const v = disabled ? "disabled" : variant;
+  return (
+    <button
+      type={type}
+      onClick={onClick}
+      disabled={disabled}
+      className={[base, variants[v] || variants.primary, sizes[size] || sizes.md, className].join(" ")}
+      {...props}
+    >
+      {texto}
+    </button>
+  );
+};
 
 export default Button;
