@@ -117,7 +117,7 @@ function CustomNavbar() {
       <nav
         className={`fixed top-0 inset-x-0 z-50 h-14 transition-all duration-700 ${
           scrolled
-            ? "bg-slate-900/80 backdrop-blur-md shadow-md border-b border-white/5"
+            ? "bg-slate-900/80 backdrop-blur-md shadow-md"
             : "bg-transparent"
         }`}
       >

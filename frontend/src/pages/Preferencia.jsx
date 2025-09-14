@@ -1,8 +1,9 @@
-import { useEffect, useState, useMemo } from "react";
+import { useEffect, useState } from "react";
 import { generarHorarios } from "../components/usuarios/ReservaTabla";
 import Button from "../components/common/Button/Button";
 import MiToast from "../components/common/Toast/MiToast";
 import { toast } from "react-toastify";
+import { FiCheck } from "react-icons/fi";
 
 /* ------------------------------------------
    Config
@@ -15,68 +16,64 @@ const horariosDisponibles = generarHorarios();
 const LIMITE_PREFS = 7;
 
 /* ------------------------------------------
-   UI helpers
+   UI helpers (minimal)
 ------------------------------------------- */
 const cx = (...c) => c.filter(Boolean).join(" ");
 
 const Card = ({ className, children }) => (
-  <div
-    className={cx(
-      "rounded-2xl border border-white/5 bg-slate-900/60 backdrop-blur-xl shadow-[0_8px_30px_rgba(0,0,0,.25)]",
-      className
-    )}
-  >
+  <div className={cx("rounded-xl border border-white/10 bg-white/[0.05] p-5 sm:p-6", className)}>
     {children}
   </div>
 );
 
-const SectionHeader = ({ title, hint }) => (
-  <div className="mb-2">
-    <p className="text-[11px] uppercase tracking-wider text-slate-400">{hint}</p>
-    <h3 className="text-lg font-extrabold text-white">{title}</h3>
-  </div>
+const SectionTitle = ({ children }) => (
+  <h3 className="text-base sm:text-lg font-semibold text-white mb-3">{children}</h3>
 );
 
-const Chip = ({ active, children, onClick, color = "amber" }) => {
-  const activeStyles =
-    color === "green"
-      ? "bg-emerald-300 text-slate-950"
-      : color === "purple"
-      ? "bg-violet-300 text-slate-950"
-      : "bg-amber-300 text-slate-950";
-
+function Chip({ active, children, onClick }) {
   return (
     <button
       type="button"
       aria-pressed={active}
       onClick={onClick}
       className={cx(
-        "px-3 py-1 rounded-full text-sm font-semibold transition-all ring-1 focus:outline-none focus-visible:ring-2",
-        active ? activeStyles : "bg-slate-800/80 text-slate-200 ring-white/10 hover:ring-amber-300/40",
-        "hover:-translate-y-[1px]"
+        "inline-flex items-center gap-2 rounded-full px-3 py-1.5 text-sm transition",
+        "ring-1 focus:outline-none focus-visible:ring-2",
+        active
+          ? "!bg-[#eaff00] !text-[#0b1220] ring-[#eaff00]/60"
+          : "bg-white/5 text-slate-200 ring-white/10 hover:bg-white/10"
       )}
     >
+      <span
+        className={cx(
+          "grid place-items-center h-4 w-4 rounded-full border",
+          active ? "border-[#0b1220]" : "border-white/20"
+        )}
+      >
+        {active ? <FiCheck size={12} /> : null}
+      </span>
       {children}
     </button>
   );
-};
+}
 
-const Tag = ({ children, tone = "neutral" }) => {
-  const tones = {
-    neutral: "bg-slate-800 text-slate-200 ring-white/10",
-    green: "bg-emerald-400/15 text-emerald-200 ring-emerald-400/20",
-    purple: "bg-violet-400/15 text-violet-200 ring-violet-400/20",
-    amber: "bg-amber-300/15 text-amber-200 ring-amber-300/20",
-  };
-  return (
-    <span className={cx("inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs ring-1", tones[tone])}>
-      {children}
-    </span>
-  );
+/* ------------------------------------------
+   Utils (presets simples)
+------------------------------------------- */
+const parseHour = (bloque) => Number((String(bloque).split("-")[0] || "00:00").split(":")[0] || 0);
+const gruposHorarios = (lista) => {
+  const m = [], t = [], n = [];
+  lista.forEach((h) => {
+    const hh = parseHour(h);
+    if (hh < 12) m.push(h);
+    else if (hh < 18) t.push(h);
+    else n.push(h);
+  });
+  return { m, t, n };
 };
 
 /* ------------------------------------------
-   Main Component
+   Componente
 ------------------------------------------- */
 export default function PreferenciasUsuario() {
   const habilitado = localStorage.getItem("habilitado");
@@ -105,13 +102,23 @@ export default function PreferenciasUsuario() {
     }));
   };
 
+  const toggleBulk = (key, list) => {
+    setPreferencias((prev) => {
+      const setPrev = new Set(prev[key]);
+      const every = list.every((i) => setPrev.has(i));
+      const next = new Set(prev[key]);
+      (every ? list : list).forEach((i) => (every ? next.delete(i) : next.add(i)));
+      return { ...prev, [key]: Array.from(next) };
+    });
+  };
+
   const resetConstructor = () => setPreferencias({ dias: [], horarios: [], canchas: [] });
 
   const handleSubmit = async (e) => {
     e.preventDefault();
 
     if (!preferencias.dias.length || !preferencias.horarios.length || !preferencias.canchas.length) {
-      toast(<MiToast mensaje="Seleccioná al menos un día, un horario y una cancha." color="--var-color-red-400" />);
+      toast(<MiToast mensaje="Seleccioná al menos un día, un horario y una cancha." color="#ef4444" />);
       return;
     }
 
@@ -136,8 +143,8 @@ export default function PreferenciasUsuario() {
     if (res.ok) {
       toast(
         <MiToast
-          mensaje={isEditing ? "Preferencia actualizada con éxito" : "Preferencias guardadas con éxito"}
-          color="var(--color-green-400)"
+          mensaje={isEditing ? "Preferencia actualizada" : "Preferencias guardadas"}
+          color="#eaff00"
         />
       );
       resetConstructor();
@@ -152,7 +159,7 @@ export default function PreferenciasUsuario() {
         .then(setPreferenciasGuardadas);
     } else {
       const err = await res.json();
-      toast(<MiToast mensaje={`Error: ${err.detail || "Error desconocido"}`} color="var(--color-red-400)" />);
+      toast(<MiToast mensaje={`Error: ${err.detail || "Error desconocido"}`} color="#ef4444" />);
     }
   };
 
@@ -180,28 +187,23 @@ export default function PreferenciasUsuario() {
     });
 
     if (res.ok) {
-      toast(<MiToast mensaje="Preferencia eliminada con éxito." color="[#e5ff00]" />);
+      toast(<MiToast mensaje="Preferencia eliminada." color="#eaff00" />);
       setPreferenciasGuardadas((prev) => prev.filter((p) => p.id !== id));
     } else {
       const err = await res.json();
-      toast(<MiToast mensaje={`Error: ${err.detail || "Error desconocido"}`} color="var(--color-red-400)" />);
+      toast(<MiToast mensaje={`Error: ${err.detail || "Error desconocido"}`} color="#ef4444" />);
     }
   };
 
-  const resumen = useMemo(
-    () => [
-      { label: "Días", items: preferencias.dias, tone: "amber" },
-      { label: "Horarios", items: preferencias.horarios, tone: "green" },
-      { label: "Canchas", items: preferencias.canchas, tone: "purple" },
-    ],
-    [preferencias]
-  );
+  const { m, t, n } = gruposHorarios(horariosDisponibles);
+  const presetLaborables = ["Lunes", "Martes", "Miércoles", "Jueves", "Viernes"];
+  const presetFinde = ["Sábado", "Domingo"];
 
   if (!habilitado) {
     return (
-      <div className="w-full max-w-4xl mx-auto px-4 py-8">
-        <Card className="p-8 text-center">
-          <p className="text-rose-300 font-semibold">
+      <div className="w-full max-w-3xl mx-auto px-4 py-8">
+        <Card className="text-center">
+          <p className="text-rose-300 font-medium">
             Debes estar habilitado para poder elegir tus preferencias.
           </p>
         </Card>
@@ -210,169 +212,115 @@ export default function PreferenciasUsuario() {
   }
 
   return (
-    <div className="w-full max-w-6xl mx-auto px-4 py-8">
-      {/* Header limpio */}
-      <div className="mb-6">
-        <div className="flex items-start justify-between">
-          <div>
-            <h1 className="text-3xl font-extrabold tracking-tight text-white">Preferencias</h1>
-            <p className="text-slate-400 text-sm mt-1">
-              Armá tu combinación ideal. Esto acelera tus próximas reservas.
-            </p>
-          </div>
-          {preferenciaEditar && (
-            <span className="inline-flex items-center gap-2 rounded-full px-3 py-1 text-xs font-semibold ring-1 bg-amber-300/10 text-amber-300 ring-amber-300/30">
-              ✎ Modo edición
-            </span>
-          )}
+    <div className="w-full max-w-3xl mx-auto px-4 py-8">
+      {/* DÍAS */}
+      <Card>
+        <SectionTitle>Días</SectionTitle>
+        <div className="pt- mb-3 flex flex-wrap gap-2">
+          <button
+            onClick={() => toggleBulk("dias", presetLaborables)}
+            className="text-xs rounded-full px-3 py-1 ring-1 ring-white/10 text-slate-200 hover:bg-white/10"
+          >
+            Laborables
+          </button>
+          <button
+            onClick={() => toggleBulk("dias", presetFinde)}
+            className="text-xs rounded-full px-3 py-1 ring-1 ring-white/10 text-slate-200 hover:bg-white/10"
+          >
+            Finde
+          </button>
         </div>
-      </div>
-
-      {/* Layout */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-        {/* Constructor */}
-        <div className="lg:col-span-7 xl:col-span-8 space-y-6">
-          <Card className="p-5 sm:p-6">
-            <SectionHeader title="Días preferidos" hint="Paso 1" />
-            <div className="flex flex-wrap gap-2">
-              {diasSemana.map((d) => (
-                <Chip key={d} active={preferencias.dias.includes(d)} onClick={() => handleToggle("dias", d)}>
-                  {d}
-                </Chip>
-              ))}
-            </div>
-          </Card>
-
-          <Card className="p-5 sm:p-6">
-            <SectionHeader title="Horarios preferidos" hint="Paso 2" />
-            <div className="flex flex-wrap gap-2">
-              {horariosDisponibles.map((h) => (
-                <Chip
-                  key={h}
-                  color="green"
-                  active={preferencias.horarios.includes(h)}
-                  onClick={() => handleToggle("horarios", h)}
-                >
-                  {h}
-                </Chip>
-              ))}
-            </div>
-          </Card>
-
-          <Card className="p-5 sm:p-6">
-            <SectionHeader title="Canchas preferidas" hint="Paso 3" />
-            <div className="flex flex-wrap gap-2">
-              {canchasDisponibles.map((c) => (
-                <Chip
-                  key={c}
-                  color="purple"
-                  active={preferencias.canchas.includes(c)}
-                  onClick={() => handleToggle("canchas", c)}
-                >
-                  {c}
-                </Chip>
-              ))}
-            </div>
-          </Card>
+        <div className="flex flex-wrap gap-2">
+          {diasSemana.map((d) => (
+            <Chip key={d} active={preferencias.dias.includes(d)} onClick={() => handleToggle("dias", d)}>
+              {d}
+            </Chip>
+          ))}
         </div>
+      </Card>
 
-        {/* Resumen sticky + acción */}
-        <aside className="lg:col-span-5 xl:col-span-4">
-          <Card className="p-5 sm:p-6 lg:sticky lg:top-6">
-            <div className="mb-3">
-              <p className="text-xs uppercase tracking-wider text-slate-400">Resumen</p>
-              <h3 className="text-lg font-extrabold text-white">Tu selección</h3>
-            </div>
+      {/* HORARIOS */}
+      <Card className="mt-6">
+        <SectionTitle>Horarios</SectionTitle>
+        <div className="mb-3 flex flex-wrap gap-2 text-xs text-slate-300">
+          <button
+            onClick={() => toggleBulk("horarios", m)}
+            className="rounded-full px-3 py-1 ring-1 ring-white/10 hover:bg-white/10"
+          >
+            Mañana
+          </button>
+          <button
+            onClick={() => toggleBulk("horarios", t)}
+            className="rounded-full px-3 py-1 ring-1 ring-white/10 hover:bg-white/10"
+          >
+            Tarde
+          </button>
+          <button
+            onClick={() => toggleBulk("horarios", n)}
+            className="rounded-full px-3 py-1 ring-1 ring-white/10 hover:bg-white/10"
+          >
+            Noche
+          </button>
+        </div>
+        <div className="flex flex-wrap gap-2">
+          {horariosDisponibles.map((h) => (
+            <Chip key={h} active={preferencias.horarios.includes(h)} onClick={() => handleToggle("horarios", h)}>
+              {h}
+            </Chip>
+          ))}
+        </div>
+      </Card>
 
-            <div className="space-y-3">
-              {resumen.map((row) => (
-                <div key={row.label}>
-                  <p className="text-[11px] uppercase tracking-wide text-slate-400">{row.label}</p>
-                  <div className="mt-1 flex flex-wrap gap-1.5">
-                    {row.items.length ? (
-                      row.items.map((t) => (
-                        <Tag key={t} tone={row.tone}>
-                          {t}
-                        </Tag>
-                      ))
-                    ) : (
-                      <Tag>—</Tag>
-                    )}
-                  </div>
-                </div>
-              ))}
-            </div>
+      {/* CANCHAS */}
+      <Card className="mt-6">
+        <SectionTitle>Canchas</SectionTitle>
+        <div className="flex flex-wrap gap-2">
+          {canchasDisponibles.map((c) => (
+            <Chip key={c} active={preferencias.canchas.includes(c)} onClick={() => handleToggle("canchas", c)}>
+              {c}
+            </Chip>
+          ))}
+        </div>
+      </Card>
 
-            <div className="mt-5 grid grid-cols-2 gap-2">
-              <Button
-                texto={preferenciaEditar ? "Actualizar" : "Guardar"}
-                onClick={handleSubmit}
-                className="w-full"
-                disabled={reachedLimit}
-              />
-              {preferenciaEditar ? (
-                <Button texto="Cancelar" variant="secondary" onClick={handleCancelEdit} className="w-full" />
-              ) : (
-                <Button texto="Limpiar" variant="secondary" onClick={resetConstructor} className="w-full" />
-              )}
-            </div>
-
-            {reachedLimit && (
-              <p className="mt-3 text-amber-300 text-xs">
-                Límite de {LIMITE_PREFS} preferencias alcanzado. Eliminá alguna para crear otra.
-              </p>
-            )}
-          </Card>
-        </aside>
+      {/* Acciones */}
+      <div className="mt-6 grid grid-cols-2 gap-2">
+        <Button
+          texto={preferenciaEditar ? "Actualizar" : "Guardar"}
+          onClick={handleSubmit}
+          className="w-full"
+          disabled={reachedLimit}
+        />
+        {preferenciaEditar ? (
+          <Button texto="Cancelar" variant="secondary" onClick={handleCancelEdit} className="w-full" />
+        ) : (
+          <Button texto="Limpiar" variant="secondary" onClick={resetConstructor} className="w-full" />
+        )}
       </div>
+      {reachedLimit && (
+        <p className="mt-3 text-xs text-amber-300">
+          Límite de {LIMITE_PREFS} preferencias alcanzado. Eliminá alguna para crear otra.
+        </p>
+      )}
 
       {/* Guardadas */}
-      <div className="mt-8">
-        <h2 className="text-xl font-extrabold text-white mb-3">Tus preferencias guardadas</h2>
-
+      <div className="mt-10">
+        <h2 className="text-lg font-semibold text-white mb-3">Guardadas</h2>
         {preferenciasGuardadas.length === 0 ? (
-          <Card className="p-8 text-center">
+          <Card className="text-center">
             <p className="text-slate-300">No tenés preferencias guardadas todavía.</p>
           </Card>
         ) : (
-          <ul className="space-y-4">
+          <ul className="space-y-3">
             {preferenciasGuardadas.map((pref) => (
               <Card key={pref.id} className="p-4">
-                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-                  <div className="min-w-0">
-                    <div className="flex flex-wrap gap-1.5">
-                      {pref.dias.map((d) => (
-                        <Tag key={d} tone="amber">
-                          {d}
-                        </Tag>
-                      ))}
-                    </div>
-
-                    <div className="mt-2 grid grid-cols-1 sm:grid-cols-2 gap-3">
-                      <div>
-                        <p className="text-[11px] uppercase tracking-wide text-slate-400">Horarios</p>
-                        <div className="mt-1 flex flex-wrap gap-1.5">
-                          {pref.horarios.map((h) => (
-                            <Tag key={h} tone="green">
-                              {h}
-                            </Tag>
-                          ))}
-                        </div>
-                      </div>
-                      <div>
-                        <p className="text-[11px] uppercase tracking-wide text-slate-400">Canchas</p>
-                        <div className="mt-1 flex flex-wrap gap-1.5">
-                          {pref.canchas.map((c) => (
-                            <Tag key={c} tone="purple">
-                              {c}
-                            </Tag>
-                          ))}
-                        </div>
-                      </div>
-                    </div>
+                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                  <div className="text-sm text-slate-300">
+                    <span className="text-slate-200 font-medium">Días:</span> {pref.dias.join(", ")} •{" "}
+                    <span className="text-slate-200 font-medium">Horarios:</span> {pref.horarios.join(", ")} •{" "}
+                    <span className="text-slate-200 font-medium">Canchas:</span> {pref.canchas.join(", ")}
                   </div>
-
-                  <div className="flex gap-2 shrink-0">
+                  <div className="flex gap-2">
                     <Button texto="Modificar" variant="yellow" onClick={() => handleModificarClick(pref)} />
                     <Button texto="Eliminar" variant="danger" onClick={() => handleEliminar(pref.id)} />
                   </div>

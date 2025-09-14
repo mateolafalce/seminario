@@ -1,285 +1,244 @@
-import React, { useState, useEffect, useContext } from 'react';
+import React, { useState, useEffect, useContext, useMemo } from 'react';
 import { AuthContext } from '../context/AuthContext';
 import Button from '../components/common/Button/Button';
 import MiToast from '../components/common/Toast/MiToast';
-import { toast } from "react-toastify";
+import { toast } from 'react-toastify';
 import Modal from '../components/common/Modal/Modal';
-import { FiUsers, FiStar } from 'react-icons/fi';
+import { FiUsers, FiStar, FiRefreshCcw, FiCalendar, FiClock, FiList } from 'react-icons/fi';
 import FormularioReseña from '../components/usuarios/FormularioResenias';
 import ReservaCard, { EmptyState } from '../components/common/Cards/CardReserva';
 
-function safeToast(message, color = "var(--color-red-400)") {
-  toast(<MiToast mensaje={message} color={color} />);
+/* ---------- Estilo (sin verdes) ---------- */
+const ACCENT = '#FFC107'; // ámbar cálido
+
+/* ---------- Utils ---------- */
+const cn = (...x) => x.filter(Boolean).join(' ');
+const safeJson = async (r) => { try { return await r.json(); } catch { return {}; } };
+function safeToast(message, color = ACCENT) { toast(<MiToast mensaje={message} color={color} />); }
+
+/* ---------- Tabs ---------- */
+function TabButton({ active, onClick, icon, label, count }) {
+  return (
+    <button
+      onClick={onClick}
+      className={cn(
+        'relative pb-3 text-sm font-medium transition',
+        active ? 'text-white' : 'text-white/60 hover:text-white'
+      )}
+    >
+      <span className="inline-flex items-center gap-2">
+        {icon} {label}
+        <span className="rounded-full bg-white/10 px-2 text-xs">{count}</span>
+      </span>
+      {active && <span className="absolute -bottom-[1px] left-0 right-0 h-0.5" style={{ backgroundColor: ACCENT }} />}
+    </button>
+  );
 }
 
-async function safeJson(resp) {
-  try { return await resp.json(); } catch { return {}; }
-}
-
+/* ---------- Página ---------- */
 function MisReservas() {
+  const { isAuthenticated, apiFetch, user } = useContext(AuthContext);
+
   const [vista, setVista] = useState('proximos');
   const [proximasReservas, setProximasReservas] = useState([]);
   const [historial, setHistorial] = useState([]);
   const [loading, setLoading] = useState(true);
-  const { isAuthenticated, apiFetch, user } = useContext(AuthContext);
+  const [errorMsg, setErrorMsg] = useState('');
 
-  // Modal jugadores
+  // jugadores / calificación
   const [modalJugadoresAbierto, setModalJugadoresAbierto] = useState(false);
   const [jugadoresReserva, setJugadoresReserva] = useState([]);
   const [reservaSeleccionada, setReservaSeleccionada] = useState(null);
   const [loadingJugadores, setLoadingJugadores] = useState(false);
 
-  // Calificación
   const [modalCalificacionAbierto, setModalCalificacionAbierto] = useState(false);
   const [jugadorSeleccionado, setJugadorSeleccionado] = useState(null);
-
-  // Nuevo estado para guardar el detalle completo de la reserva
   const [detalleReserva, setDetalleReserva] = useState(null);
 
-  // antes: solo Reservada
-  // const urlProximas = '/api/reservas/mis-reservas?estados=Reservada&incluir_pasadas=false';
-
-  // ahora: Reservada + Confirmada
   const urlProximas = '/api/reservas/mis-reservas?estados=Reservada,Confirmada&incluir_pasadas=false';
   const urlHistorial = '/api/reservas/mis-reservas?estados=Confirmada,Completada,Cancelada&incluir_pasadas=true';
 
   async function cargarListas() {
-    setLoading(true);
+    setLoading(true); setErrorMsg('');
     try {
-      const [resProx, resHist] = await Promise.all([
-        apiFetch(urlProximas),
-        apiFetch(urlHistorial),
-      ]);
-
-      if (resProx.ok) {
-        const data = await resProx.json();
-        setProximasReservas(Array.isArray(data) ? data : []);
-      } else {
-        const e = await safeJson(resProx);
-        safeToast(e.detail || "No se pudieron cargar tus próximas reservas.");
+      const [r1, r2] = await Promise.all([apiFetch(urlProximas), apiFetch(urlHistorial)]);
+      setProximasReservas(r1.ok ? (await r1.json()) ?? [] : []);
+      setHistorial(r2.ok ? (await r2.json()) ?? [] : []);
+      if (!r1.ok || !r2.ok) {
+        const e1 = r1.ok ? {} : await safeJson(r1);
+        const e2 = r2.ok ? {} : await safeJson(r2);
+        const msg = e1.detail || e2.detail || 'No se pudieron cargar tus reservas.';
+        setErrorMsg(msg); safeToast(msg, '#F43F5E');
       }
-
-      if (resHist.ok) {
-        const data = await resHist.json();
-        setHistorial(Array.isArray(data) ? data : []);
-      } else {
-        const e = await safeJson(resHist);
-        safeToast(e.detail || "No se pudo cargar el historial de reservas.");
-      }
-    } catch (error) {
-      if (error.message !== 'Sesión expirada') {
-        console.error("Error al obtener las reservas:", error);
-        safeToast("No se pudieron cargar tus reservas.");
-      }
-    } finally {
-      setLoading(false);
-    }
+    } catch {
+      setErrorMsg('No se pudieron cargar tus reservas.'); safeToast('No se pudieron cargar tus reservas.', '#F43F5E');
+    } finally { setLoading(false); }
   }
 
-  useEffect(() => {
-    if (!isAuthenticated) return;
-    cargarListas();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isAuthenticated]);
+  useEffect(() => { if (isAuthenticated) cargarListas(); }, [isAuthenticated]);
 
-  async function handleCancelar(reservaId) {
-    if (!window.confirm("¿Estás seguro de que quieres cancelar esta reserva?")) return;
+  async function handleCancelar(id) {
+    if (!window.confirm('¿Cancelar esta reserva?')) return;
     try {
-      const response = await apiFetch(`/api/reservas/cancelar/${reservaId}`, { method: 'DELETE' });
-      const data = await safeJson(response);
-      if (response.ok) {
-        safeToast(data.msg || "Reserva cancelada.", "[#e5ff00]");
-        // Re-fetch de ambas listas para mantener consistencia
-        await cargarListas();
-      } else {
-        safeToast(`Error: ${data.detail || 'No se pudo cancelar'}`);
-      }
-    } catch (error) {
-      if (error.message !== 'Sesión expirada') {
-        safeToast("Error de conexión al intentar cancelar la reserva.");
-      }
-    }
+      const r = await apiFetch(`/api/reservas/cancelar/${id}`, { method: 'DELETE' });
+      const d = await safeJson(r);
+      r.ok ? safeToast(d.msg || 'Reserva cancelada.') : safeToast(d.detail || 'No se pudo cancelar', '#F43F5E');
+      await cargarListas();
+    } catch { safeToast('Error de conexión', '#F43F5E'); }
   }
 
-  async function handleConfirmar(reservaId) {
+  async function handleConfirmar(id) {
     try {
-      const response = await apiFetch(`/api/reservas/confirmar/${reservaId}`, { method: 'POST' });
-      const data = await safeJson(response);
-
-      if (response.ok) {
-        safeToast(data.msg || "Asistencia registrada.", "[#e5ff00]");
-        // Re-fetch de próximas + historial (si pasó a Confirmada/Completada se verá donde corresponda)
-        await cargarListas();
-      } else {
-        safeToast(`Error: ${data.detail || 'No se pudo confirmar la asistencia'}`);
-      }
-    } catch (error) {
-      if (error.message !== 'Sesión expirada') {
-        safeToast("Error de conexión");
-      }
-    }
+      const r = await apiFetch(`/api/reservas/confirmar/${id}`, { method: 'POST' });
+      const d = await safeJson(r);
+      r.ok ? safeToast(d.msg || 'Asistencia confirmada.') : safeToast(d.detail || 'No se pudo confirmar', '#F43F5E');
+      await cargarListas();
+    } catch { safeToast('Error de conexión', '#F43F5E'); }
   }
 
   async function handleVerJugadores(reserva) {
     setReservaSeleccionada(reserva);
     setLoadingJugadores(true);
     setModalJugadoresAbierto(true);
-
     try {
       const qs = new URLSearchParams({
-        cancha: reserva.cancha,
-        horario: reserva.horario,
-        fecha: reserva.fecha,
-        usuario_id: user?.id || ''
+        cancha: reserva.cancha, horario: reserva.horario, fecha: reserva.fecha, usuario_id: user?.id || ''
       });
-      const response = await apiFetch(`/api/reservas/detalle?${qs.toString()}`);
-      const data = await safeJson(response);
-
-      if (response.ok) {
-        setDetalleReserva(data); // guarda el detalle completo, incluyendo reserva_id
-        const usuarios = (data.usuarios || [])
-          .filter(u => u.usuario_id !== user?.id) // no mostrarme a mí para calificarme
-          .map(u => ({
-            _id: u.usuario_id,
-            nombre: u.nombre,
-            apellido: u.apellido,
-            username: u.username || "",
-            calificado: !!u.calificado,
-          }));
+      const r = await apiFetch(`/api/reservas/detalle?${qs.toString()}`);
+      const d = await safeJson(r);
+      if (r.ok) {
+        setDetalleReserva(d);
+        const usuarios = (d.usuarios || [])
+          .filter(u => u.usuario_id !== user?.id)
+          .map(u => ({ _id: u.usuario_id, nombre: u.nombre, apellido: u.apellido, username: u.username || '', calificado: !!u.calificado }));
         setJugadoresReserva(usuarios);
-      } else {
-        safeToast(data.detail || "No se pudieron obtener los jugadores");
-        setJugadoresReserva([]);
-      }
-    } catch (error) {
-      safeToast("Error al cargar los jugadores");
-      setJugadoresReserva([]);
-    } finally {
-      setLoadingJugadores(false);
-    }
+      } else { safeToast(d.detail || 'No se pudieron obtener los jugadores', '#F43F5E'); setJugadoresReserva([]); }
+    } catch { safeToast('Error al cargar los jugadores', '#F43F5E'); setJugadoresReserva([]); }
+    finally { setLoadingJugadores(false); }
   }
 
-  function handleCalificarJugador(jugador) {
-    setJugadorSeleccionado(jugador);
-    setModalCalificacionAbierto(true);
-  }
-
+  function handleCalificarJugador(j) { setJugadorSeleccionado(j); setModalCalificacionAbierto(true); }
   function handleReseñaExitosa() {
-    setJugadoresReserva(prev =>
-      prev.map(j => j._id === jugadorSeleccionado._id ? { ...j, calificado: true } : j)
-    );
-    setModalCalificacionAbierto(false);
-    setJugadorSeleccionado(null);
+    setJugadoresReserva(prev => prev.map(x => x._id === jugadorSeleccionado._id ? { ...x, calificado: true } : x));
+    setModalCalificacionAbierto(false); setJugadorSeleccionado(null);
   }
+
+  const counts = useMemo(() => ({
+    proximos: proximasReservas.length, historial: historial.length
+  }), [proximasReservas.length, historial.length]);
 
   if (!isAuthenticated) {
-    return <p className="text-center text-red-400 mt-10">Debes iniciar sesión para ver tus reservas.</p>;
-  }
-
-  if (loading) {
-    return <p className="text-center text-white mt-10">Cargando tus reservas...</p>;
+    return (
+      <div className="min-h-[60vh] grid place-items-center px-4">
+        <p className="text-red-400">Debes iniciar sesión para ver tus reservas.</p>
+      </div>
+    );
   }
 
   return (
-    <div className="flex flex-col items-center min-h-[70vh] py-8 px-4">
-      <div className="w-full max-w-4xl">
-        <h2 className="text-3xl font-bold text-[#eaff00] mb-8 text-center">Mis Reservas</h2>
+    <div className="min-h-[70vh] py-8 px-4">
+      <div className="mx-auto w-full max-w-5xl">
 
-        {/* Botones de vista */}
-        <div className="flex justify-center gap-4 mb-8">
-          <button
-            onClick={() => setVista('proximos')}
-            className={`px-6 py-2 rounded-lg font-semibold transition-colors ${
-              vista === 'proximos'
-                ? 'bg-[#eaff00] text-[#101a2a]'
-                : 'bg-gray-700 text-white hover:bg-gray-600'
-            }`}
-          >
-            Próximas Reservas
-          </button>
-          <button
-            onClick={() => setVista('historial')}
-            className={`px-6 py-2 rounded-lg font-semibold transition-colors ${
-              vista === 'historial'
-                ? 'bg-[#eaff00] text-[#101a2a]'
-                : 'bg-gray-700 text-white hover:bg-gray-600'
-            }`}
-          >
-            Historial
-          </button>
+        {/* Tabs + Recargar en la misma fila */}
+        <div className="mb-8 flex items-center justify-between gap-4 border-b border-white/10">
+          <div className="flex gap-6">
+            <TabButton
+              active={vista === 'proximos'}
+              onClick={() => setVista('proximos')}
+              icon={<FiCalendar />}
+              label="Próximas"
+              count={counts.proximos}
+            />
+            <TabButton
+              active={vista === 'historial'}
+              onClick={() => setVista('historial')}
+              icon={<FiList />}
+              label="Historial"
+              count={counts.historial}
+            />
+          </div>
         </div>
 
-        {/* Contenido */}
-        {vista === 'proximos' ? (
+        {/* Error */}
+        {errorMsg && (
+          <div className="mb-6 rounded-lg border border-rose-500/30 bg-rose-500/10 p-4 text-rose-200">
+            {errorMsg}
+          </div>
+        )}
+
+        {/* Contenido: 1 columna, centrado */}
+        {loading ? (
+          <p className="text-white/70">Cargando…</p>
+        ) : vista === 'proximos' ? (
           proximasReservas.length === 0 ? (
-            <EmptyState />
+            <div className="rounded-xl border border-white/10 bg-white/5 p-8 text-center max-w-3xl mx-auto">
+              <EmptyState />
+            </div>
           ) : (
-            <ul className="space-y-4">
+            <ul className="grid grid-cols-1 gap-8 lg:gap-0 max-w-5xl w-full">
               {proximasReservas.map((reserva) => (
-                <ReservaCard
-                  key={reserva._id}
-                  reserva={reserva}
-                  mode="proxima"
-                  onConfirmarAsistencia={handleConfirmar}
-                  onCancelar={handleCancelar}
-                  
-                />
+                <li key={reserva._id}>
+                  <ReservaCard
+                    reserva={reserva}
+                    mode="proxima"
+                    onConfirmarAsistencia={handleConfirmar}
+                    onCancelar={handleCancelar}
+                  />
+                </li>
               ))}
             </ul>
           )
-        ) : (
-          historial.length === 0 ? (
+        ) : historial.length === 0 ? (
+          <div className="rounded-xl border border-white/10 bg-white/5 p-8 text-center max-w-3xl mx-auto">
             <EmptyState />
-          ) : (
-            <ul className="space-y-4">
-              {historial.map((reserva) => (
+          </div>
+        ) : (
+          <ul className="grid grid-cols-1 gap-8 lg:gap-0 max-w-5xl w-full">
+            {historial.map((reserva) => (
+              <li key={reserva._id}>
                 <ReservaCard
-                  key={reserva._id}
                   reserva={reserva}
                   mode="historial"
                   onVerJugadores={handleVerJugadores}
-                  // Si querés permitir confirmar desde historial:
-                  // onConfirmarAsistencia={({ _id }) => handleConfirmar(_id)}
                 />
-              ))}
-            </ul>
-          )
+              </li>
+            ))}
+          </ul>
         )}
       </div>
 
-      {/* Modal Jugadores */}
+      {/* Modal: Jugadores */}
       <Modal isOpen={modalJugadoresAbierto} onClose={() => setModalJugadoresAbierto(false)}>
-        <div className="px-1 py-3 sm:p-6">
-          <h3 className="text-2xl font-bold text-white mb-2">Jugadores</h3>
-          <p className="text-gray-400 mb-4">
-            {reservaSeleccionada?.cancha} — {reservaSeleccionada?.fecha} ({reservaSeleccionada?.horario})
+        <div className="p-4 sm:p-6">
+          <h3 className="text-xl font-bold text-white mb-1 flex items-center gap-2">
+            <FiUsers /> Jugadores
+          </h3>
+          <p className="text-white/60 mb-4 flex items-center gap-3 text-sm">
+            <span className="inline-flex items-center gap-1"><FiCalendar /> {reservaSeleccionada?.fecha}</span>
+            <span className="inline-flex items-center gap-1"><FiClock /> {reservaSeleccionada?.horario}</span>
+            <span>{reservaSeleccionada?.cancha}</span>
           </p>
 
           {loadingJugadores ? (
-            <p className="text-center text-gray-300 py-4">Cargando jugadores...</p>
+            <div className="text-white/70">Cargando…</div>
           ) : jugadoresReserva.length === 0 ? (
-            <p className="text-center text-gray-300 py-4">No hay jugadores registrados para esta reserva.</p>
+            <p className="text-center text-white/70 py-4">No hay jugadores registrados.</p>
           ) : (
-            <ul className="divide-y divide-gray-700">
-              {jugadoresReserva.map(jugador => (
-                <li key={jugador._id} className="py-4 flex justify-between items-center">
+            <ul className="divide-y divide-white/10 rounded-lg border border-white/10 overflow-hidden">
+              {jugadoresReserva.map((j) => (
+                <li key={j._id} className="py-3 px-4 flex items-center justify-between">
                   <div>
-                    <p className="text-white font-medium">{jugador.nombre} {jugador.apellido}</p>
-                    {jugador.username ? (
-                      <p className="text-gray-400 text-sm">@{jugador.username}</p>
-                    ) : null}
+                    <p className="text-white font-medium">{j.nombre} {j.apellido}</p>
+                    {j.username && <p className="text-white/60 text-sm">@{j.username}</p>}
                   </div>
-
-                  {jugador.calificado ? (
-                    <span className="text-green-400 text-sm flex items-center">
-                      <FiStar className="mr-1" /> Calificado
-                    </span>
+                  {j.calificado ? (
+                    <span className="text-emerald-400 text-xs inline-flex items-center gap-1"><FiStar /> Calificado</span>
                   ) : (
                     <Button
                       texto="Calificar"
-                      onClick={() => handleCalificarJugador(jugador)}
+                      onClick={() => handleCalificarJugador(j)}
                       variant="default"
-                      className="text-sm py-1"
+                      className="!bg-transparent !text-yellow-300 !border !border-yellow-300/40 hover:!bg-yellow-300/10 text-sm py-1"
                     />
                   )}
                 </li>
@@ -287,26 +246,26 @@ function MisReservas() {
             </ul>
           )}
 
-          <div className="mt-6 text-center">
-            <Button
-              texto="Cerrar"
-              onClick={() => setModalJugadoresAbierto(false)}
-              variant="cancelar"
-            />
+          <div className="mt-4 flex justify-end">
+            <Button texto="Cerrar" onClick={() => setModalJugadoresAbierto(false)} variant="cancelar" />
           </div>
         </div>
       </Modal>
 
-      {/* Modal Calificación */}
+      {/* Modal: Calificación */}
       <Modal isOpen={modalCalificacionAbierto} onClose={() => setModalCalificacionAbierto(false)}>
-        {jugadorSeleccionado && (
-          <FormularioReseña
-            jugadorAReseñar={jugadorSeleccionado}
-            reservaId={detalleReserva?.reserva_id}   // <-- clave para validar en backend
-            onReseñaEnviada={handleReseñaExitosa}
-            onCancelar={() => setModalCalificacionAbierto(false)}
-          />
-        )}
+        <div className="p-4 sm:p-6">
+          {jugadorSeleccionado ? (
+            <FormularioReseña
+              jugadorAReseñar={jugadorSeleccionado}
+              reservaId={detalleReserva?.reserva_id}
+              onReseñaEnviada={handleReseñaExitosa}
+              onCancelar={() => setModalCalificacionAbierto(false)}
+            />
+          ) : (
+            <div className="text-white/70">Cargando…</div>
+          )}
+        </div>
       </Modal>
     </div>
   );
