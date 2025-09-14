@@ -30,7 +30,7 @@ const Button = ({
   className = "",
   variant = "primary",
   size = "md",
-  icon: Icon, // optional icon component
+  icon, // puede ser <FiPlus /> o <span>+</span>
   ...props
 }) => {
   const v = disabled ? "disabled" : variant;
@@ -47,7 +47,7 @@ const Button = ({
       ].join(" ")}
       {...props}
     >
-      {Icon && <Icon className="w-4 h-4 mr-2" />}
+      {icon && <span className="w-4 h-4 mr-2">{icon}</span>}
       {texto}
     </button>
   );

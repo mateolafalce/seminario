@@ -1,11 +1,11 @@
-import React, { useContext, useEffect, useState } from "react";
+import React, { useContext, useEffect, useState, useCallback } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { AuthContext } from "../../../context/AuthContext";
 import Button from "../Button/Button";
 import logoCompleto from "../../../assets/icons/logoCompletoBlanco.svg";
 import { motion, AnimatePresence } from "framer-motion";
 
-// las redirecciones centrales
+// Links centrales (visibilidad por rol)
 const centerLinks = [
   { label: "Home", path: "/home", show: ({ isAuthenticated }) => isAuthenticated },
   { label: "Reseñas", path: "/resenias", show: ({ isAuthenticated }) => isAuthenticated },
@@ -21,113 +21,161 @@ function CustomNavbar() {
   const navigate = useNavigate();
   const location = useLocation();
   const { isAuthenticated, logout, isAdmin, isEmpleado } = useContext(AuthContext);
+
   const [scrolled, setScrolled] = useState(false);
   const [showOffcanvas, setShowOffcanvas] = useState(false);
 
+  // fondo blur al scrollear
   useEffect(() => {
     const handleScroll = () => setScrolled(window.scrollY > 80);
-    window.addEventListener("scroll", handleScroll);
+    window.addEventListener("scroll", handleScroll, { passive: true });
     return () => window.removeEventListener("scroll", handleScroll);
   }, []);
 
+  // cerrar drawer al pasar a desktop
   useEffect(() => {
     const handleResize = () => {
-      if (window.innerWidth >= 1024) {
-        setShowOffcanvas(false);
-      }
+      if (window.innerWidth >= 1024) setShowOffcanvas(false);
     };
     window.addEventListener("resize", handleResize);
     return () => window.removeEventListener("resize", handleResize);
   }, []);
 
-  const handleLogout = () => {
+  // accesibilidad: cerrar con Escape y bloquear scroll de fondo
+  useEffect(() => {
+    if (showOffcanvas) {
+      const onKeyDown = (e) => {
+        if (e.key === "Escape") setShowOffcanvas(false);
+      };
+      document.addEventListener("keydown", onKeyDown);
+      const prev = document.body.style.overflow;
+      document.body.style.overflow = "hidden";
+      return () => {
+        document.removeEventListener("keydown", onKeyDown);
+        document.body.style.overflow = prev;
+      };
+    }
+  }, [showOffcanvas]);
+
+  const handleLogout = useCallback(() => {
     logout();
     setShowOffcanvas(false);
     window.location.replace("/home");
+  }, [logout]);
+
+  const handleNavigate = useCallback(
+    (path) => {
+      navigate(path);
+      setShowOffcanvas(false);
+    },
+    [navigate]
+  );
+
+  const renderSessionButtons = (isMobile = false) => {
+    if (isAuthenticated) {
+      return (
+        <Button
+          texto="Cerrar Sesión"
+          onClick={handleLogout}
+          variant="session"
+          className={isMobile ? "mb-2" : ""}
+        />
+      );
+    }
+    return (
+      <>
+        <Button
+          texto="Iniciar Sesión"
+          onClick={() => (isMobile ? handleNavigate("/login") : navigate("/login"))}
+          variant="session"
+          className={isMobile ? "mb-2" : ""}
+        />
+        <Button
+          texto="Registrarse"
+          onClick={() => (isMobile ? handleNavigate("/register") : navigate("/register"))}
+          variant="session"
+          className={isMobile ? "" : "ml-2"}
+        />
+      </>
+    );
   };
 
-  // Links visibles según rol
+  // Links visibles
   const visibleLinks = centerLinks.filter(link =>
     link.show({ isAuthenticated, isAdmin, isEmpleado })
   );
 
-  // ✅ SIN raya arriba: sin ring/shadow top
-  //    • en top: transparente con degradado hacia abajo
-  //    • scrolled: fondo blur + SOLO borde inferior
-  const navWrapper = `fixed inset-x-0 top-0 z-50 transition-all duration-500
-    ${scrolled
-      ? "bg-slate-900/75 supports-[backdrop-filter]:backdrop-blur-xl border-b border-white/10"
-      : "bg-gradient-to-b from-slate-900/0 to-slate-900/25 supports-[backdrop-filter]:backdrop-blur-0"
-    }`;
-
-  const navHeight = scrolled ? "h-14" : "h-16";
+  // estilos (desktop: solo cambio de color -> yellow-400)
+  const navButtonBase =
+    "relative text-white font-semibold px-2 py-1 rounded transition-colors duration-300 text-sm xl:text-base " +
+    "group hover:text-yellow-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-yellow-400/60 focus-visible:ring-offset-2 focus-visible:ring-offset-transparent";
+  const navButtonActive = "text-yellow-400";
 
   return (
     <>
       {/* NAVBAR */}
       <nav
-        className={`${navWrapper} ${navHeight} relative`}
+        className={`fixed top-0 inset-x-0 z-50 h-14 transition-all duration-700 ${
+          scrolled
+            ? "bg-slate-900/80 backdrop-blur-md shadow-md border-b border-white/5"
+            : "bg-transparent"
+        }`}
       >
-        {/* hairline inferior muy sutil SOLO cuando NO hay border */}
-        {!scrolled && (
-          <span className="pointer-events-none absolute inset-x-0 bottom-0 h-px bg-white/5" />
-        )}
-
-        <div className={`relative mx-auto h-full max-w-7xl px-4 sm:px-6 lg:px-8
-                         flex items-center justify-between`}>
-
-          {/* Logo */}
-          <div
-            className="flex items-center cursor-pointer select-none"
+        <div className="relative mx-auto max-w-7xl h-full px-4 sm:px-6 lg:px-10 flex items-center justify-between">
+          {/* Logo (Izquierda) */}
+          <button
             onClick={() => navigate("/home")}
-            title="Boulevard81"
+            className="flex items-center cursor-pointer select-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-yellow-400/60 rounded"
+            aria-label="Ir al inicio"
           >
-            <img src={logoCompleto} alt="Boulevard81" className="h-6 sm:h-7 w-auto block" draggable={false}/>
-          </div>
+            <img
+              src={logoCompleto}
+              alt="Boulevard81"
+              className="mr-2 h-6 w-auto select-none"
+              draggable={false}
+            />
+          </button>
 
-          {/* Links centrados (desktop) */}
+          {/* Links (Centro) - SOLO DESKTOP */}
           <div className="hidden lg:block absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2">
-            <div className="flex items-center gap-1.5 rounded-full px-2 py-1
-                            bg-white/5 ring-1 ring-white/10 supports-[backdrop-filter]:backdrop-blur-md
-                            shadow-[inset_0_0_0_1px_rgba(255,255,255,0.03)]">
+            <div className="flex items-center gap-3">
               {visibleLinks.map(link => {
                 const isActive = location.pathname === link.path;
                 return (
                   <button
                     key={link.label}
                     onClick={() => navigate(link.path)}
-                    className={`relative px-3 py-1.5 rounded-full text-sm font-semibold text-white/90 transition-colors
-                               hover:text-amber-300 hover:bg-white/5 focus:outline-none
-                               ${isActive ? "text-amber-300 bg-white/10 ring-1 ring-amber-300/20" : ""}`}
-                    aria-current={isActive ? "page" : undefined}
-                    style={{ fontFamily: "inherit" }}
+                    className={`${navButtonBase} ${isActive ? navButtonActive : ""}`}
+                    style={{ position: "relative" }}
+                    type="button"
                   >
                     {link.label}
+                    <span
+                      className={`pointer-events-none absolute left-0 -bottom-0.5 h-0.5 bg-yellow-400 transition-all duration-300 ${
+                        isActive ? "w-full" : "w-0 group-hover:w-full"
+                      }`}
+                    />
                   </button>
                 );
               })}
             </div>
           </div>
 
-          {/* Derecha (igual que antes) */}
-          <div className="flex items-center gap-2">
+          {/* Sesión (Derecha) + Hamburguesa */}
+          <div className="flex items-center">
+            {/* Desktop */}
             <div className="hidden lg:flex items-center gap-2">
-              {isAuthenticated ? (
-                <Button texto="Cerrar Sesión" onClick={handleLogout} variant="session" className="rounded-full !px-5 !py-1.5 font-semibold"/>
-              ) : (
-                <>
-                  <Button texto="Iniciar Sesión" onClick={() => navigate("/login")} variant="session" className="rounded-full !px-5 !py-1.5 font-semibold"/>
-                  <Button texto="Registrarse" onClick={() => navigate("/register")} variant="session" className="rounded-full !px-5 !py-1.5 font-semibold"/>
-                </>
-              )}
+              {renderSessionButtons(false)}
             </div>
 
-            {/* Hamburguesa (mobile) */}
+            {/* Mobile: botón hamburguesa */}
             <div className="lg:hidden">
               <button
                 onClick={() => setShowOffcanvas(true)}
-                className="text-white/90 hover:text-white transition-colors p-2 rounded-full hover:bg-white/5"
+                className="text-white hover:text-yellow-400 p-2 rounded focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-yellow-400/60"
                 aria-label="Abrir menú"
+                aria-expanded={showOffcanvas}
+                aria-controls="mobile-menu"
               >
                 <svg className="h-7 w-7" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
@@ -138,88 +186,135 @@ function CustomNavbar() {
         </div>
       </nav>
 
-      {/* Offcanvas tal cual lo tenías… */}
+      {/* MENU MOBILE (fullscreen mejorado) */}
       <AnimatePresence>
         {showOffcanvas && (
-          <motion.div
-            className="fixed inset-0 z-50 lg:hidden
-                       bg-gradient-to-br from-[#0B1220] via-[#0D1B2A] to-[#111827]
-                       ring-1 ring-white/10"
-            initial={{ x: "-100%" }}
-            animate={{ x: 0 }}
-            exit={{ x: "-100%" }}
-            transition={{ type: "spring", stiffness: 180, damping: 22 }}
-            onClick={(e) => e.stopPropagation()}
-          >
-            {/* cerrar */}
-            <button
+          <>
+            {/* Overlay */}
+            <motion.div
+              className="fixed inset-0 z-50 bg-black/60 lg:hidden"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
               onClick={() => setShowOffcanvas(false)}
-              className="absolute top-7 right-7 text-white/70 hover:text-white transition-colors rounded-full p-2
-                         hover:bg-white/5 ring-1 ring-white/10"
-              aria-label="Cerrar menú"
+              aria-hidden="true"
+            />
+            {/* Panel fullscreen */}
+            <motion.div
+              id="mobile-menu"
+              role="dialog"
+              aria-modal="true"
+              className="fixed inset-0 z-50 lg:hidden flex"
+              initial={{ x: "-100%" }}
+              animate={{ x: 0 }}
+              exit={{ x: "-100%" }}
+              transition={{ type: "spring", stiffness: 180, damping: 22 }}
             >
-              <svg className="w-7 h-7" fill="none" stroke="currentColor" strokeWidth={1.5} viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
-              </svg>
-            </button>
-
-            {/* contenido */}
-            <div className="h-full flex flex-col justify-center items-center px-8">
-              <nav className="flex flex-col w-full max-w-sm space-y-4 mb-10">
-                {visibleLinks.map(link => {
-                  const isActive = location.pathname === link.path;
-                  return (
-                    <button
-                      key={link.label}
-                      type="button"
-                      onClick={() => { navigate(link.path); setShowOffcanvas(false); }}
-                      className={`w-full text-center rounded-2xl px-6 py-3.5 text-lg font-semibold transition-all
-                                  ring-1 ${isActive
-                                    ? "text-amber-300 bg-white/10 ring-amber-300/25 shadow-[0_12px_40px_-12px_rgba(245,197,66,0.35)]"
-                                    : "text-white/90 hover:text-amber-300 hover:bg-white/5 ring-white/10"
-                                  }`}
-                      style={{ fontFamily: "inherit" }}
-                    >
-                      {link.label}
-                    </button>
-                  );
-                })}
-              </nav>
-
-              {/* sesión */}
-              {!isAuthenticated ? (
-                <div className="flex flex-col w-full max-w-sm space-y-4">
+              <div
+                className="relative flex-1 bg-[#0D1B2A]"
+                style={{
+                  // Acento radial sutil amarillo
+                  backgroundImage:
+                    "radial-gradient(1000px 400px at 110% -20%, rgba(250, 204, 21, 0.12), transparent)"
+                }}
+                onClick={(e) => e.stopPropagation()}
+              >
+                {/* Cerrar */}
+                <div className="absolute top-4 right-4">
                   <button
-                    onClick={() => navigate("/login")}
-                    className="w-full text-center rounded-2xl px-6 py-3 text-base font-semibold
-                               text-white/90 hover:text-white transition-all ring-1 ring-white/10 hover:bg-white/5"
+                    onClick={() => setShowOffcanvas(false)}
+                    className="p-2 rounded-lg text-white/70 hover:text-white hover:bg-white/5 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-yellow-400/60"
+                    aria-label="Cerrar menú"
                   >
-                    Iniciar Sesión
-                  </button>
-                  <button
-                    onClick={() => navigate("/register")}
-                    className="w-full text-center rounded-2xl px-6 py-3 text-base font-semibold
-                               bg-amber-300 text-slate-900 hover:bg-amber-200 transition-colors shadow-[0_10px_30px_-10px_rgba(245,197,66,0.55)]"
-                  >
-                    Registrarse
+                    <svg className="w-7 h-7" fill="none" stroke="currentColor" strokeWidth={1.5} viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                    </svg>
                   </button>
                 </div>
-              ) : (
-                <div className="flex flex-col w-full max-w-sm">
+
+                {/* Header con logo */}
+                <div className="px-6 pt-6 pb-2 flex items-center justify-between">
                   <button
-                    onClick={handleLogout}
-                    className="w-full text-center rounded-2xl px-6 py-3 text-base font-semibold
-                               text-white/90 hover:text-rose-300 transition-all ring-1 ring-white/10 hover:bg-white/5"
+                    onClick={() => { navigate("/home"); setShowOffcanvas(false); }}
+                    className="flex items-center gap-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-yellow-400/60 rounded"
+                    aria-label="Ir al inicio"
                   >
-                    Cerrar Sesión
+                    <img src={logoCompleto} alt="Boulevard81" className="h-6 w-auto" />
                   </button>
                 </div>
-              )}
-            </div>
-          </motion.div>
+
+                {/* Navegación */}
+                <nav className="px-6 mt-6">
+                  <ul className="flex flex-col space-y-4">
+                    {visibleLinks.map(link => {
+                      const isActive = location.pathname === link.path;
+                      return (
+                        <li key={link.label}>
+                          <button
+                            type="button"
+                            onClick={() => { navigate(link.path); setShowOffcanvas(false); }}
+                            className={`w-full text-left relative py-3 text-2xl font-light tracking-wide transition-all duration-200 rounded-md
+                              ${isActive ? "text-yellow-400" : "text-white"} 
+                              hover:text-yellow-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-yellow-400/60`}
+                          >
+                            {/* Indicador base */}
+                            <span
+                              className={`pointer-events-none absolute left-0 bottom-0 h-0.5 bg-yellow-400 transition-all duration-300 ${
+                                isActive ? "w-full" : "w-0 group-hover:w-full"
+                              }`}
+                            />
+                            {link.label}
+                          </button>
+                        </li>
+                      );
+                    })}
+                  </ul>
+
+                  {/* separador sutil */}
+                  <div className="mt-8 h-px w-full bg-white/10" />
+
+                  {/* Sesión (botones grandes) */}
+                  <div className="mt-6">
+                    {!isAuthenticated ? (
+                      <div className="flex flex-col gap-3">
+                        <button
+                          onClick={() => handleNavigate("/login")}
+                          className="w-full text-white text-lg font-light py-3 rounded-full border border-white/20 hover:bg-white/5 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-yellow-400/60"
+                        >
+                          Iniciar Sesión
+                        </button>
+                        <button
+                          onClick={() => handleNavigate("/register")}
+                          className="w-full text-slate-900 text-lg font-medium py-3 rounded-full bg-yellow-400 hover:bg-yellow-300 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-yellow-400/60"
+                        >
+                          Registrarse
+                        </button>
+                      </div>
+                    ) : (
+                      <div className="flex flex-col">
+                        <button
+                          onClick={handleLogout}
+                          className="w-full text-white text-lg font-light py-3 rounded-full border border-white/20 hover:bg-red-500/10 hover:text-red-300 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-yellow-400/60"
+                        >
+                          Cerrar Sesión
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                </nav>
+
+                {/* Footer mini */}
+                <div className="px-6 py-8">
+                  <p className="text-white/40 text-xs">© {new Date().getFullYear()} Boulevard81</p>
+                </div>
+              </div>
+            </motion.div>
+          </>
         )}
       </AnimatePresence>
-      <div className="h-16" />
+
+      {/* Espaciador para evitar superposición */}
+      <div className="h-14" />
     </>
   );
 }
