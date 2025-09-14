@@ -70,39 +70,22 @@ def clean_mongo_doc(doc):
     else:
         return doc
 
-NOTIFY_ON_COUNTS = set(int(x) for x in os.getenv("NOTIFY_ON_COUNTS", "1,3,5").split(",") if x.strip())
-NOTIFY_COOLDOWN_MIN = int(os.getenv("NOTIFY_COOLDOWN_MIN", "120"))  # 2 horas por defecto
-
-def should_notify_slot(reserva_doc, argentina_tz):
-    # umbral por cantidad de usuarios
-    cant = len(reserva_doc.get("usuarios", []))
-    if NOTIFY_ON_COUNTS and cant not in NOTIFY_ON_COUNTS:
-        return False
-
-    # cooldown por última notificación del slot
-    notifs = reserva_doc.get("notificaciones", [])
-    if notifs:
-        last = max([n.get("fecha") for n in notifs if isinstance(n.get("fecha"), datetime)], default=None)
-        if last and (datetime.now(argentina_tz) - last) < timedelta(minutes=NOTIFY_COOLDOWN_MIN):
-            return False
-
-    return True
-
 def tiene_conflicto_slot(user_oid, fecha, horario_id):
-    """Conflicto SOLO si ya tiene una reserva en estado 'Reservada' en ese mismo slot."""
     est_res = db_client.estadoreserva.find_one({"nombre": "Reservada"})
     if not est_res:
         raise ValueError("Falta estado 'Reservada' en estadoreserva")
     return db_client.reservas.find_one({
         "fecha": fecha,
         "hora_inicio": horario_id,
-        "estado": est_res["_id"],      # <-- solo Reservada
+        "estado": est_res["_id"],
         "usuarios.id": user_oid
     }) is not None
 
 def match_preferencia(user_oid, fecha, horario_id, cancha_id):
-    # si querés que sea opcional, hacé que esto siempre devuelva True
-    # y solo activalo cuando quieras
+    import os
+    # Permitir desactivar el filtro de preferencias con un flag de entorno
+    if os.getenv("ENFORCE_PREFS_NOTIF", "false").lower() != "true":
+        return True
     try:
         dia_nombre = ["Lunes","Martes","Miércoles","Jueves","Viernes","Sábado","Domingo"][datetime.strptime(fecha, "%d-%m-%Y").weekday()]
         dia_doc = db_client.dias.find_one({"nombre": dia_nombre})
@@ -119,24 +102,21 @@ def match_preferencia(user_oid, fecha, horario_id, cancha_id):
         return True  # en caso de error, no bloquear
 
 def enviar_notificaciones_slot(reserva_doc, origen_user_id, hora_str, cancha_nombre):
+    from services.notifs import should_notify_slot_by_logs, get_notified_users, log_notifications
     argentina_tz = pytz.timezone("America/Argentina/Buenos_Aires")
-    if not should_notify_slot(reserva_doc, argentina_tz):
+    if not should_notify_slot_by_logs(reserva_doc, argentina_tz):
         return
 
     cancha_id = reserva_doc["cancha"]
     horario_id = reserva_doc["hora_inicio"]
     fecha_str = reserva_doc["fecha"]
-
-    ya_notificados = set()
-    for notif_ant in reserva_doc.get("notificaciones", []):
-        for uid in notif_ant.get("usuarios_notificados", []):
-            try:
-                ya_notificados.add(uid if isinstance(uid, ObjectId) else ObjectId(uid))
-            except:
-                pass
+    reserva_id = reserva_doc["_id"]
 
     origen_oid = ObjectId(origen_user_id)
     candidatos = a_notificar(origen_user_id)
+
+    # Dedupe por logs
+    ya_notificados = get_notified_users(reserva_id)
 
     notificados = []
     vistos_usuarios = set()
@@ -158,6 +138,8 @@ def enviar_notificaciones_slot(reserva_doc, origen_user_id, hora_str, cancha_nom
             continue
         if not match_preferencia(oid, fecha_str, horario_id, cancha_id):
             continue
+
+        # enviar email
         ok = notificar_posible_matcheo(
             to=email,
             day=fecha_str,
@@ -168,26 +150,21 @@ def enviar_notificaciones_slot(reserva_doc, origen_user_id, hora_str, cancha_nom
             notificados.append(oid)
             vistos_emails.add(email)
             vistos_usuarios.add(oid)
+
     if notificados:
-        db_client.reservas.update_one(
-            {"_id": reserva_doc["_id"]},
-            {"$push": {"notificaciones": {
-                "usuario_origen": origen_oid,
-                "usuarios_notificados": notificados,
-                "fecha": datetime.now(argentina_tz)
-            }}}
-        )
+        log_notifications(reserva_id, origen_oid, notificados, status="sent")
 
 
 def build_reserva_doc(fecha: str, estado_id, cancha_id, horario_id, user_id: str, tz):
-    # Orden canónico de campos
+    from collections import OrderedDict
+    from bson import ObjectId
+    from datetime import datetime
     return OrderedDict([
-        ("fecha", fecha),                     
-        ("estado", estado_id),              
-        ("cancha", cancha_id),               
-        ("hora_inicio", horario_id),         
+        ("fecha", fecha),
+        ("estado", estado_id),
+        ("cancha", cancha_id),
+        ("hora_inicio", horario_id),
         ("fecha_creacion", datetime.now(tz)),
-        ("notificaciones", []),
         ("usuarios", [
             OrderedDict([
                 ("id", ObjectId(user_id)),
@@ -195,7 +172,7 @@ def build_reserva_doc(fecha: str, estado_id, cancha_id, horario_id, user_id: str
                 ("fecha_reserva", datetime.now(tz)),
             ])
         ]),
-        ("resultado", ""),  
+        ("resultado", ""),
     ])
 
 @router.post("/reservar")
@@ -213,7 +190,7 @@ async def reservar(reserva: Reserva, user: dict = Depends(current_user)):
 
         # --- Validación de horarios pasados (solo para el día de hoy) ---
         if fecha_reserva_dt == hoy_dt:
-            hora_inicio_str = reserva.horario.split('-')[0]  # "09:00"
+            hora_inicio_str = reserva.horario.split('-')[0] 
             hora_reserva_dt = ahora_dt.replace(
                 hour=int(hora_inicio_str.split(':')[0]),
                 minute=int(hora_inicio_str.split(':')[1]),
@@ -268,16 +245,23 @@ async def reservar(reserva: Reserva, user: dict = Depends(current_user)):
                 except ValueError:
                     return tz.localize(dt, is_dst=None)
 
+            # Traer solo reservas 'Reservada' donde el usuario está con confirmado == False
             docs_user = list(db_client.reservas.find(
                 {
-                    "usuarios.id": ObjectId(user["id"]),
-                    "estado": estado_reservada_id
+                    "estado": estado_reservada_id,
+                    "usuarios": {
+                        "$elemMatch": {
+                            "id": ObjectId(user["id"]),
+                            "confirmado": False
+                        }
+                    }
                 },
-                {"fecha": 1, "hora_inicio": 1}
+                {"fecha": 1, "hora_inicio": 1, "usuarios.confirmado": 1}
             ))
 
             reservadas_futuras = 0
             for d in docs_user:
+                # si por algún motivo la entrada no tiene hora en el catalogo, la saltamos
                 hora = horarios_map.get(d["hora_inicio"])
                 if not hora:
                     continue
@@ -397,6 +381,8 @@ async def reservar(reserva: Reserva, user: dict = Depends(current_user)):
                             }}
                         }
                     )
+                    # ⚠️ ACÁ FALTABA REFRESCAR
+                    nueva_reserva = db_client.reservas.find_one({"_id": nueva_reserva["_id"]})
                 # Centralizado: notificaciones de matcheo
                 hora_inicio_str = reserva.horario.split('-')[0]
                 enviar_notificaciones_slot(

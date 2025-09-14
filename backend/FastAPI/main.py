@@ -6,6 +6,7 @@ from services.scheduler import start_scheduler, shutdown_scheduler
 from services.matcheo import calculate_and_store_relations  
 from routers.reservas import cerrar_reservas_vencidas
 from fastapi.middleware.cors import CORSMiddleware
+from services.notifs import ensure_notif_indexes, ensure_unique_slot_index
 
 app = FastAPI()
 
@@ -30,8 +31,14 @@ app.add_middleware(
 @app.on_event("startup")
 async def startup_event():
     try:
+        ensure_notif_indexes()
+        ensure_unique_slot_index()
+    except Exception as e:
+        print(f"Error creando índices: {e}")
+
+    try:
         cerradas = cerrar_reservas_vencidas()
-        print(f"🔁 Cierre inicial: {cerradas} reservas procesadas (Confirmada/Cancelada)")
+        print(f"🔁 Cierre inicial: {cerradas} reservas procesadas (Confirmada/Cancelada)") # Son las reservas que paso el tiempo y nadie le dio a confirmar por lo que aca verfica eso y la pasa a cancelada
     except Exception as e:
         print(f"Error al cerrar reservas en startup: {e}")
     start_scheduler()
