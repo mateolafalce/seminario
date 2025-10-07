@@ -1,11 +1,13 @@
 import asyncio
 from fastapi import FastAPI
-from routers import users_b, admin_users, reservas, preferencias, canchas, empleado, horarios, resenias, resenias_publicas
+from fastapi.staticfiles import StaticFiles
+from routers import users_b, admin_users, reservas, preferencias, canchas, empleado, horarios 
 from db.client import db_client
 from services.scheduler import start_scheduler, shutdown_scheduler
 from services.matcheo import calculate_and_store_relations  
 from routers.reservas import cerrar_reservas_vencidas
 from fastapi.middleware.cors import CORSMiddleware
+import asyncio
 from services.notifs import ensure_notif_indexes, ensure_unique_slot_index
 
 app = FastAPI()
@@ -16,7 +18,10 @@ app.include_router(reservas.router, prefix="/api")
 app.include_router(preferencias.router, prefix="/api")
 app.include_router(canchas.router, prefix="/api")
 app.include_router(empleado.router, prefix="/api") 
-app.include_router(horarios.router, prefix="/api") 
+app.include_router(horarios.router, prefix="/api")
+
+# Montar carpeta estática para imágenes
+app.mount("/images", StaticFiles(directory="static/images"), name="images")
 app.include_router(resenias.router, prefix="/api")
 app.include_router(resenias_publicas.router)
 
