@@ -4,7 +4,7 @@ from db.client import db_client
 from routers.Security.auth import current_user
 
 router = APIRouter(
-    prefix="/api/resenias",
+    prefix="/resenias",   # 👈👈 clave
     tags=["Reseñas públicas"],
 )
 

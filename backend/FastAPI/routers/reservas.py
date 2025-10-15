@@ -753,8 +753,9 @@ def cerrar_reservas_vencidas():
 
     # (opcional) optimización de pesos
     try:
-        optimize_weights()
-        print("🎯 optimize_weights() ejecutado sobre reservas Confirmadas")
+        if os.getenv("OPTIMIZE_INSIDE_CLOSE", "false").lower() == "true":
+            optimize_weights()
+            print("🎯 optimize_weights() ejecutado sobre reservas Confirmadas")
     except Exception as e:
         print(f"❌ Error en optimize_weights: {e}")
 
