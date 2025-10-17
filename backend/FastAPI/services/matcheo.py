@@ -503,3 +503,5 @@ def invalidate_catalog_caches():
     get_horarios_map.cache_clear()
     get_canchas_map.cache_clear()
     d_max.cache_clear()
+    
+#Falta testear bien este algoritmo u.u
