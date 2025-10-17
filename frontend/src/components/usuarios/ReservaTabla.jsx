@@ -3,6 +3,7 @@ import { AuthContext } from "../../context/AuthContext";
 import { toast } from 'react-toastify';
 import MiToast from '../common/Toast/MiToast';
 import CourtCarousel from '../reservas/CourtCarousel';
+import MessageConfirm from '../common/Confirm/MessageConfirm'
 
 // ===== Helpers simples =====
 const MAX_CAPACITY = 6;
@@ -41,6 +42,12 @@ const normalizarTexto = (t) => t.trim().replace(/\s+/g, ' ');
 
 // ===== Componente minimal =====
 export default function ReservaTabla() {
+  const [mensaje, setMensaje] = useState("");
+
+  const [reservaPendiente, setReservaPendiente] = useState(null);
+
+
+
   const { isAuthenticated, apiFetch, user } = useContext(AuthContext);
 
   const [canchas, setCanchas] = useState([]);
@@ -97,24 +104,40 @@ export default function ReservaTabla() {
     setLoadingDetalle(false);
   };
 
-  const reservar = async (cancha, hora) => {
-    if (!window.confirm(`¿Confirmás reservar "${cancha}" a las ${hora} para el ${selectedDate}?`)) return;
-    setSelected({ cancha, hora });
-    try {
-      const r = await apiFetch('/api/reservas/reservar', {
-        method: 'POST',
-        body: JSON.stringify({ cancha, horario: hora, fecha: selectedDate })
-      });
-      if (!r.ok) throw new Error((await r.json()).detail || 'Error al reservar');
-      const data = await r.json();
-      toast(<MiToast mensaje={`Reserva exitosa: ${data.msg}`} color="var(--color-green-400)" />);
-      const key = `${cancha}-${hora}`;
-      setCantidades(prev => ({ ...prev, [key]: (prev[key] || 0) + 1 }));
-    } catch (e) {
-      toast(<MiToast mensaje={`Error: ${e.message}`} color="var(--color-red-400)" />);
-      setSelected(null);
-    }
+  const reservar = (cancha, hora) => {
+  setReservaPendiente({ cancha, hora });
+  setMensaje(`¿Confirmás reservar "${cancha}" a las ${hora} para el ${selectedDate}?`);
   };
+
+const handleConfirmar = async () => {
+  if (!reservaPendiente) return;
+  const { cancha, hora } = reservaPendiente;
+  setSelected({ cancha, hora });
+  setReservaPendiente(null);
+  setMensaje("");
+
+  try {
+    const r = await apiFetch('/api/reservas/reservar', {
+      method: 'POST',
+      body: JSON.stringify({ cancha, horario: hora, fecha: selectedDate })
+    });
+    if (!r.ok) throw new Error((await r.json()).detail || 'Error al reservar');
+    const data = await r.json();
+
+    toast(<MiToast mensaje={`Reserva exitosa: ${data.msg}`} color="var(--color-green-400)" />);
+
+    // ✅ Recargar cantidades desde el backend
+    await recargarCantidades();
+
+    // ✅ Opcional: refrescar detalle si querés que quede abierto con la info nueva
+    // await abrirDetalle(cancha, hora);
+
+  } catch (e) {
+    toast(<MiToast mensaje={`Error: ${e.message}`} color="var(--color-red-400)" />);
+    setSelected(null);
+  }
+};
+
 
   const cancelar = async (reservaId) => {
     try {
@@ -125,6 +148,24 @@ export default function ReservaTabla() {
     } catch (e) {
       toast(<MiToast mensaje={e.message} color="var(--color-red-400)" />);
     }
+  };
+
+  const recargarCantidades = async () => {
+  try {
+    const r = await apiFetch(`/api/reservas/cantidad?fecha=${selectedDate}`);
+    if (!r.ok) return setCantidades({});
+    const data = await r.json();
+    const mapa = {};
+    for (const it of data) mapa[`${it.cancha}-${it.horario}`] = it.cantidad;
+    setCantidades(mapa);
+  } catch {
+    setCantidades({});
+  }
+};
+
+  const handleCancelar = () => {
+    setReservaPendiente(null);
+    setMensaje("");
   };
 
   return (
@@ -235,6 +276,13 @@ export default function ReservaTabla() {
           </div>
         )}
       </div>
+      {/* Componente de confirmación */}
+      <MessageConfirm
+        mensaje={mensaje}
+        onClose={handleCancelar}
+        onConfirm={handleConfirmar}
+        onCancel={handleCancelar}
+      />
     </div>
   );
 }
