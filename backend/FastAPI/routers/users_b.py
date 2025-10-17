@@ -515,6 +515,7 @@ async def editar_usuario(
             "nombre": body.get("nombre"),
             "apellido": body.get("apellido"),
             "email": body.get("email"),
+            "habilitado": body.get("habilitado")
         }
 
         email_cambio = usuario_actual["email"] != body.get("email")
@@ -642,32 +643,20 @@ async def jugadores_con_quienes_jugo(user: dict = Depends(current_user)):
     user_id = ObjectId(user["id"])
 
     def obtener_jugadores():
-        # Obtener el ObjectId del estado "Confirmada"
-        estado_confirmada = db_client.estadoreserva.find_one({"nombre": "Confirmada"})
-        if not estado_confirmada:
+        estado = db_client.estadoreserva.find_one({"nombre": "Confirmada"})
+        if not estado:
             return []
-        estado_confirmada_id = estado_confirmada["_id"]
 
-        # Buscar reservas confirmadas del usuario
-        reservas_usuario = list(db_client.reservas.find({
-            "usuario": user_id,
-            "estado": estado_confirmada_id
-        }))
+        match = {"usuarios.id": user_id, "estado": estado["_id"]}
+        reservas_usuario = list(db_client.reservas.find(match, {"usuarios": 1}))
 
         otros_ids = set()
         for reserva in reservas_usuario:
-            # Buscar otras reservas con mismos criterios (cancha, fecha, hora, estado confirmado)
-            mismas_reservas = db_client.reservas.find({
-                "cancha": reserva["cancha"],
-                "fecha": reserva["fecha"],
-                "hora_inicio": reserva["hora_inicio"],
-                "estado": estado_confirmada_id
-            })
-            for r in mismas_reservas:
-                jugador_id = r.get("usuario")
-                if jugador_id != user_id:
-                    otros_ids.add(jugador_id)
-        # Buscar los datos de esos usuarios
+            for u in reserva.get("usuarios", []):
+                uid = u.get("id")
+                if uid and uid != user_id:
+                    otros_ids.add(uid)
+
         usuarios = list(db_client.users.find({"_id": {"$in": list(otros_ids)}}))
         resultado = []
         for u in usuarios:
@@ -682,169 +671,3 @@ async def jugadores_con_quienes_jugo(user: dict = Depends(current_user)):
 
     jugadores = await asyncio.to_thread(obtener_jugadores)
     return {"jugadores": jugadores}
-
-
-class CrearResenaRequest(BaseModel):
-    con: str  # id del jugador al que se le deja la reseña
-    calificacion: str  # id de la calificación (de la tabla calificaciones)
-    observacion: str
-
-@router.post("/reseñar")
-async def crear_resena(
-    data: CrearResenaRequest,
-    user: dict = Depends(current_user)
-):
-    jugador_oid = ObjectId(user["id"])
-    con_oid = ObjectId(data.con)
-    calificacion_oid = ObjectId(data.calificacion)
-
-    if jugador_oid == con_oid:
-        raise HTTPException(status_code=400, detail="No puedes dejarte una reseña a ti mismo.")
-
-    # Obtener el ObjectId del estado "Confirmada"
-    estado_confirmada = db_client.estadoreserva.find_one({"nombre": "Confirmada"})
-    if not estado_confirmada:
-        raise HTTPException(status_code=500, detail="No se encontró el estado 'Confirmada'")
-    estado_confirmada_id = estado_confirmada["_id"]
-
-    def han_jugado_juntos():
-        # Buscar reservas confirmadas del usuario actual
-        reservas_jugador = list(db_client.reservas.find({
-            "usuario": jugador_oid,
-            "estado": estado_confirmada_id
-        }))
-        for reserva in reservas_jugador:
-            # Buscar si el otro usuario tiene una reserva confirmada en el mismo slot
-            reserva_con = db_client.reservas.find_one({
-                "usuario": con_oid,
-                "cancha": reserva["cancha"],
-                "fecha": reserva["fecha"],
-                "hora_inicio": reserva["hora_inicio"],
-                "estado": estado_confirmada_id
-            })
-            if reserva_con:
-                return True
-        return False
-
-    juntos = await asyncio.to_thread(han_jugado_juntos)
-    if not juntos:
-        raise HTTPException(status_code=403, detail="Solo puedes dejar reseña a jugadores con los que jugaste.")
-
-    # Validar que la calificación exista
-    calificacion = await asyncio.to_thread(
-        lambda: db_client.calificaciones.find_one({"_id": calificacion_oid})
-    )
-    if not calificacion:
-        raise HTTPException(status_code=400, detail="Calificación inválida.")
-
-    # Verificar si ya existe una reseña de este usuario a este jugador
-    def actualizar_o_crear_resena():
-        reseña_existente = db_client.resenas.find_one({"jugador": jugador_oid, "con": con_oid})
-        
-        reseña_doc = {
-            "jugador": jugador_oid,
-            "con": con_oid,
-            "calificacion": calificacion_oid,
-            "observacion": data.observacion
-        }
-        
-        if reseña_existente:
-            # Actualizar la reseña existente
-            result = db_client.resenas.update_one(
-                {"jugador": jugador_oid, "con": con_oid},
-                {"$set": {
-                    "calificacion": calificacion_oid,
-                    "observacion": data.observacion
-                }}
-            )
-            return "actualizada" if result.modified_count > 0 else "sin_cambios"
-        else:
-            # Crear nueva reseña
-            db_client.resenas.insert_one(reseña_doc)
-            return "creada"
-
-    resultado = await asyncio.to_thread(actualizar_o_crear_resena)
-    
-    if resultado == "creada":
-        return {"message": "Reseña creada correctamente."}
-    elif resultado == "actualizada":
-        return {"message": "Reseña actualizada correctamente."}
-    else:
-        return {"message": "No se realizaron cambios en la reseña."}
-
-
-@router.get("/calificaciones")
-async def obtener_calificaciones(user: dict = Depends(current_user)):
-    """
-    Devuelve todas las calificaciones disponibles.
-    """
-    def fetch_calificaciones():
-        calificaciones = list(db_client.calificaciones.find({}))
-        resultado = []
-        for c in calificaciones:
-            resultado.append({
-                "_id": str(c["_id"]),
-                "numero": c.get("numero") 
-            })
-        return resultado
-
-    calificaciones = await asyncio.to_thread(fetch_calificaciones)
-    return {"calificaciones": calificaciones}
-
-@router.get("/reseñas/listar")
-async def listar_resenas(page: int = 1, limit: int = 10, user: dict = Depends(current_user)):
-    skip = (page - 1) * limit
-
-    def fetch_resenas():
-        pipeline = [
-            {"$sort": {"_id": -1}},
-            {"$skip": skip},
-            {"$limit": limit},
-            {"$lookup": {
-                "from": "users",
-                "localField": "jugador",
-                "foreignField": "_id",
-                "as": "jugador_info"
-            }},
-            {"$unwind": "$jugador_info"},
-            {"$lookup": {
-                "from": "users",
-                "localField": "con",
-                "foreignField": "_id",
-                "as": "con_info"
-            }},
-            {"$unwind": "$con_info"},
-            {"$lookup": {
-                "from": "calificaciones",
-                "localField": "calificacion",
-                "foreignField": "_id",
-                "as": "calificacion_info"
-            }},
-            {"$unwind": "$calificacion_info"},
-            {"$project": {
-                "_id": 1,
-                "jugador": {
-                    "id": {"$toString": "$jugador_info._id"},
-                    "nombre": "$jugador_info.nombre",
-                    "apellido": "$jugador_info.apellido",
-                    "username": "$jugador_info.username"
-                },
-                "con": {
-                    "id": {"$toString": "$con_info._id"},
-                    "nombre": "$con_info.nombre",
-                    "apellido": "$con_info.apellido",
-                    "username": "$con_info.username"
-                },
-                "calificacion": "$calificacion_info.numero",
-                "observacion": 1
-            }}
-        ]
-        resenas = list(db_client.resenas.aggregate(pipeline))
-        total = db_client.resenas.count_documents({})
-        # Convertir _id de cada reseña a string
-        for r in resenas:
-            r["_id"] = str(r["_id"])
-        return resenas, total
-
-    resenas, total = await asyncio.to_thread(fetch_resenas)
-    return {"resenas": resenas, "total": total, "page": page, "limit": limit}

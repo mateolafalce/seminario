@@ -9,18 +9,18 @@ import Navbar from './components/common/Navbar/Navbar';
 import Reserva from './pages/Reserva';
 import HomePage from './pages/HomePage';
 import BuscarCliente from './pages/BuscarCliente';
-import Admin from './pages/Admin';
+//import Admin from './pages/Admin';
 import AdminDashboard from './pages/AdminDashboard';
 import { AuthProvider, AuthContext } from './context/AuthContext';
 import Unauthorized from './pages/Unauthorized';
 import Preferencias from './pages/Preferencia';
 import MisReservas from './pages/MisReservas';
-
+//import AdminRoute from './components/admin/AdminRoute';
 import Habilitado from './pages/Habilitado';
 import MisDatos from './pages/MisDatos';
 import CargarResultados from './pages/CargarResultados';
-import Reseñas from './pages/Reseñas'; 
-import Jugadores from './pages/Jugadores'; // <-- Importa el componente
+//import Reseñas from './pages/Reseñas'; 
+import ReseniasPublicas from './pages/ReseniasPublicas';
 
 function App() {
   return (
@@ -87,14 +87,16 @@ function AppWithTimeout() {
           <Route path="/clientes/buscar" element={<BuscarCliente />} />
           <Route path="/preferencias" element={<Preferencias />} />
           <Route path="/mis-reservas" element={<MisReservas />} />
-
+          {/* <Route path="/Admin/*" element={<AdminRoute />}>
+            <Route index element={<Admin />} />
+          </Route> */}
           <Route path="/habilitado" element={<Habilitado />} />
           <Route path="/admin/dashboard" element={<AdminDashboard />} />
           <Route path="/unauthorized" element={<Unauthorized />} />
           <Route path="/mis-datos" element={<MisDatos />} />
           <Route path="/cargar-resultados" element={<CargarResultados />} /> 
-          <Route path="/reseñas" element={<Reseñas />} /> 
-          <Route path="/jugadores" element={<Jugadores />} /> 
+          {/* <Route path="/reseñas" element={<Reseñas />} /> */}
+          <Route path="/resenias" element={<ReseniasPublicas />} />
         </Routes>
       </div>
       <ToastContainer 

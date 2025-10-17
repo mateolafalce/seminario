@@ -1,79 +1,75 @@
-import React, { useContext, useEffect, useState } from "react";
-import { useNavigate, Link } from "react-router-dom";
+import React, { useContext, useEffect, useState, useCallback } from "react";
+import { useNavigate, useLocation } from "react-router-dom";
 import { AuthContext } from "../../../context/AuthContext";
 import Button from "../Button/Button";
 import logoCompleto from "../../../assets/icons/logoCompletoBlanco.svg";
 import { motion, AnimatePresence } from "framer-motion";
 
-// las redirecciones centrales
+// Links centrales (visibilidad por rol)
 const centerLinks = [
-  { label: "Home", path: "/home", show: ({ isAuthenticated }) => true },
+  { label: "Home", path: "/home", show: ({ isAuthenticated }) => isAuthenticated },
+  { label: "Reseñas", path: "/resenias", show: ({ isAuthenticated }) => isAuthenticated },
   { label: "Turnos", path: "/reserva", show: ({ isAuthenticated }) => isAuthenticated },
-  { label: "Mis Reservas", path: "/mis-reservas", show: ({ isAuthenticated }) => isAuthenticated },
+  { label: "Reservas", path: "/mis-reservas", show: ({ isAuthenticated }) => isAuthenticated },
   { label: "Preferencias", path: "/preferencias", show: ({ isAuthenticated }) => isAuthenticated },
-  { label: "Mis Datos", path: "/mis-datos", show: ({ isAuthenticated }) => isAuthenticated },
-  { label: "Reseñas", path: "/reseñas", show: ({ isAuthenticated }) => isAuthenticated },
-  { label: "Jugadores", path: "/jugadores", show: ({ isAuthenticated }) => isAuthenticated },
-  { label: "Cargar Resultados", path: "/cargar-resultados", show: ({ isAuthenticated, isEmpleado }) => isAuthenticated && isEmpleado },
-  
-  { label: "Admin-Dashboard", path: "/admin/dashboard", show: ({ isAuthenticated, isAdmin }) => isAuthenticated && isAdmin },
+  { label: "Datos", path: "/mis-datos", show: ({ isAuthenticated }) => isAuthenticated },
+  { label: "Resultados", path: "/cargar-resultados", show: ({ isAuthenticated, isEmpleado }) => isAuthenticated && isEmpleado },
+  { label: "Panel", path: "/admin/dashboard", show: ({ isAuthenticated, isAdmin }) => isAuthenticated && isAdmin },
 ];
-
-// estilo de los botones del medio
-const navBotonesCentrales = 'text-white font-semibold text-base px-1 cursor-pointer transition-colors hover:text-[#E5FF00]';
-
-// el componente para los links de navegacion (solo texto, tailwindcss)
-const NavLinks = ({ links, isAuthenticated, isAdmin, isEmpleado, onClick, className }) => (
-  <>
-    {links
-      .filter(link => link.show({ isAuthenticated, isAdmin, isEmpleado }))
-      .map(link => (
-        <button
-          key={link.label}
-          type="button"
-          onClick={() => onClick(link.path)}
-          className={`${navBotonesCentrales} ${className}`}
-          style={{ fontFamily: "inherit" }}
-        >
-          {link.label}
-        </button>
-      ))}
-  </>
-);
 
 function CustomNavbar() {
   const navigate = useNavigate();
-  const { isAuthenticated, logout, isAdmin, isEmpleado } = useContext(AuthContext); // <-- agrega isEmpleado
+  const location = useLocation();
+  const { isAuthenticated, logout, isAdmin, isEmpleado } = useContext(AuthContext);
+
   const [scrolled, setScrolled] = useState(false);
   const [showOffcanvas, setShowOffcanvas] = useState(false);
-  const [menuOpen, setMenuOpen] = useState(false);
 
+  // fondo blur al scrollear
   useEffect(() => {
     const handleScroll = () => setScrolled(window.scrollY > 80);
-    window.addEventListener("scroll", handleScroll);
+    window.addEventListener("scroll", handleScroll, { passive: true });
     return () => window.removeEventListener("scroll", handleScroll);
   }, []);
 
+  // cerrar drawer al pasar a desktop
   useEffect(() => {
     const handleResize = () => {
-      if (window.innerWidth >= 1024) {
-        setShowOffcanvas(false);
-      }
+      if (window.innerWidth >= 1024) setShowOffcanvas(false);
     };
     window.addEventListener("resize", handleResize);
     return () => window.removeEventListener("resize", handleResize);
   }, []);
 
-  const handleLogout = () => {
-    logout();
-    navigate("/login");
-    setShowOffcanvas(false);
-  };
+  // accesibilidad: cerrar con Escape y bloquear scroll de fondo
+  useEffect(() => {
+    if (showOffcanvas) {
+      const onKeyDown = (e) => {
+        if (e.key === "Escape") setShowOffcanvas(false);
+      };
+      document.addEventListener("keydown", onKeyDown);
+      const prev = document.body.style.overflow;
+      document.body.style.overflow = "hidden";
+      return () => {
+        document.removeEventListener("keydown", onKeyDown);
+        document.body.style.overflow = prev;
+      };
+    }
+  }, [showOffcanvas]);
 
-  const handleNavigate = (path) => {
-    navigate(path);
+  const handleLogout = useCallback(() => {
+    logout();
     setShowOffcanvas(false);
-  };
+    window.location.replace("/home");
+  }, [logout]);
+
+  const handleNavigate = useCallback(
+    (path) => {
+      navigate(path);
+      setShowOffcanvas(false);
+    },
+    [navigate]
+  );
 
   const renderSessionButtons = (isMobile = false) => {
     if (isAuthenticated) {
@@ -82,7 +78,7 @@ function CustomNavbar() {
           texto="Cerrar Sesión"
           onClick={handleLogout}
           variant="session"
-          className={isMobile ? 'mb-2' : ''}
+          className={isMobile ? "mb-2" : ""}
         />
       );
     }
@@ -90,77 +86,96 @@ function CustomNavbar() {
       <>
         <Button
           texto="Iniciar Sesión"
-          onClick={() => isMobile ? handleNavigate("/login") : navigate("/login")}
+          onClick={() => (isMobile ? handleNavigate("/login") : navigate("/login"))}
           variant="session"
-          className={isMobile ? 'mb-2' : ''}
+          className={isMobile ? "mb-2" : ""}
         />
         <Button
           texto="Registrarse"
-          onClick={() => isMobile ? handleNavigate("/register") : navigate("/register")}
+          onClick={() => (isMobile ? handleNavigate("/register") : navigate("/register"))}
           variant="session"
-          className={isMobile ? '' : 'ml-2'}
+          className={isMobile ? "" : "ml-2"}
         />
       </>
     );
   };
 
-  // Links visibles según rol
+  // Links visibles
   const visibleLinks = centerLinks.filter(link =>
     link.show({ isAuthenticated, isAdmin, isEmpleado })
   );
 
+  // estilos (desktop: solo cambio de color -> yellow-400)
+  const navButtonBase =
+    "relative text-white font-semibold px-2 py-1 rounded transition-colors duration-300 text-sm xl:text-base " +
+    "group hover:text-yellow-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-yellow-400/60 focus-visible:ring-offset-2 focus-visible:ring-offset-transparent";
+  const navButtonActive = "text-yellow-400";
+
   return (
     <>
-      {/* navbar */}
+      {/* NAVBAR */}
       <nav
-        className={
+        className={`fixed top-0 inset-x-0 z-50 h-14 transition-all duration-700 ${
           scrolled
-            ? 'fixed w-full z-50 transition-all duration-700 shadow-lg'
-            : 'fixed w-full z-50 transition-all duration-700'
-        }
-        style={{ 
-          height: "3.5rem",
-          backgroundColor: scrolled ? 'rgba(13, 27, 42, 0.85)' : 'transparent',
-          backdropFilter: scrolled ? 'blur(8px)' : 'blur(0px)',
-          WebkitBackdropFilter: scrolled ? 'blur(8px)' : 'blur(0px)'
-        }}
+            ? "bg-slate-900/80 backdrop-blur-md shadow-md"
+            : "bg-transparent"
+        }`}
       >
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-12 h-full">
-          <div className="flex items-center justify-between h-[3.5rem]">
-            {/* Logo */}
-            <div className="flex items-center cursor-pointer select-none" onClick={() => handleNavigate("/home")}>
-              <img
-                src={logoCompleto}
-                alt="Boulevard81 Logo"
-                className="mr-2 flex-shrink-0 select-none"
-                style={{ userSelect: "none", height: "1.5rem", width: "auto", display: "block" }}
-                draggable={false}
-              />
-            
+        <div className="relative mx-auto max-w-7xl h-full px-4 sm:px-6 lg:px-10 flex items-center justify-between">
+          {/* Logo (Izquierda) */}
+          <button
+            onClick={() => navigate("/home")}
+            className="flex items-center cursor-pointer select-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-yellow-400/60 rounded"
+            aria-label="Ir al inicio"
+          >
+            <img
+              src={logoCompleto}
+              alt="Boulevard81"
+              className="mr-2 h-6 w-auto select-none"
+              draggable={false}
+            />
+          </button>
+
+          {/* Links (Centro) - SOLO DESKTOP */}
+          <div className="hidden lg:block absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2">
+            <div className="flex items-center gap-3">
+              {visibleLinks.map(link => {
+                const isActive = location.pathname === link.path;
+                return (
+                  <button
+                    key={link.label}
+                    onClick={() => navigate(link.path)}
+                    className={`${navButtonBase} ${isActive ? navButtonActive : ""}`}
+                    style={{ position: "relative" }}
+                    type="button"
+                  >
+                    {link.label}
+                    <span
+                      className={`pointer-events-none absolute left-0 -bottom-0.5 h-0.5 bg-yellow-400 transition-all duration-300 ${
+                        isActive ? "w-full" : "w-0 group-hover:w-full"
+                      }`}
+                    />
+                  </button>
+                );
+              })}
             </div>
-            {/* Links desktop */}
-            <div className="hidden lg:flex items-center gap-2">
-              {visibleLinks.map(link => (
-                <button
-                  key={link.label}
-                  onClick={() => handleNavigate(link.path)}
-                  className="text-white font-semibold px-2 py-1 rounded transition-colors duration-300 text-base hover:text-[#E5FF00]"
-                  style={{ fontFamily: "inherit" }}
-                >
-                  {link.label}
-                </button>
-              ))}
-            </div>
-            {/* Botones sesión desktop */}
+          </div>
+
+          {/* Sesión (Derecha) + Hamburguesa */}
+          <div className="flex items-center">
+            {/* Desktop */}
             <div className="hidden lg:flex items-center gap-2">
               {renderSessionButtons(false)}
             </div>
-            {/* Botón menú mobile */}
+
+            {/* Mobile: botón hamburguesa */}
             <div className="lg:hidden">
               <button
                 onClick={() => setShowOffcanvas(true)}
-                className="text-white hover:bg-[#1B263B] p-2 rounded focus:outline-none"
+                className="text-white hover:text-yellow-400 p-2 rounded focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-yellow-400/60"
                 aria-label="Abrir menú"
+                aria-expanded={showOffcanvas}
+                aria-controls="mobile-menu"
               >
                 <svg className="h-7 w-7" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
@@ -170,73 +185,136 @@ function CustomNavbar() {
           </div>
         </div>
       </nav>
-      {/* el menu fullscreen para celulares */}
+
+      {/* MENU MOBILE (fullscreen mejorado) */}
       <AnimatePresence>
         {showOffcanvas && (
-          <motion.div
-            className="fixed inset-0 z-50 bg-[#0D1B2A] lg:hidden"
-            initial={{ x: '-100%' }}
-            animate={{ x: 0 }}
-            exit={{ x: '-100%' }}
-            transition={{ type: 'spring', stiffness: 180, damping: 20 }}
-            onClick={(e) => e.stopPropagation()}
-          >
-            {/* boton cerrar minimalista */}
-            <button
+          <>
+            {/* Overlay */}
+            <motion.div
+              className="fixed inset-0 z-50 bg-black/60 lg:hidden"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
               onClick={() => setShowOffcanvas(false)}
-              className="absolute top-8 right-8 text-white/60 hover:text-white transition-colors z-10"
-              aria-label="Cerrar menú"
+              aria-hidden="true"
+            />
+            {/* Panel fullscreen */}
+            <motion.div
+              id="mobile-menu"
+              role="dialog"
+              aria-modal="true"
+              className="fixed inset-0 z-50 lg:hidden flex"
+              initial={{ x: "-100%" }}
+              animate={{ x: 0 }}
+              exit={{ x: "-100%" }}
+              transition={{ type: "spring", stiffness: 180, damping: 22 }}
             >
-              <svg className="w-8 h-8" fill="none" stroke="currentColor" strokeWidth={1} viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
-              </svg>
-            </button>
-            {/* contenido ultra minimalista */}
-            <div className="h-full flex flex-col justify-center items-center">
-              <nav className="flex flex-col space-y-8 mb-12">
-                {visibleLinks.map(link => (
+              <div
+                className="relative flex-1 bg-[#0D1B2A]"
+                style={{
+                  // Acento radial sutil amarillo
+                  backgroundImage:
+                    "radial-gradient(1000px 400px at 110% -20%, rgba(250, 204, 21, 0.12), transparent)"
+                }}
+                onClick={(e) => e.stopPropagation()}
+              >
+                {/* Cerrar */}
+                <div className="absolute top-4 right-4">
                   <button
-                    key={link.label}
-                    type="button"
-                    onClick={() => handleNavigate(link.path)}
-                    className="text-white text-3xl font-extralight text-center py-2 transition-all duration-300 hover:text-[#E5FF00] hover:scale-105"
+                    onClick={() => setShowOffcanvas(false)}
+                    className="p-2 rounded-lg text-white/70 hover:text-white hover:bg-white/5 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-yellow-400/60"
+                    aria-label="Cerrar menú"
                   >
-                    {link.label}
-                  </button>
-                ))}
-              </nav>
-              {/* botones de sesion minimalistas */}
-              {!isAuthenticated ? (
-                <div className="flex flex-col space-y-6">
-                  <button
-                    onClick={() => handleNavigate("/login")}
-                    className="text-white text-xl font-extralight text-center py-2 transition-all duration-300 hover:text-[#E5FF00] hover:scale-105 border border-white/20 rounded-full px-8"
-                  >
-                    Iniciar Sesión
-                  </button>
-                  <button
-                    onClick={() => handleNavigate("/register")}
-                    className="text-[#0D1B2A] text-xl font-extralight text-center py-2 transition-all duration-300 hover:bg-[#E5FF00] bg-white rounded-full px-8"
-                  >
-                    Registrarse
+                    <svg className="w-7 h-7" fill="none" stroke="currentColor" strokeWidth={1.5} viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                    </svg>
                   </button>
                 </div>
-              ) : (
-                <div className="flex flex-col space-y-4">
+
+                {/* Header con logo */}
+                <div className="px-6 pt-6 pb-2 flex items-center justify-between">
                   <button
-                    onClick={handleLogout}
-                    className="text-white text-xl font-extralight text-center py-2 transition-all duration-300 hover:text-red-400 hover:scale-105 border border-white/20 rounded-full px-8"
+                    onClick={() => { navigate("/home"); setShowOffcanvas(false); }}
+                    className="flex items-center gap-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-yellow-400/60 rounded"
+                    aria-label="Ir al inicio"
                   >
-                    Cerrar Sesión
+                    <img src={logoCompleto} alt="Boulevard81" className="h-6 w-auto" />
                   </button>
                 </div>
-              )}
-            </div>
-          </motion.div>
+
+                {/* Navegación */}
+                <nav className="px-6 mt-6">
+                  <ul className="flex flex-col space-y-4">
+                    {visibleLinks.map(link => {
+                      const isActive = location.pathname === link.path;
+                      return (
+                        <li key={link.label}>
+                          <button
+                            type="button"
+                            onClick={() => { navigate(link.path); setShowOffcanvas(false); }}
+                            className={`w-full text-left relative py-3 text-2xl font-light tracking-wide transition-all duration-200 rounded-md
+                              ${isActive ? "text-yellow-400" : "text-white"} 
+                              hover:text-yellow-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-yellow-400/60`}
+                          >
+                            {/* Indicador base */}
+                            <span
+                              className={`pointer-events-none absolute left-0 bottom-0 h-0.5 bg-yellow-400 transition-all duration-300 ${
+                                isActive ? "w-full" : "w-0 group-hover:w-full"
+                              }`}
+                            />
+                            {link.label}
+                          </button>
+                        </li>
+                      );
+                    })}
+                  </ul>
+
+                  {/* separador sutil */}
+                  <div className="mt-8 h-px w-full bg-white/10" />
+
+                  {/* Sesión (botones grandes) */}
+                  <div className="mt-6">
+                    {!isAuthenticated ? (
+                      <div className="flex flex-col gap-3">
+                        <button
+                          onClick={() => handleNavigate("/login")}
+                          className="w-full text-white text-lg font-light py-3 rounded-full border border-white/20 hover:bg-white/5 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-yellow-400/60"
+                        >
+                          Iniciar Sesión
+                        </button>
+                        <button
+                          onClick={() => handleNavigate("/register")}
+                          className="w-full text-slate-900 text-lg font-medium py-3 rounded-full bg-yellow-400 hover:bg-yellow-300 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-yellow-400/60"
+                        >
+                          Registrarse
+                        </button>
+                      </div>
+                    ) : (
+                      <div className="flex flex-col">
+                        <button
+                          onClick={handleLogout}
+                          className="w-full text-white text-lg font-light py-3 rounded-full border border-white/20 hover:bg-red-500/10 hover:text-red-300 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-yellow-400/60"
+                        >
+                          Cerrar Sesión
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                </nav>
+
+                {/* Footer mini */}
+                <div className="px-6 py-8">
+                  <p className="text-white/40 text-xs">© {new Date().getFullYear()} Boulevard81</p>
+                </div>
+              </div>
+            </motion.div>
+          </>
         )}
       </AnimatePresence>
+
       {/* Espaciador para evitar superposición */}
-      <div style={{ height: "3.5rem" }} />
+      <div className="h-14" />
     </>
   );
 }

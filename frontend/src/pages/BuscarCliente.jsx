@@ -1,248 +1,146 @@
-import { useState, useContext } from 'react';
-import { AuthContext } from '../context/AuthContext'
-import Button from '../components/common/Button/Button';
-import MiToast from '../components/common/Toast/MiToast';
-import { toast } from "react-toastify";
+// src/pages/ReseniasPublicas.jsx
+import React, { useEffect, useState } from "react";
+import { FiUser } from "react-icons/fi";
 
-const categoria = ['2da','3ra','4ta', '5ta','6ta', '7ta', '8ta'];
-
-// esta es una linea nueva que se uso para las ip y conectarse con el movil o cualquier dispositivo en la red
+// igual que en tus otras pantallas
 const BACKEND_URL = `http://${window.location.hostname}:8000`;
+const API_BASE =
+  window.location.hostname === "localhost"
+    ? `${BACKEND_URL}/api/resenias`
+    : "/api/resenias";
 
-function BuscarCliente() {
-  const [nombre, setNombre] = useState('');
-  const [resultados, setResultados] = useState([]);
-  const { isAuthenticated, isAdmin } = useContext(AuthContext)
-  const [clienteEditar, setClienteEditar] = useState(null);
-
-  if (!isAuthenticated || !isAdmin) {
-    return <p className="text-center text-red-500 mt-10">No tienes permisos para ver esta página.</p>
+async function getJSON(url) {
+  const resp = await fetch(url);
+  if (!resp.ok) {
+    const txt = await resp.text();
+    throw new Error(`${resp.status} ${resp.statusText}: ${txt}`);
   }
-
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    const url = window.location.hostname === "localhost"
-      ? `${BACKEND_URL}/api/users_b/buscar`
-      : "/api/users_b/buscar";
-    const response = await fetch(url, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${localStorage.getItem('accessToken')}`,
-      },
-      body: JSON.stringify({ nombre }), 
-    });
-
-    if (response.status === 401) {
-      toast(<MiToast mensaje="Tu sesión ha expirado. Por favor, volvé a iniciar sesión." color="var(--color-red-400)"/>);
-      setTimeout(() => {
-        window.location.href = '/login';
-      }, 3000);
-    } else if (response.ok) {
-      const data = await response.json();
-      setResultados(data.clientes || []); 
-    } else {
-      const errorText = await response.text();
-      toast(<MiToast mensaje={errorText || 'Error en la solicitud'} color="var(--color-red-400)" />);
-    } 
-  };
-
-  const handleEliminar = async (id) => {
-    if (!window.confirm(`¿Seguro que deseas eliminar este cliente?`)) return;
-    const url = window.location.hostname === "localhost"
-      ? `${BACKEND_URL}/api/users_b/eliminar`
-      : "/api/users_b/eliminar";
-    const response = await fetch(url, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${localStorage.getItem('accessToken')}`,
-      },
-      body: JSON.stringify({ identificador: id }),
-    });
-
-    if (response.status === 401) {
-      toast(<MiToast mensaje="Tu sesión ha expirado. Por favor, volvé a iniciar sesión." color="var(--color-red-400)"/>);
-      setTimeout(() => {
-        window.location.href = '/login';
-      }, 3000);
-    } else if (response.ok) {
-      setResultados(prev => prev.filter(e => e._id !== id));
-    } else {
-      const errorText = await response.text();
-      toast(<MiToast mensaje={errorText || 'Error en la solicitud'} color="var(--color-red-400)" />);
-    }
-  };
-
-  const handleModificar = (cliente) => {
-    setClienteEditar({
-      id: cliente._id,
-      nombre: cliente.nombre,
-      apellido: cliente.apellido,
-      email: cliente.email,
-      categoria: cliente.categoria || "2da",
-      habilitado: cliente.habilitado,
-    });
-  };
-
-  const handleEditarSubmit = async (e) => {
-    e.preventDefault();
-    const token = localStorage.getItem('token');
-    const url = window.location.hostname === "localhost"
-      ? `${BACKEND_URL}/api/users_b/modificar`
-      : "/api/users_b/modificar";
-    const response = await fetch(url, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${localStorage.getItem('accessToken')}`,
-      },
-      body: JSON.stringify({
-        identificador: clienteEditar.id,
-        nombre: clienteEditar.nombre,
-        apellido: clienteEditar.apellido,
-        email: clienteEditar.email,
-        categoria: clienteEditar.categoria,
-        habilitado: clienteEditar.habilitado,
-      }),
-    });
-
-    if (response.status === 401) {
-      toast(<MiToast mensaje="Tu sesión ha expirado. Por favor, volvé a iniciar sesión." color="var(--color-red-400)"/>);
-      setTimeout(() => {
-        window.location.href = '/login';
-      }, 3000);
-    } else if (response.ok) {
-      toast(<MiToast mensaje="Cliente actualizado correctamente" color="[#e5ff00]"/>);
-      setClienteEditar(null);
-      handleSubmit(e);
-    } else {
-      const errorText = await response.text();
-      toast(<MiToast mensaje={errorText || 'Error en la solicitud'} color="var(--color-red-400)" />);
-    }
-  };
-
-  return (
-    <div className="max-w-3xl mx-auto mt-10 px-4">
-      <h2 className="text-3xl font-bold text-center text-white mb-8">Buscar Cliente</h2>
-      <form onSubmit={handleSubmit} className="flex flex-col sm:flex-row gap-4 items-center mb-8">
-        <input
-          type="text"
-          placeholder="Ingrese el username"
-          value={nombre}
-          onChange={(e) => setNombre(e.target.value)}
-          required
-          className="flex-1 px-4 py-2 rounded-lg border border-gray-600 bg-gray-800 text-white focus:outline-none focus:ring-2 focus:ring-[#E5FF00]"
-        />
-        <Button
-          type="submit"
-          texto="Buscar"
-          variant="default"
-        />
-      </form>
-
-      <div className="space-y-6">
-        {resultados.map((cliente, index) => (
-          <div key={index} className="bg-gray-800 rounded-2xl shadow-lg p-6 relative">
-            <h3 className="text-xl font-semibold text-white mb-2">{cliente.nombre} {cliente.apellido}</h3>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-8 gap-y-1 text-gray-300 text-base">
-              <p><span className="font-bold text-white">Username:</span> {cliente.username}</p>
-              <p><span className="font-bold text-white">Email:</span> {cliente.email}</p>
-              <p><span className="font-bold text-white">Habilitado:</span> {cliente.habilitado ? 'Sí' : 'No'}</p>
-              <p><span className="font-bold text-white">Categoria:</span> {cliente.categoria ? cliente.categoria : 'No Registrado'}</p>
-              <p><span className="font-bold text-white">Se Registro:</span> {cliente.fecha_registro}</p>
-              <p><span className="font-bold text-white">Ultima Conexion:</span> {cliente.ultima_conexion}</p>
-            </div>
-            <div className="flex gap-4 mt-4">
-              <Button
-                type="button"
-                texto="Modificar"
-                onClick={() => handleModificar(cliente)}
-                variant="modificar"
-              />
-              <Button
-                type="button"
-                texto="Eliminar"
-                onClick={() => handleEliminar(cliente._id)}
-                variant="eliminar"
-              />
-            </div>
-
-            {clienteEditar && clienteEditar.id === cliente._id && (
-              <div className="mt-6 bg-gray-900 rounded-xl p-6 border border-gray-700">
-                <h3 className="text-lg font-bold text-white mb-4">Editar Cliente</h3>
-                <form onSubmit={handleEditarSubmit} className="space-y-4">
-                  <input
-                    type="text"
-                    value={clienteEditar.nombre}
-                    onChange={(e) => setClienteEditar({ ...clienteEditar, nombre: e.target.value })}
-                    placeholder="Nombre"
-                    required
-                    className="w-full px-4 py-2 rounded-lg border border-gray-600 bg-gray-800 text-white focus:outline-none"
-                  />
-                  <input
-                    type="text"
-                    value={clienteEditar.apellido}
-                    onChange={(e) => setClienteEditar({ ...clienteEditar, apellido: e.target.value })}
-                    placeholder="Apellido"
-                    required
-                    className="w-full px-4 py-2 rounded-lg border border-gray-600 bg-gray-800 text-white focus:outline-none"
-                  />
-                  <input
-                    type="email"
-                    value={clienteEditar.email}
-                    onChange={(e) => setClienteEditar({ ...clienteEditar, email: e.target.value })}
-                    placeholder="Email"
-                    required
-                    className="w-full px-4 py-2 rounded-lg border border-gray-600 bg-gray-800 text-white focus:outline-none"
-                  />
-                  <select
-                    value={clienteEditar.categoria}
-                    onChange={(e) => setClienteEditar({ ...clienteEditar, categoria: e.target.value })}
-                    className="w-full px-4 py-2 rounded-lg border border-gray-600 bg-gray-800 text-white focus:outline-none"
-                  >
-                    <option value="">Seleccionar categoría</option>
-                    {categoria.map((cat) => (
-                      <option key={cat} value={cat}>
-                        {cat}
-                      </option>
-                    ))}
-                  </select>
-                  <div className="flex items-center gap-2">
-                    <input
-                      type="checkbox"
-                      checked={clienteEditar.habilitado}
-                      onChange={(e) =>
-                        setClienteEditar({
-                          ...clienteEditar,
-                          habilitado: e.target.checked,
-                        })
-                      }
-                      className="accent-[#E5FF00] w-5 h-5"
-                    />
-                    <label className="text-white">Usuario habilitado</label>
-                  </div>
-                  <div className="flex gap-4 mt-2">
-                    <Button
-                      type="submit"
-                      texto="Guardar cambios"
-                      variant="default"
-                    />
-                    <Button
-                      type="button"
-                      texto="Cancelar"
-                      onClick={() => setClienteEditar(null)}
-                      variant="cancelar"
-                    />
-                  </div>
-                </form>
-              </div>
-            )}
-          </div>
-        ))}
-      </div>
-    </div>
-  );
+  return resp.json();
 }
 
-export default BuscarCliente;
+const ReseniasPublicas = () => {
+  const [topJugadores, setTopJugadores] = useState([]);
+  const [ultimasResenias, setUltimasResenias] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [errorMsg, setErrorMsg] = useState("");
+
+  useEffect(() => {
+    (async () => {
+      try {
+        const [top, ult] = await Promise.all([
+          getJSON(`${API_BASE}/top-jugadores`),
+          getJSON(`${API_BASE}/ultimas?limit=10`),
+        ]);
+        setTopJugadores(Array.isArray(top) ? top : []);
+        setUltimasResenias(Array.isArray(ult) ? ult : []);
+      } catch (e) {
+        console.error("Error cargando reseñas públicas:", e);
+        setErrorMsg("No pudimos cargar los datos de reseñas.");
+      } finally {
+        setLoading(false);
+      }
+    })();
+  }, []);
+
+  return (
+    <div className="max-w-5xl mx-auto p-6 text-white">
+      <h1 className="text-4xl font-bold text-center text-[#eaff00] mb-8">
+        Comunidad - Reseñas
+      </h1>
+
+      {loading && <p className="text-center">Cargando...</p>}
+      {!loading && errorMsg && (
+        <p className="text-center text-red-400">{errorMsg}</p>
+      )}
+
+      {!loading && !errorMsg && (
+        <>
+          {/* 🏆 Top jugadores */}
+          <section className="mb-10">
+            <h2 className="text-2xl font-bold mb-4">
+              🏆 Top Jugadores Mejor Calificados
+            </h2>
+            {topJugadores.length === 0 ? (
+              <p className="text-gray-400">Aún no hay jugadores rankeados.</p>
+            ) : (
+              <ul className="space-y-3">
+                {topJugadores.map((jugador, idx) => (
+                  <li
+                    key={jugador.jugador_id || jugador._id || idx}
+                    className="bg-gray-800 p-4 rounded-md flex justify-between items-center"
+                  >
+                    <div>
+                      <p className="font-semibold text-lg">
+                        {idx + 1}. {jugador.nombre} {jugador.apellido}
+                        {jugador.username && (
+                          <span className="text-sm text-gray-400 ml-2">
+                            @{jugador.username}
+                          </span>
+                        )}
+                      </p>
+                    </div>
+                    <div className="text-right">
+                      <p className="text-yellow-300 font-bold text-lg">
+                        ⭐ {Number(jugador.promedio).toFixed(2)} / 5
+                      </p>
+                      <p className="text-sm text-gray-400">
+                        {jugador.cantidad} reseña
+                        {jugador.cantidad === 1 ? "" : "s"}
+                      </p>
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </section>
+
+          {/* 💬 Últimas reseñas */}
+          <section>
+            <h2 className="text-2xl font-bold mb-4">🆕 Últimas Reseñas</h2>
+            {ultimasResenias.length === 0 ? (
+              <p className="text-gray-400">Todavía no hay reseñas.</p>
+            ) : (
+              <ul className="space-y-4">
+                {ultimasResenias.map((r, i) => (
+                  <li
+                    key={r._id || i}
+                    className="bg-gray-900 p-4 rounded-md border border-gray-700"
+                  >
+                    <div className="flex justify-between text-sm text-gray-400 mb-2">
+                      <span>
+                        <FiUser className="inline-block mr-1" />
+                        <b>
+                          {r.autor?.nombre} {r.autor?.apellido}
+                        </b>{" "}
+                        reseñó a{" "}
+                        <b>
+                          {r.destinatario?.nombre} {r.destinatario?.apellido}
+                        </b>
+                      </span>
+                      <span>
+                        {r.fecha
+                          ? new Date(r.fecha).toLocaleDateString("es-AR")
+                          : ""}
+                      </span>
+                    </div>
+                    <div className="text-yellow-400 text-lg">
+                      {"★".repeat(Number(r.numero) || 0)}
+                      {"☆".repeat(5 - (Number(r.numero) || 0))}
+                    </div>
+                    {r.observacion && (
+                      <p className="text-gray-200 italic mt-2">
+                        “{r.observacion}”
+                      </p>
+                    )}
+                  </li>
+                ))}
+              </ul>
+            )}
+          </section>
+        </>
+      )}
+    </div>
+  );
+};
+
+export default ReseniasPublicas;

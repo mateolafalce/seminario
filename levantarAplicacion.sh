@@ -1,10 +1,15 @@
-#!/bin/bash
+# Construir y ejecutar ambos servicios
+docker compose up --build
 
-# Iniciar los servicios definidos en docker-compose.yml
-# El flag -d significa "detached", para que se ejecuten en segundo plano
-# El flag --build fuerza la reconstrucción de las imágenes
-docker-compose up -d --build
+# Ejecutar en segundo plano
+docker compose up -d
 
-# Opcional: mostrar los logs de los contenedores para verificar que todo está bien
-# El flag -f sigue los logs en tiempo real
-docker-compose logs -f
+# Ver logs
+docker compose logs -f
+
+# Parar servicios
+docker compose down
+
+# Reconstruir solo un servicio
+docker compose build frontend
+docker compose up frontend

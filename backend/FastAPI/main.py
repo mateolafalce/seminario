@@ -1,26 +1,61 @@
+# main.py
+import os
+import asyncio
+from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.staticfiles import StaticFiles
-from routers import users_b, admin_users, reservas, preferencias, canchas, empleado, horarios 
-from db.client import db_client
-from services.scheduler import start_scheduler, shutdown_scheduler
-from services.matcheo import calculate_and_store_relations  
-from routers.reservas import actualizar_reservas_completadas
 from fastapi.middleware.cors import CORSMiddleware
-import asyncio
 
-app = FastAPI()
+from routers import users_b, admin_users, reservas, preferencias, canchas, empleado, horarios, resenias, resenias_publicas
+from services.scheduler import start_scheduler, shutdown_scheduler
+from services.notifs import ensure_notif_indexes, ensure_unique_slot_index
+from routers.reservas import cerrar_reservas_vencidas
 
+def _bool_env(key: str, default=False):
+    return os.getenv(key, str(default)).lower() == "true"
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    # === STARTUP ===
+    # 1) índices (rápido – Mongo >=4.2 no bloquea writes durante index build concurrente)
+    try:
+        await asyncio.to_thread(ensure_notif_indexes)
+        await asyncio.to_thread(ensure_unique_slot_index)
+    except Exception as e:
+        print(f"Error creando índices: {e}")
+
+    # 2) NO bloquees startup con trabajo pesado
+    if _bool_env("HEAVY_ON_BOOT", False):
+        # dispara sin esperar (fire-and-forget)
+        asyncio.create_task(asyncio.to_thread(cerrar_reservas_vencidas))
+    else:
+        print("⏭️ HEAVY_ON_BOOT desactivado")
+
+    # 3) scheduler en background
+    start_scheduler()
+
+    yield
+
+    # === SHUTDOWN ===
+    shutdown_scheduler()
+
+app = FastAPI(lifespan=lifespan)
+
+# Routers
 app.include_router(users_b.router, prefix="/api")
 app.include_router(admin_users.router_admin, prefix="/api")
 app.include_router(reservas.router, prefix="/api")
 app.include_router(preferencias.router, prefix="/api")
 app.include_router(canchas.router, prefix="/api")
-app.include_router(empleado.router, prefix="/api") 
+app.include_router(empleado.router, prefix="/api")
 app.include_router(horarios.router, prefix="/api")
+app.include_router(resenias.router, prefix="/api")
+app.include_router(resenias_publicas.router, prefix="/api")
 
-# Montar carpeta estática para imágenes
+# Static
 app.mount("/images", StaticFiles(directory="static/images"), name="images")
 
+# CORS
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -28,16 +63,3 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
-
-@app.on_event("startup")
-async def startup_event():
-    try:
-        actualizadas = await asyncio.to_thread(actualizar_reservas_completadas)
-        print(f"Se actualizaron {actualizadas} reservas a estado 'Completada' al iniciar la aplicación")
-    except Exception as e:
-        print(f"Error al actualizar reservas en startup: {e}")
-    start_scheduler()
-
-@app.on_event("shutdown")
-async def shutdown_event():
-    shutdown_scheduler()
