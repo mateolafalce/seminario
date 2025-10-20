@@ -1,6 +1,7 @@
 # routers/matcheo_debug.py
-from fastapi import APIRouter, HTTPException, Query, status
-from typing import List
+from pydantic import BaseModel, Field
+from fastapi import APIRouter, HTTPException, Query, status, Body
+from typing import List, Optional, Dict, Any
 from bson import ObjectId
 from datetime import datetime
 import os
@@ -8,11 +9,10 @@ import asyncio
 
 from db.client import db_client
 
-# 👇 Importa SOLO desde services (no desde routers) para evitar ciclos
+
 from services.matcheo import (
     get_recommendation_split,
     get_top_matches_from_db,
-    get_random_users,
     S, J, A,
     get_user_weights,
     calculate_and_store_relations,
@@ -287,3 +287,228 @@ async def notify_dryrun(reserva_id: str, origen: str, ignore_logs: bool = Query(
         "resultado_notificados": notificados,
         "detalles": detalles,
     }
+
+# ---------- Helpers ----------
+
+def _upsert_by_nombre(coll, nombre: str, extra: Dict[str, Any]) -> str:
+    doc = coll.find_one({"nombre": nombre})
+    if doc:
+        return str(doc["_id"])
+    res = coll.insert_one({"nombre": nombre, **extra})
+    return str(res.inserted_id)
+
+def _get_id_by_nombre(coll, nombre: str) -> Optional[ObjectId]:
+    doc = coll.find_one({"nombre": nombre}, {"_id": 1})
+    return doc["_id"] if doc else None
+
+# ---------- Seed básico de mundo ----------
+
+@router.post("/seed/minimal-world")
+async def seed_minimal_world(tag: str = Query(default="debug")):
+    try:
+        # 1. Establecer estado "Reservada" para pruebas
+        _upsert_by_nombre(db_client.estadoreserva, "Reservada", {"color": "gris", "es_default": True})
+
+        # 2. Días de la semana (7 días)
+        dias = ["Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado", "Domingo"]
+        for dia in dias:
+            _upsert_by_nombre(db_client.dias, dia, {})
+
+        # 3. Canchas (3 canchas por día, 7 días a la semana)
+        for dia in dias:
+            dia_doc = db_client.dias.find_one({"nombre": dia})
+            if dia_doc:
+                for i in range(1, 4):
+                    _upsert_by_nombre(db_client.canchas, f"Cancha {i} {dia}", {
+                        "tipo": "futbol",
+                        "habilitada": True,
+                        "dias": [dia_doc["_id"]],
+                        "estado": "disponible",
+                    })
+
+        # 4. Horarios (cada hora desde las 08:00 hasta las 20:00)
+        for h in range(8, 21):
+            hora_str = f"{h:02}:00"
+            _upsert_by_nombre(db_client.horarios, hora_str, {})
+
+        return {"msg": "Seed de mundo minimal ejecutado", "tag": tag}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error en seed minimal-world: {e}")
+
+# ---------- Seed de usuarios ----------
+
+@router.post("/seed/users")
+async def seed_users(n: int = Query(default=2, ge=1, le=50), tag: str = Query(default="debug")):
+    try:
+        # Roles básicos
+        _upsert_by_nombre(db_client.roles, "usuario", {"permiso": "usuario"})
+        _upsert_by_nombre(db_client.roles, "admin", {"permiso": "admin"})
+
+        # Seed de usuarios
+        for i in range(n):
+            email = f"usuario{i+1}@ejemplo.com"
+            password = "password"
+            nombre = f"Usuario Prueba {i+1}"
+            _id = _upsert_by_nombre(db_client.users, email, {
+                "email": email,
+                "password": password,
+                "nombre": nombre,
+                "habilitado": True,
+                "rol": "usuario",
+                "prefs": {
+                    "dias": [],
+                    "horarios": [],
+                    "canchas": []
+                }
+            })
+
+        return {"msg": "Seed de usuarios ejecutado", "n": n, "tag": tag}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error en seed users: {e}")
+
+# ---------- Crear reserva simple ----------
+
+class ReservaIn(BaseModel):
+    fecha: str = Field(..., description="Formato 'dd-mm-YYYY'")
+    cancha_id: Optional[str] = None
+    cancha_nombre: Optional[str] = None
+    horario_id: Optional[str] = None
+    horario_hhmm: Optional[str] = None
+    usuarios: Optional[list[str]] = Field(default_factory=list, description="Lista de user_ids")
+    estado_nombre: str = Field(default="Reservada")
+    tag: str = Field(default="debug")
+
+@router.post("/seed/reserva")
+async def seed_reserva(payload: ReservaIn = Body(...)):
+    try:
+        # 1. Buscar o crear estado
+        estado_id = _get_id_by_nombre(db_client.estadoreserva, payload.estado_nombre)
+        if not estado_id:
+            raise HTTPException(status_code=400, detail="Estado no válido")
+
+        # 2. Parsear fecha
+        fecha_dt = datetime.strptime(payload.fecha, "%d-%m-%Y")
+        fecha_str = fecha_dt.strftime("%Y-%m-%d")
+
+        # 3. Buscar cancha
+        cancha_id = None
+        if payload.cancha_id:
+            cancha_id = ObjectId(payload.cancha_id)
+        elif payload.cancha_nombre:
+            cancha_id = _get_id_by_nombre(db_client.canchas, payload.cancha_nombre)
+        if not cancha_id:
+            raise HTTPException(status_code=400, detail="Cancha no válida")
+
+        # 4. Buscar horario
+        horario_id = None
+        if payload.horario_id:
+            horario_id = ObjectId(payload.horario_id)
+        elif payload.horario_hhmm:
+            horario_id = _get_id_by_nombre(db_client.horarios, payload.horario_hhmm)
+        if not horario_id:
+            raise HTTPException(status_code=400, detail="Horario no válido")
+
+        # 5. Crear reserva
+        reserva_id = db_client.reservas.insert_one({
+            "fecha": fecha_str,
+            "cancha": cancha_id,
+            "hora_inicio": horario_id,
+            "estado": estado_id,
+            "usuarios": [{"id": ObjectId(uid)} for uid in payload.usuarios],
+            "tag": payload.tag,
+        }).inserted_id
+
+        return {"msg": "Reserva creada", "reserva_id": str(reserva_id)}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error creando reserva: {e}")
+
+# ---------- Wipe de datos con tag ----------
+
+@router.post("/seed/wipe")
+async def seed_wipe(tag: str = Query(default="debug")):
+    try:
+        # Eliminar reservas
+        db_client.reservas.delete_many({"tag": tag})
+
+        # Eliminar usuarios
+        db_client.users.delete_many({"tag": tag})
+
+        return {"msg": "Datos eliminados con tag", "tag": tag}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error en wipe: {e}")
+
+# ---------- a_notificar directo ----------
+
+@router.get("/a-notificar/{user_id}")
+async def a_notificar_route(user_id: str):
+    """Obtener lista de usuarios a notificar para un usuario dado."""
+    if not ObjectId.is_valid(user_id):
+        raise HTTPException(status_code=400, detail="user_id inválido")
+    try:
+        top = 5
+        rnd = 5
+        usuarios = [user_id]
+
+        # Obtener top matches
+        mejores = get_top_matches_from_db(user_id, top_x=top)
+        top_ids = [u for (u, _) in mejores]
+        usuarios.extend(top_ids)
+
+        # Obtener aleatorios
+        excluidos = usuarios
+        aleatorios = get_random_users(exclude_user_ids=excluidos, count=rnd)
+        usuarios.extend(aleatorios)
+
+        # Eliminar duplicados
+        seen = set()
+        candidatos = [u for u in usuarios if not (u in seen or seen.add(u))]
+
+        return {"user_id": user_id, "candidatos": candidatos}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error en a_notificar: {e}")
+
+# ---------- Smoke test ----------
+
+@router.get("/smoke")
+async def smoke():
+    return {"msg": "API funcionando"}
+
+# ---------- Limpiar caches de catálogos ----------
+
+@router.post("/invalidate-caches")
+async def invalidate_caches():
+    try:
+        db_client.users.delete_many({})
+        db_client.pesos.delete_many({})
+        db_client.reservas.delete_many({})
+        db_client.notif_logs.delete_many({})
+        db_client.preferencias.delete_many({})
+        db_client.estadoreserva.delete_many({})
+        db_client.dias.delete_many({})
+        db_client.horarios.delete_many({})
+        db_client.canchas.delete_many({})
+        return {"msg": "Caches de catálogos limpiados"}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error limpiando caches: {e}")
+
+# ---------- Hardened get_random_users ----------
+
+def get_random_users(exclude_user_ids: List[str] = None, count: int = 5) -> List[str]:
+    if exclude_user_ids is None:
+        exclude_user_ids = []
+    exclude_oids = [ObjectId(x) for x in exclude_user_ids if ObjectId.is_valid(x)]
+
+    match = {"habilitado": True, "_id": {"$nin": exclude_oids}}
+    available = db_client.users.count_documents(match)
+    size = min(count, max(0, available))
+
+    if size == 0:
+        return []
+
+    pipeline = [
+        {"$match": match},
+        {"$sample": {"size": size}},
+        {"$project": {"user_id": {"$toString": "$_id"}}}
+    ]
+    rows = list(db_client.users.aggregate(pipeline))
+    return [r["user_id"] for r in rows]
