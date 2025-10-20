@@ -1,4 +1,5 @@
 # main.py
+from routers import matcheo_debug as matcheo_debug_router  
 import os
 import asyncio
 from contextlib import asynccontextmanager
@@ -51,6 +52,7 @@ app.include_router(empleado.router, prefix="/api")
 app.include_router(horarios.router, prefix="/api")
 app.include_router(resenias.router, prefix="/api")
 app.include_router(resenias_publicas.router, prefix="/api")
+app.include_router(matcheo_debug_router.router, prefix="/api") 
 
 # Static
 app.mount("/images", StaticFiles(directory="static/images"), name="images")

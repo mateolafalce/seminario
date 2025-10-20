@@ -102,9 +102,20 @@ def match_preferencia(user_oid, fecha, horario_id, cancha_id):
         return True  # en caso de error, no bloquear
 
 def enviar_notificaciones_slot(reserva_doc, origen_user_id, hora_str, cancha_nombre):
-    from services.notifs import should_notify_slot_by_logs, get_notified_users, log_notifications
+    from services.notifs import (
+        should_notify_slot_by_logs, get_notified_users, log_notifications,
+        max_candidates_for_slot, user_can_receive, NOTIFY_MIN_S, NOTIFY_MIN_A
+    )
+    from services.matcheo import a_notificar, S, A
     argentina_tz = pytz.timezone("America/Argentina/Buenos_Aires")
+
+    # 0) ¿Este slot puede notificar ahora? (conteos + cooldown por slot)
     if not should_notify_slot_by_logs(reserva_doc, argentina_tz):
+        return
+
+    # 1) Límite dinámico por slot según lugares faltantes
+    limite_slot = max_candidates_for_slot(reserva_doc)
+    if limite_slot <= 0:
         return
 
     cancha_id = reserva_doc["cancha"]
@@ -113,33 +124,62 @@ def enviar_notificaciones_slot(reserva_doc, origen_user_id, hora_str, cancha_nom
     reserva_id = reserva_doc["_id"]
 
     origen_oid = ObjectId(origen_user_id)
+
+    # 2) Ranking inicial (TOP + random), ya dedupe por usuario
     candidatos = a_notificar(origen_user_id)
 
-    # Dedupe por logs
+    # 3) Duplicados por reserva (logs), y estado del usuario/email
     ya_notificados = get_notified_users(reserva_id)
 
     notificados = []
     vistos_usuarios = set()
     vistos_emails = set()
+    now_local = datetime.now(argentina_tz)
 
+    # 4) Aplicar filtros y respetar el límite del slot
     for usuario_id in candidatos:
+        if len(notificados) >= limite_slot:
+            break
+
         if not ObjectId.is_valid(usuario_id):
             continue
         oid = ObjectId(usuario_id)
         if oid == origen_oid or oid in vistos_usuarios or oid in ya_notificados:
             continue
+
+        # cooldown y cuota por usuario
+        if not user_can_receive(oid, now_local):
+            continue
+
+        # conflicto con el mismo slot
         if tiene_conflicto_slot(oid, fecha_str, horario_id):
             continue
+
+        # usuario habilitado + email
         u = db_client.users.find_one({"_id": oid, "habilitado": True})
         if not u:
             continue
         email = u.get("email")
         if not email or email in vistos_emails:
             continue
+
+        # filtro por preferencias si está activo
         if not match_preferencia(oid, fecha_str, horario_id, cancha_id):
             continue
 
-        # enviar email
+        # umbrales opcionales por similitud/score
+        try:
+            s_val = S(origen_user_id, usuario_id)
+            a_val = A(origen_user_id, usuario_id)
+        except Exception:
+            s_val, a_val = 0.0, 0.0
+
+        if s_val < NOTIFY_MIN_S:
+            continue
+        if a_val < NOTIFY_MIN_A:
+            continue
+
+        # Enviar email
         ok = notificar_posible_matcheo(
             to=email,
             day=fecha_str,
