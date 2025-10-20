@@ -128,7 +128,7 @@ def enviar_notificaciones_slot(reserva_doc, origen_user_id, hora_str, cancha_nom
     # 2) Ranking inicial (TOP + random), ya dedupe por usuario
     candidatos = a_notificar(origen_user_id)
 
-    # Dedupe por logs (usuarios ya notificados para esta reserva específica)
+    # 3) Duplicados por reserva (logs), y estado del usuario/email
     ya_notificados = get_notified_users(reserva_id)
 
     notificados = []
