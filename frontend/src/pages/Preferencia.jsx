@@ -87,7 +87,6 @@ export default function PreferenciasUsuario() {
   const [loadingCanchas, setLoadingCanchas] = useState(true);
   const [confirmData, setConfirmData] = useState({ open: false, id: null });
 
-<<<<<<< HEAD
   // Cargar canchas desde el backend
 =======
     // Confirmación al cancelar
