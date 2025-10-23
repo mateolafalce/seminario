@@ -16,6 +16,7 @@ from fastapi import Body
 import secrets
 from services.email import enviar_email_habilitacion
 from fastapi.responses import RedirectResponse
+from utils.security import generate_salt, hash_password_with_salt, verify_password_with_salt, is_bcrypt_hash
 
 router = APIRouter(
     prefix="/users_b",
@@ -41,8 +42,12 @@ async def register(user: UserDB):
     user_dict = dict(user)
     del user_dict["id"]
 
-    hashed_password = crypt.hash(user.password)
+    # Generar salt y hashear contraseña
+    salt = generate_salt()
+    hashed_password = hash_password_with_salt(user.password, salt)
+    
     user_dict["password"] = hashed_password
+    user_dict["salt"] = salt  # Guardar el salt en la base de datos
 
     user_dict["habilitado"] = False
     argentina_tz = pytz.timezone("America/Argentina/Buenos_Aires")
@@ -103,8 +108,35 @@ async def login(form: OAuth2PasswordRequestForm = Depends()):
             detail="Usuario o contraseña incorrectos"
         )
 
-    # Verificar contraseña
-    if not crypt.verify(form.password, user_db_data["password"]):
+    # Verificar contraseña (compatibilidad con bcrypt y salt)
+    password_valid = False
+    
+    if user_db_data.get("salt"):
+        # Usuario con salt (nuevo sistema)
+        password_valid = verify_password_with_salt(
+            form.password, 
+            user_db_data["salt"], 
+            user_db_data["password"]
+        )
+    elif is_bcrypt_hash(user_db_data["password"]):
+        # Usuario con bcrypt (sistema antiguo)
+        password_valid = crypt.verify(form.password, user_db_data["password"])
+        
+        # Migrar a salt si la contraseña es correcta
+        if password_valid:
+            salt = generate_salt()
+            new_hashed_password = hash_password_with_salt(form.password, salt)
+            await asyncio.to_thread(
+                lambda: db_client.users.update_one(
+                    {"_id": user_db_data["_id"]},
+                    {"$set": {
+                        "password": new_hashed_password,
+                        "salt": salt
+                    }}
+                )
+            )
+    
+    if not password_valid:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Usuario o contraseña incorrectos"
