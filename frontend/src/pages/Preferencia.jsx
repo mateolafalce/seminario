@@ -83,7 +83,6 @@ export default function PreferenciasUsuario() {
   const [canchasDisponibles, setCanchasDisponibles] = useState([]);
   const [loadingCanchas, setLoadingCanchas] = useState(true);
 
-<<<<<<< HEAD
   // Cargar canchas desde el backend
   useEffect(() => {
     const fetchCanchas = async () => {
@@ -115,13 +114,6 @@ export default function PreferenciasUsuario() {
     fetchCanchas();
   }, []);
 
-  // cargar preferencias guardadas
-=======
-    // Confirmación al cancelar
-    const [confirmData, setConfirmData] = useState({ open: false, id: null });
-
-  // cargar guardadas
->>>>>>> main
   useEffect(() => {
     const url =
       window.location.hostname === "localhost"
