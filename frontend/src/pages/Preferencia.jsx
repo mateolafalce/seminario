@@ -4,6 +4,7 @@ import Button from "../components/common/Button/Button";
 import MiToast from "../components/common/Toast/MiToast";
 import { toast } from "react-toastify";
 import { FiCheck } from "react-icons/fi";
+import MessageConfirm from '../components/common/Confirm/MessageConfirm';
 
 /* ------------------------------------------
    Config
@@ -82,6 +83,7 @@ export default function PreferenciasUsuario() {
   const [canchasDisponibles, setCanchasDisponibles] = useState([]);
   const [loadingCanchas, setLoadingCanchas] = useState(true);
 
+<<<<<<< HEAD
   // Cargar canchas desde el backend
   useEffect(() => {
     const fetchCanchas = async () => {
@@ -114,6 +116,12 @@ export default function PreferenciasUsuario() {
   }, []);
 
   // cargar preferencias guardadas
+=======
+    // Confirmación al cancelar
+    const [confirmData, setConfirmData] = useState({ open: false, id: null });
+
+  // cargar guardadas
+>>>>>>> main
   useEffect(() => {
     const url =
       window.location.hostname === "localhost"
@@ -206,26 +214,7 @@ export default function PreferenciasUsuario() {
     resetConstructor();
   };
 
-  const handleEliminar = async (id) => {
-    if (!window.confirm("¿Eliminar esta preferencia?")) return;
-    const url =
-      window.location.hostname === "localhost"
-        ? `${BACKEND_URL}/api/preferencias/eliminar/${id}`
-        : `/api/preferencias/eliminar/${id}`;
 
-    const res = await fetch(url, {
-      method: "DELETE",
-      headers: { Authorization: `Bearer ${localStorage.getItem("accessToken")}` },
-    });
-
-    if (res.ok) {
-      toast(<MiToast mensaje="Preferencia eliminada." color="#eaff00" />);
-      setPreferenciasGuardadas((prev) => prev.filter((p) => p.id !== id));
-    } else {
-      const err = await res.json();
-      toast(<MiToast mensaje={`Error: ${err.detail || "Error desconocido"}`} color="#ef4444" />);
-    }
-  };
 
   const { m, t, n } = gruposHorarios(horariosDisponibles);
   const presetLaborables = ["Lunes", "Martes", "Miércoles", "Jueves", "Viernes"];
@@ -242,6 +231,44 @@ export default function PreferenciasUsuario() {
       </div>
     );
   }
+
+  
+  function handleEliminar(id) {
+    setConfirmData({ open: true, id });
+  }
+
+  // Si confirma la eliminación
+async function confirmarEliminar() {
+  const id = confirmData.id;
+  setConfirmData({ open: false, id: null });
+
+  const url =
+    window.location.hostname === "localhost"
+      ? `${BACKEND_URL}/api/preferencias/eliminar/${id}`
+      : `/api/preferencias/eliminar/${id}`;
+
+  try {
+    const res = await fetch(url, {
+      method: "DELETE",
+      headers: { Authorization: `Bearer ${localStorage.getItem("accessToken")}` },
+    });
+
+    if (res.ok) {
+      toast(<MiToast mensaje="Preferencia eliminada." color="#eaff00" />);
+      setPreferenciasGuardadas((prev) => prev.filter((p) => p.id !== id));
+    } else {
+      const err = await res.json();
+      toast(<MiToast mensaje={`Error: ${err.detail || "Error desconocido"}`} color="#ef4444" />);
+    }
+  } catch (e) {
+    toast(<MiToast mensaje="Error de conexión." color="#ef4444" />);
+  }
+}
+
+
+function cancelarAccion() {
+  setConfirmData({ open: false, id: null });
+}
 
   return (
     <div className="w-full max-w-3xl mx-auto px-4 py-8">
@@ -368,6 +395,14 @@ export default function PreferenciasUsuario() {
           </ul>
         )}
       </div>
+          {confirmData.open && (
+      <MessageConfirm
+        mensaje="¿Seguro que deseas cancelar esta reserva?"
+        onClose={cancelarAccion}
+        onConfirm={confirmarEliminar}
+        onCancel={cancelarAccion}
+      />
+    )}
     </div>
   );
 }
