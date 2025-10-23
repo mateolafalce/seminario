@@ -115,7 +115,7 @@ def enviar_notificaciones_slot(reserva_doc, origen_user_id, hora_str, cancha_nom
     origen_oid = ObjectId(origen_user_id)
     candidatos = a_notificar(origen_user_id)
 
-    # Dedupe por logs
+    # Dedupe por logs (usuarios ya notificados para esta reserva específica)
     ya_notificados = get_notified_users(reserva_id)
 
     notificados = []
@@ -126,6 +126,12 @@ def enviar_notificaciones_slot(reserva_doc, origen_user_id, hora_str, cancha_nom
         if not ObjectId.is_valid(usuario_id):
             continue
         oid = ObjectId(usuario_id)
+        
+        # Verificar que el candidato no esté ya en la reserva
+        # (evita notificar a usuarios que ya están participando)
+        if oid in {u["id"] for u in reserva_doc.get("usuarios", [])}:
+            continue
+            
         if oid == origen_oid or oid in vistos_usuarios or oid in ya_notificados:
             continue
         if tiene_conflicto_slot(oid, fecha_str, horario_id):
