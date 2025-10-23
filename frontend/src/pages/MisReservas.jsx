@@ -7,6 +7,8 @@ import Modal from '../components/common/Modal/Modal';
 import { FiUsers, FiStar, FiRefreshCcw, FiCalendar, FiClock, FiList } from 'react-icons/fi';
 import FormularioReseña from '../components/usuarios/FormularioResenias';
 import ReservaCard, { EmptyState } from '../components/common/Cards/CardReserva';
+import MessageConfirm from '../components/common/Confirm/MessageConfirm';
+
 
 /* ---------- Estilo (sin verdes) ---------- */
 const ACCENT = '#FFC107'; // ámbar cálido
@@ -55,6 +57,10 @@ function MisReservas() {
   const [jugadorSeleccionado, setJugadorSeleccionado] = useState(null);
   const [detalleReserva, setDetalleReserva] = useState(null);
 
+  // Confirmación al cancelar
+  const [confirmData, setConfirmData] = useState({ open: false, id: null });
+
+
   const urlProximas = '/api/reservas/mis-reservas?estados=Reservada,Confirmada&incluir_pasadas=false';
   const urlHistorial = '/api/reservas/mis-reservas?estados=Confirmada,Completada,Cancelada&incluir_pasadas=true';
 
@@ -76,16 +82,6 @@ function MisReservas() {
   }
 
   useEffect(() => { if (isAuthenticated) cargarListas(); }, [isAuthenticated]);
-
-  async function handleCancelar(id) {
-    if (!window.confirm('¿Cancelar esta reserva?')) return;
-    try {
-      const r = await apiFetch(`/api/reservas/cancelar/${id}`, { method: 'DELETE' });
-      const d = await safeJson(r);
-      r.ok ? safeToast(d.msg || 'Reserva cancelada.') : safeToast(d.detail || 'No se pudo cancelar', '#F43F5E');
-      await cargarListas();
-    } catch { safeToast('Error de conexión', '#F43F5E'); }
-  }
 
   async function handleConfirmar(id) {
     try {
@@ -134,6 +130,34 @@ function MisReservas() {
       </div>
     );
   }
+
+  function handleCancelar(id) {
+    setConfirmData({ open: true, id });
+  }
+
+  async function confirmarCancelacion() {
+  const id = confirmData.id;
+  setConfirmData({ open: false, id: null });
+
+  try {
+    const r = await apiFetch(`/api/reservas/cancelar/${id}`, { method: 'DELETE' });
+    const d = await safeJson(r);
+    if (r.ok) {
+      safeToast(d.msg || 'Reserva cancelada.');
+      await cargarListas();
+    } else {
+      safeToast(d.detail || 'No se pudo cancelar', '#F43F5E');
+    }
+  } catch {
+    safeToast('Error de conexión', '#F43F5E');
+  }
+}
+
+function cancelarAccion() {
+  setConfirmData({ open: false, id: null });
+}
+
+
 
   return (
     <div className="min-h-[70vh] py-8 px-4">
@@ -267,6 +291,15 @@ function MisReservas() {
           )}
         </div>
       </Modal>
+    {confirmData.open && (
+      <MessageConfirm
+        mensaje="¿Seguro que deseas cancelar esta reserva?"
+        onClose={cancelarAccion}
+        onConfirm={confirmarCancelacion}
+        onCancel={cancelarAccion}
+      />
+    )}
+
     </div>
   );
 }
