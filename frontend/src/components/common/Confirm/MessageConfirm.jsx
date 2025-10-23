@@ -1,74 +1,68 @@
 import React from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { FiCheckCircle, FiX } from 'react-icons/fi';
+import { FiX, FiCheckCircle } from 'react-icons/fi';
 
 function MessageConfirm({ mensaje, onClose, onConfirm, onCancel }) {
-  const baseClasses =
-    "mr-4 bg-[#0D1B2A] text-white cursor-pointer font-medium shadow-md transition-all duration-200 ease-in-out rounded-full focus:outline-none active:translate-y-[1px] active:shadow-sm hover:text-[#E5FF00] hover:shadow-lg hover:scale-105 focus:bg-[#0D1B2A] focus:text-white active:bg-[#0D1B2A] active:text-white px-3 py-1 text-sm border border-white/20";
-
-  const bg = 'bg-[#f4ff52]/90';
-  const text = 'text-[#0D1B2A]';
-  const border = 'border-[#0D1B2A]';
-  const icon = <FiCheckCircle style={{ fontSize: '3rem', marginBottom: '1.2rem' }} />;
-  const shadow = 'shadow-[0_0_1.5rem_#f4ff52]';
-
   return (
     <AnimatePresence>
       {mensaje && (
         <motion.div
           className="fixed inset-0 z-50 flex items-center justify-center p-4"
-          initial={{ opacity: 0, backdropFilter: 'blur(0px)' }}
-          animate={{ opacity: 1, backdropFilter: 'blur(0.25rem)' }}
-          exit={{ opacity: 0, backdropFilter: 'blur(0px)' }}
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          role="dialog"
+          aria-modal="true"
         >
-          {/* fondo semitransparente */}
+          {/* Fondo difuminado */}
           <motion.div
-            className="absolute inset-0 bg-[#0D1B2A]/70"
+            className="absolute inset-0 bg-black/70 backdrop-blur-sm"
+            onClick={onCancel}
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
           />
 
-          {/* card del mensaje */}
+          {/* Caja del mensaje */}
           <motion.div
-            className={`relative max-w-[32rem] w-full py-[2.5rem] px-[2.5rem] rounded-[1.5rem] ${bg} ${text} ${shadow} border-[0.25rem] ${border} text-center`}
-            initial={{ scale: 0.9, y: '1.25rem' }}
+            className="relative w-full max-w-md rounded-2xl p-6 bg-white/5 backdrop-blur-sm border border-white/10 text-center text-white"
+            initial={{ scale: 0.9, y: 20 }}
             animate={{ scale: 1, y: 0 }}
-            exit={{ scale: 0.9, y: '1.25rem' }}
+            exit={{ scale: 0.9, y: 20 }}
             transition={{ type: 'spring', stiffness: 300, damping: 20 }}
           >
-            {/* cierre */}
+            {/* Botón de cierre */}
             {onClose && (
               <button
                 onClick={onClose}
-                className={`absolute top-[1rem] right-[1rem] p-[0.5rem] rounded-full ${text} hover:bg-black/10 transition-colors`}
+                className="absolute top-3 right-3 text-slate-300 hover:text-white"
                 aria-label="Cerrar"
-                style={{ fontSize: '1.5rem' }}
               >
-                <FiX />
+                <FiX size={22} />
               </button>
             )}
 
-            {/* icono */}
-            <div className="flex justify-center">
-              {icon}
+            {/* Ícono de confirmación */}
+            <div className="flex justify-center mb-3">
+              <FiCheckCircle size={46} className="text-amber-400" />
             </div>
 
-            {/* mensaje */}
-            <p className="text-[1.25rem] font-bold mb-[0.7rem]">
+            {/* Mensaje */}
+            <p className="text-lg font-semibold mb-5 text-white">
               {mensaje}
             </p>
 
-            <div className="flex justify-center mt-4">
+            {/* Botones */}
+            <div className="flex justify-center gap-3">
               <button
                 onClick={onConfirm}
-                className={`${baseClasses}`}
+                className="px-4 py-2 rounded-lg bg-amber-400 text-[#0B1220] font-bold hover:bg-amber-300 transition-all"
               >
                 Confirmar
               </button>
               <button
                 onClick={onCancel}
-                className={`${baseClasses}`}
+                className="px-4 py-2 rounded-lg font-semibold border bg-white/5 border-white/10 hover:bg-white/10 transition-all"
               >
                 Cancelar
               </button>
