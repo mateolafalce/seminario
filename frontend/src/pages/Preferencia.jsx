@@ -11,7 +11,6 @@ import { FiCheck } from "react-icons/fi";
 const BACKEND_URL = `http://${window.location.hostname}:8000`;
 
 const diasSemana = ["Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado", "Domingo"];
-const canchasDisponibles = ["Blindex A", "Blindex B", "Blindex C", "Cemento Techada", "Cemento Sin Techar"];
 const horariosDisponibles = generarHorarios();
 const LIMITE_PREFS = 7;
 
@@ -80,8 +79,41 @@ export default function PreferenciasUsuario() {
   const [preferencias, setPreferencias] = useState({ dias: [], horarios: [], canchas: [] });
   const [preferenciasGuardadas, setPreferenciasGuardadas] = useState([]);
   const [preferenciaEditar, setPreferenciaEditar] = useState(null);
+  const [canchasDisponibles, setCanchasDisponibles] = useState([]);
+  const [loadingCanchas, setLoadingCanchas] = useState(true);
 
-  // cargar guardadas
+  // Cargar canchas desde el backend
+  useEffect(() => {
+    const fetchCanchas = async () => {
+      try {
+        const url =
+          window.location.hostname === "localhost"
+            ? `${BACKEND_URL}/api/canchas/listar`
+            : "/api/canchas/listar";
+        
+        const res = await fetch(url, {
+          headers: { Authorization: `Bearer ${localStorage.getItem("accessToken")}` }
+        });
+
+        if (res.ok) {
+          const data = await res.json();
+          // Extraer solo los nombres de las canchas
+          setCanchasDisponibles(data.map(cancha => cancha.nombre));
+        } else {
+          toast(<MiToast mensaje="Error al cargar las canchas" color="#ef4444" />);
+        }
+      } catch (error) {
+        console.error("Error fetching canchas:", error);
+        toast(<MiToast mensaje="Error de conexión al cargar canchas" color="#ef4444" />);
+      } finally {
+        setLoadingCanchas(false);
+      }
+    };
+
+    fetchCanchas();
+  }, []);
+
+  // cargar preferencias guardadas
   useEffect(() => {
     const url =
       window.location.hostname === "localhost"
@@ -274,13 +306,19 @@ export default function PreferenciasUsuario() {
       {/* CANCHAS */}
       <Card className="mt-6">
         <SectionTitle>Canchas</SectionTitle>
-        <div className="flex flex-wrap gap-2">
-          {canchasDisponibles.map((c) => (
-            <Chip key={c} active={preferencias.canchas.includes(c)} onClick={() => handleToggle("canchas", c)}>
-              {c}
-            </Chip>
-          ))}
-        </div>
+        {loadingCanchas ? (
+          <p className="text-slate-300 text-sm">Cargando canchas...</p>
+        ) : canchasDisponibles.length === 0 ? (
+          <p className="text-slate-300 text-sm">No hay canchas disponibles.</p>
+        ) : (
+          <div className="flex flex-wrap gap-2">
+            {canchasDisponibles.map((c) => (
+              <Chip key={c} active={preferencias.canchas.includes(c)} onClick={() => handleToggle("canchas", c)}>
+                {c}
+              </Chip>
+            ))}
+          </div>
+        )}
       </Card>
 
       {/* Acciones */}
@@ -289,7 +327,7 @@ export default function PreferenciasUsuario() {
           texto={preferenciaEditar ? "Actualizar" : "Guardar"}
           onClick={handleSubmit}
           className="w-full"
-          disabled={reachedLimit}
+          disabled={reachedLimit || loadingCanchas}
         />
         {preferenciaEditar ? (
           <Button texto="Cancelar" variant="secondary" onClick={handleCancelEdit} className="w-full" />
