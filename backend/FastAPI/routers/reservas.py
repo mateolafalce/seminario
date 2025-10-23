@@ -553,8 +553,22 @@ async def cancelar_reserva(
                 lambda: db_client.reservas.find_one({"_id": reserva_oid})
             )
             
-            # Si la reserva ya no existe (o la borraste al ser admin), cancelá el job
-            if not reserva_actualizada:
+            # Si no hay usuarios o la reserva está vacía, eliminarla completamente
+            if not reserva_actualizada or len(reserva_actualizada.get("usuarios", [])) == 0:
+                # === ELIMINACIÓN EN CASCADA ===
+                
+                # 1. Eliminar notif_logs asociados a esta reserva
+                result_notifs = await asyncio.to_thread(
+                    lambda: db_client.notif_logs.delete_many({"reserva": reserva_oid})
+                )
+                print(f"🗑️ Notif_logs eliminados: {result_notifs.deleted_count}")
+                
+                # 2. Eliminar la reserva
+                await asyncio.to_thread(
+                    lambda: db_client.reservas.delete_one({"_id": reserva_oid})
+                )
+                
+                # 3. Cancelar recordatorio
                 try:
                     from services.scheduler import cancelar_recordatorio_reserva
                     cancelar_recordatorio_reserva(str(reserva_id))
@@ -562,18 +576,36 @@ async def cancelar_reserva(
                     print(f"Error cancelando recordatorio: {e}")
         else:
             # Si es admin, cancelar toda la reserva
+            
+            # === ELIMINACIÓN EN CASCADA ===
+            
+            # 1. Eliminar notif_logs asociados a esta reserva
+            result_notifs = await asyncio.to_thread(
+                lambda: db_client.notif_logs.delete_many({"reserva": reserva_oid})
+            )
+            print(f"🗑️ Notif_logs eliminados (admin): {result_notifs.deleted_count}")
+            
+            # 2. Eliminar la reserva
             await asyncio.to_thread(
                 lambda: db_client.reservas.delete_one({"_id": reserva_oid})
             )
+            
+            # 3. Cancelar recordatorio
+            try:
+                from services.scheduler import cancelar_recordatorio_reserva
+                cancelar_recordatorio_reserva(str(reserva_id))
+            except Exception as e:
+                print(f"Error cancelando recordatorio: {e}")
         
-        # Cancelar recordatorio para este usuario
-        try:
-            from services.scheduler import cancelar_recordatorio_usuario
-            await asyncio.to_thread(
-                lambda: cancelar_recordatorio_usuario(str(reserva_id), user_id)
-            )
-        except Exception as e:
-            print(f"Error cancelando recordatorio: {e}")
+        # Cancelar recordatorio para este usuario (si no se eliminó toda la reserva)
+        if not es_admin:
+            try:
+                from services.scheduler import cancelar_recordatorio_usuario
+                await asyncio.to_thread(
+                    lambda: cancelar_recordatorio_usuario(str(reserva_id), user_id)
+                )
+            except Exception as e:
+                print(f"Error cancelando recordatorio de usuario: {e}")
         
         # Notificar a otros usuarios de la reserva
         try:

@@ -408,18 +408,62 @@ async def eliminar_usuario(
         if str(current_user_data["_id"]) == data.identificador:
             raise ValueError("No puedes eliminarte a ti mismo")
 
+        # === ELIMINACIÓN EN CASCADA ===
+        
+        # 1. Eliminar preferencias del usuario
+        db_client.preferencias.delete_many({"usuario_id": user_id})
+        
+        # 2. Eliminar pesos donde el usuario es i o j
+        db_client.pesos.delete_many({"$or": [{"i": user_id}, {"j": user_id}]})
+        
+        # 3. Eliminar notif_logs donde el usuario es origen o destinatario
+        db_client.notif_logs.delete_many({"$or": [{"origen": user_id}, {"usuario": user_id}]})
+        
+        # 4. Eliminar reseñas donde el usuario es autor (i) o destinatario (j)
+        db_client.resenias.delete_many({"$or": [{"i": user_id}, {"j": user_id}]})
+        
+        # 5. Manejar reservas: eliminar al usuario de la lista de usuarios
+        # Si es el único usuario, eliminar la reserva completa
+        reservas_usuario = list(db_client.reservas.find({"usuarios.id": user_id}))
+        
+        for reserva in reservas_usuario:
+            # Contar cuántos usuarios tiene la reserva
+            cantidad_usuarios = len(reserva.get("usuarios", []))
+            
+            if cantidad_usuarios == 1:
+                # Si es el único usuario, eliminar la reserva completa
+                db_client.reservas.delete_one({"_id": reserva["_id"]})
+                
+                # Cancelar recordatorio si existe
+                try:
+                    from services.scheduler import cancelar_recordatorio_reserva
+                    cancelar_recordatorio_reserva(str(reserva["_id"]))
+                except Exception as e:
+                    print(f"Error cancelando recordatorio: {e}")
+            else:
+                # Si hay más usuarios, solo remover al usuario de la lista
+                db_client.reservas.update_one(
+                    {"_id": reserva["_id"]},
+                    {"$pull": {"usuarios": {"id": user_id}}}
+                )
+        
+        # 6. Eliminar de admins si existe
+        db_client.admins.delete_one({"user": user_id})
+        
+        # 7. Eliminar de empleados si existe
+        db_client.empleados.delete_one({"user": user_id})
+        
+        # 8. Finalmente, eliminar el usuario
         result = db_client.users.delete_one({"_id": user_id})
         if result.deleted_count == 0:
             raise ValueError("Usuario no encontrado o ya eliminado")
-
-        db_client.admins.delete_one({"user": user_id})
 
         return True
 
     try:
         # Ejecutar operaciones en hilo separado
         await asyncio.to_thread(operaciones_sincronas)
-        return {"message": "Usuario eliminado correctamente"}
+        return {"message": "Usuario y todos sus datos asociados eliminados correctamente"}
 
     except ValueError as e:
         status_code = 404 if "no encontrado" in str(e).lower() else 403
@@ -446,10 +490,53 @@ async def eliminar_usuario(
             raise ValueError("Solo los admin pueden eliminar usuarios")
         if str(current_user_data["_id"]) == user_id:
             raise ValueError("No puedes eliminarte a ti mismo")
-        result = db_client.users.delete_one({"_id": ObjectId(user_id)})
+        
+        user_oid = ObjectId(user_id)
+        
+        # === ELIMINACIÓN EN CASCADA ===
+        
+        # 1. Eliminar preferencias
+        db_client.preferencias.delete_many({"usuario_id": user_oid})
+        
+        # 2. Eliminar pesos
+        db_client.pesos.delete_many({"$or": [{"i": user_oid}, {"j": user_oid}]})
+        
+        # 3. Eliminar notif_logs
+        db_client.notif_logs.delete_many({"$or": [{"origen": user_oid}, {"usuario": user_oid}]})
+        
+        # 4. Eliminar reseñas
+        db_client.resenias.delete_many({"$or": [{"i": user_oid}, {"j": user_oid}]})
+        
+        # 5. Manejar reservas
+        reservas_usuario = list(db_client.reservas.find({"usuarios.id": user_oid}))
+        
+        for reserva in reservas_usuario:
+            cantidad_usuarios = len(reserva.get("usuarios", []))
+            
+            if cantidad_usuarios == 1:
+                db_client.reservas.delete_one({"_id": reserva["_id"]})
+                try:
+                    from services.scheduler import cancelar_recordatorio_reserva
+                    cancelar_recordatorio_reserva(str(reserva["_id"]))
+                except Exception as e:
+                    print(f"Error cancelando recordatorio: {e}")
+            else:
+                db_client.reservas.update_one(
+                    {"_id": reserva["_id"]},
+                    {"$pull": {"usuarios": {"id": user_oid}}}
+                )
+        
+        # 6. Eliminar de admins
+        db_client.admins.delete_one({"user": user_oid})
+        
+        # 7. Eliminar de empleados
+        db_client.empleados.delete_one({"user": user_oid})
+        
+        # 8. Eliminar usuario
+        result = db_client.users.delete_one({"_id": user_oid})
         if result.deleted_count == 0:
             raise ValueError("Usuario no encontrado o ya eliminado")
-        db_client.admins.delete_one({"user": ObjectId(user_id)})
+        
         return True
 
     try:
