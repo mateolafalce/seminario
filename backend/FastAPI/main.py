@@ -1,4 +1,3 @@
-# main.py
 from routers import matcheo_debug as matcheo_debug_router  
 import os
 import asyncio
