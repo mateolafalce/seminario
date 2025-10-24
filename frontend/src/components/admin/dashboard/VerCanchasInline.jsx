@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useContext } from "react";
-import { createApi } from "../../../utils/api";
+import backendClient from "../../../services/backendClient";
 import { AuthContext } from "../../../context/AuthContext";
 import ListarCanchas from "./ListarCanchas";
 import EditarCanchaModal from "./EditarCanchaModal";
@@ -19,19 +19,15 @@ function VerCanchasInline({ refresh }) {
   const [editLoading, setEditLoading] = useState(false);
   const [editErrores, setEditErrores] = useState({});
 
-  const apiFetch = createApi(handleUnauthorized);
-
   const fetchCanchas = async () => {
     setLoading(true);
     setError(null);
     try {
-      const response = await apiFetch('/api/canchas/listar');
-      if (response.ok) {
-        const data = await response.json();
-        setCanchas(data);
+      const response = await backendClient.get('canchas/listar');
+      if (response) {
+        setCanchas(response);
       } else {
-        const err = await response.json();
-        setError(err.detail || 'Error al obtener canchas');
+        setError('Error al obtener canchas');
       }
     } catch (e) {
       setError(e.message || 'Error de conexión');
@@ -49,16 +45,13 @@ function VerCanchasInline({ refresh }) {
   const handleEliminar = async (cancha) => {
     if (!window.confirm(`¿Eliminar la cancha "${cancha.nombre}"?`)) return;
     try {
-      const response = await apiFetch(`/api/canchas/eliminar/${cancha.id}`, {
-        method: 'DELETE',
-      });
-      if (response.ok) {
+      const response = await backendClient.delete(`canchas/eliminar/${cancha.id}`);
+      if (response) {
         setCanchasKey(k => k + 1); // Refresca la lista
       } else {
-        const err = await response.json();
         toast(
           <MiToast 
-            mensaje={err.detail || "No se pudo eliminar la cancha"} 
+            mensaje={"No se pudo eliminar la cancha"} 
             tipo="error" 
           />
         );
@@ -88,16 +81,14 @@ function VerCanchasInline({ refresh }) {
     }
     setEditLoading(true);
     try {
-      const response = await apiFetch(`/api/canchas/modificar/${canchaEditar.id}`, {
-        method: 'PUT',
-        body: JSON.stringify({ nombre: valores.nombre.trim() }),
+      const response = await backendClient.put(`canchas/modificar/${canchaEditar.id}`, {
+        nombre: valores.nombre.trim(),
       });
-      if (response.ok) {
+      if (response) {
         setCanchaEditar(null);
         setCanchasKey(k => k + 1);
       } else {
-        const err = await response.json();
-        setEditErrores({ general: err.detail || "No se pudo modificar la cancha" });
+        setEditErrores({ general: "No se pudo modificar la cancha" });
       }
     } catch (e) {
       setEditErrores({ general: e.message || "Error de conexión" });

@@ -2,6 +2,7 @@ import { useState, useEffect, useContext } from 'react'
 import { AuthContext } from "../../../context/AuthContext";
 import { toast } from 'react-toastify';
 import MiToast from '../../common/Toast/MiToast';
+import backendClient from '../../../services/backendClient'; // 👈 usa el cliente nuevo
 
 // Genera fechas próximas 7 días
 const generarFechas = () => {
@@ -17,107 +18,78 @@ const generarFechas = () => {
 };
 
 export default function GestionReservas() {
-  const { apiFetch, token, user } = useContext(AuthContext);
+  // ya no necesitamos apiFetch ni token
+  const { user } = useContext(AuthContext);
   const [selectedDate, setSelectedDate] = useState(generarFechas()[0]);
   const [canchas, setCanchas] = useState([]);
   const [horarios, setHorarios] = useState([]);
   const [detalle, setDetalle] = useState(null);
   const [modalOpen, setModalOpen] = useState(false);
-  const [reservas, setReservas] = useState([]);
   const [cantidades, setCantidades] = useState([]);
 
   // Traer canchas y horarios
   useEffect(() => {
-    apiFetch('/api/canchas/listar').then(async res => {
-      if (res.ok) {
-        const data = await res.json();
-        setCanchas(data.map(c => c.nombre));
-      }
-    });
-    apiFetch('/api/horarios/listar').then(async res => {
-      if (res.ok) {
-        const data = await res.json();
-        // Ordena los horarios de menor a mayor
-        const horariosOrdenados = data.map(h => h.hora).sort((a, b) => {
-          // Extrae la hora de inicio (ej: "09:00-10:30" => 9, "10:30-12:00" => 10.5)
-          const getInicio = h => {
-            const [hora, min] = h.split('-')[0].split(':');
-            return parseInt(hora) + parseInt(min) / 60;
-          };
-          return getInicio(a) - getInicio(b);
-        });
-        setHorarios(horariosOrdenados);
-      }
-    });
-  }, [apiFetch]);
+    (async () => {
+      try {
+        const canchasResp = await backendClient.get('canchas/listar');
+        setCanchas((canchasResp || []).map(c => c.nombre));
 
-  // Cargar reservas al cambiar la fecha seleccionada
-  useEffect(() => {
-    if (selectedDate) {
-      apiFetch(`/api/reservas/listar?fecha=${selectedDate}`).then(async res => {
-        if (res.ok) {
-          const data = await res.json();
-          const isAdmin = user?.is_admin === true || user?.is_admin === "true";
-          if (!isAdmin) {
-            const userId = user?.id;
-            const reservasFiltradas = data.filter(r => r.usuario === userId);
-            setReservas(reservasFiltradas);
-          } else {
-            setReservas(data);
-          }
-        }
-      });
-    }
-  }, [selectedDate, apiFetch, user]);
+        const horariosResp = await backendClient.get('horarios/listar');
+        const horariosOrdenados = (horariosResp || [])
+          .map(h => h.hora)
+          .sort((a, b) => {
+            const getInicio = h => {
+              const [hora, min] = h.split('-')[0].split(':');
+              return parseInt(hora) + parseInt(min) / 60;
+            };
+            return getInicio(a) - getInicio(b);
+          });
+        setHorarios(horariosOrdenados);
+      } catch (e) {
+        toast(<MiToast mensaje={e.message || 'Error cargando datos'} color="#ef4444" />);
+      }
+    })();
+  }, []);
 
   // Cargar cantidades de reservas al cambiar la fecha seleccionada
   useEffect(() => {
-    if (selectedDate) {
-      apiFetch(`/api/reservas/cantidad?fecha=${selectedDate}`).then(async res => {
-        if (res.ok) {
-          setCantidades(await res.json());
-        }
-      });
-    }
-  }, [selectedDate, apiFetch]);
+    (async () => {
+      if (!selectedDate) return;
+      try {
+        const data = await backendClient.get('reservas/cantidad', { fecha: selectedDate });
+        setCantidades(data || []);
+      } catch (e) {
+        toast(<MiToast mensaje={e.message || 'Error cargando cantidades'} color="#ef4444" />);
+      }
+    })();
+  }, [selectedDate]);
 
   // Modal detalle de reserva
-  const abrirDetalle = (cancha, horario) => {
-    apiFetch(`/api/reservas/detalle?cancha=${encodeURIComponent(cancha)}&horario=${encodeURIComponent(horario)}&fecha=${encodeURIComponent(selectedDate)}`)
-      .then(async res => {
-        if (res.ok) {
-          setDetalle(await res.json());
-          setModalOpen(true);
-        }
+  const abrirDetalle = async (cancha, horario) => {
+    try {
+      const data = await backendClient.get('reservas/detalle', {
+        cancha,
+        horario,
+        fecha: selectedDate,
       });
+      setDetalle(data);
+      setModalOpen(true);
+    } catch (e) {
+      toast(<MiToast mensaje={e.message || 'Error cargando detalle'} color="#ef4444" />);
+    }
   };
 
-  // Eliminar usuario de reserva
+  // Eliminar (usa cookie + CSRF, no hace falta Authorization)
   const eliminarReservaUsuario = async (reservaId) => {
     if (!window.confirm("¿Eliminar esta reserva?")) return;
-    const res = await apiFetch(`/api/reservas/cancelar/${reservaId}`, {
-      method: 'DELETE',
-      headers: {
-        'Authorization': `Bearer ${token}`,
-        'Content-Type': 'application/json'
-      }
-    });
-    let mensaje = "Error";
     try {
-      const err = await res.json();
-      mensaje = err.detail || mensaje;
-    } catch {}
-    if (res.ok) {
-      toast(<MiToast mensaje="Reserva eliminada" color="var(--color-red-400)" />);
+      await backendClient.delete(`reservas/cancelar/${reservaId}`);
+      toast(<MiToast mensaje="Reserva eliminada" color="#ef4444" />);
       setModalOpen(false);
-      // Actualiza las cantidades tras eliminar
-      apiFetch(`/api/reservas/cantidad?fecha=${selectedDate}`).then(async res => {
-        if (res.ok) {
-          setCantidades(await res.json());
-        }
-      });
-    } else {
-      toast(<MiToast mensaje={mensaje} color="var(--color-red-400)" />);
+      const data = await backendClient.get('reservas/cantidad', { fecha: selectedDate });
+      setCantidades(data || []);
+    } catch (e) {
+      toast(<MiToast mensaje={e.message || 'Error'} color="#ef4444" />);
     }
   };
 

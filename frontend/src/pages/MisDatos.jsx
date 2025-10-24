@@ -333,13 +333,7 @@ function MisDatos() {
                 Gestiona tu información personal y de tu cuenta.
               </p>
             </div>
-            <button
-              onClick={handleOpenEditModal}
-              className="hidden sm:inline-flex items-center gap-2 rounded-xl bg-amber-300 px-4 py-2 font-extrabold text-slate-950 hover:bg-amber-200 active:scale-[0.99] transition"
-            >
-              <FiEdit className="h-5 w-5" />
-              Editar Perfil
-            </button>
+      
           </div>
         </div>
       </div>

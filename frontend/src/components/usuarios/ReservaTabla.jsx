@@ -1,11 +1,13 @@
-import { useState, useContext, useEffect } from 'react'
+// src/components/usuarios/ReservaTabla.jsx
+import { useState, useContext, useEffect } from 'react';
 import { AuthContext } from "../../context/AuthContext";
 import { toast } from 'react-toastify';
 import MiToast from '../common/Toast/MiToast';
 import CourtCarousel from '../reservas/CourtCarousel';
-import MessageConfirm from '../common/Confirm/MessageConfirm'
+import MessageConfirm from '../common/Confirm/MessageConfirm';
+import backendClient from '../../services/backendClient'; // 👈 nuevo
 
-// ===== Helpers simples =====
+// ===== Helpers =====
 const MAX_CAPACITY = 6;
 
 export const generarHorarios = () => {
@@ -14,11 +16,17 @@ export const generarHorarios = () => {
   while (h < 23) {
     const iH = String(h).padStart(2, '0');
     const iM = String(m).padStart(2, '0');
+
     let fh = h + 1, fm = m + 30;
     if (fm >= 60) { fm -= 60; fh += 1; }
     if (fh >= 24) break;
+
     out.push(`${iH}:${iM}-${String(fh).padStart(2,'0')}:${String(fm).padStart(2,'0')}`);
-    m += 30; if (m >= 60) { m = 0; h += 1; } h += 1;
+
+    // paso “90 minutos” (tu lógica original)
+    m += 30;
+    if (m >= 60) { m = 0; h += 1; }
+    h += 1;
   }
   return out;
 };
@@ -40,15 +48,11 @@ const FECHAS = generarFechas();
 
 const normalizarTexto = (t) => t.trim().replace(/\s+/g, ' ');
 
-// ===== Componente minimal =====
+// ===== Componente =====
 export default function ReservaTabla() {
+  const { isAuthenticated, user } = useContext(AuthContext); // 👈 ya no usamos apiFetch
   const [mensaje, setMensaje] = useState("");
-
   const [reservaPendiente, setReservaPendiente] = useState(null);
-
-
-
-  const { isAuthenticated, apiFetch, user } = useContext(AuthContext);
 
   const [canchas, setCanchas] = useState([]);
   const [cantidades, setCantidades] = useState({});
@@ -59,32 +63,37 @@ export default function ReservaTabla() {
   const [detalleReserva, setDetalleReserva] = useState(null);
   const [loadingDetalle, setLoadingDetalle] = useState(false);
 
-  // Cargar canchas 1 vez
+  // Cargar canchas (1 vez)
   useEffect(() => {
+    let alive = true;
     (async () => {
       try {
-        const r = await apiFetch('/api/canchas/listar');
-        if (r.ok) {
-          const data = await r.json();
-          setCanchas(data.map(c => c.nombre));
-        }
-      } catch {}
+        const data = await backendClient.get('canchas/listar'); // GET /api/canchas/listar
+        if (!alive) return;
+        setCanchas(Array.isArray(data) ? data.map(c => c.nombre) : []);
+      } catch (e) {
+        toast(<MiToast mensaje={e.message || 'Error al cargar canchas'} color="var(--color-red-400)" />);
+      }
     })();
-  }, [apiFetch]);
+    return () => { alive = false; };
+  }, []);
 
   // Cargar conteos por fecha
   useEffect(() => {
+    let alive = true;
     (async () => {
       try {
-        const r = await apiFetch(`/api/reservas/cantidad?fecha=${selectedDate}`);
-        if (!r.ok) return setCantidades({});
-        const data = await r.json();
+        const data = await backendClient.get('reservas/cantidad', { fecha: selectedDate }); // GET /api/reservas/cantidad?fecha=...
+        if (!alive) return;
         const mapa = {};
-        for (const it of data) mapa[`${it.cancha}-${it.horario}`] = it.cantidad;
+        (data || []).forEach(it => { mapa[`${it.cancha}-${it.horario}`] = it.cantidad; });
         setCantidades(mapa);
-      } catch { setCantidades({}); }
+      } catch {
+        if (alive) setCantidades({});
+      }
     })();
-  }, [selectedDate, apiFetch]);
+    return () => { alive = false; };
+  }, [selectedDate]);
 
   const isPastSlot = (hora) => {
     if (selectedDate !== FECHAS[0].value) return false;
@@ -97,71 +106,65 @@ export default function ReservaTabla() {
     setLoadingDetalle(true);
     setModalOpen(true);
     try {
-      const url = `/api/reservas/detalle?cancha=${encodeURIComponent(normalizarTexto(cancha))}&horario=${encodeURIComponent(normalizarTexto(hora))}&fecha=${encodeURIComponent(selectedDate)}${user?.id ? `&usuario_id=${user.id}` : ''}`;
-      const r = await apiFetch(url);
-      setDetalleReserva(r.ok ? await r.json() : null);
-    } catch { setDetalleReserva(null); }
-    setLoadingDetalle(false);
+      const data = await backendClient.get('reservas/detalle', {
+        cancha: normalizarTexto(cancha),
+        horario: normalizarTexto(hora),
+        fecha: selectedDate,
+        ...(user?.id ? { usuario_id: user.id } : {})
+      }); // GET /api/reservas/detalle
+      setDetalleReserva(data ?? null);
+    } catch {
+      setDetalleReserva(null);
+    } finally {
+      setLoadingDetalle(false);
+    }
   };
 
   const reservar = (cancha, hora) => {
-  setReservaPendiente({ cancha, hora });
-  setMensaje(`¿Confirmás reservar "${cancha}" a las ${hora} para el ${selectedDate}?`);
+    setReservaPendiente({ cancha, hora });
+    setMensaje(`¿Confirmás reservar "${cancha}" a las ${hora} para el ${selectedDate}?`);
   };
 
-const handleConfirmar = async () => {
-  if (!reservaPendiente) return;
-  const { cancha, hora } = reservaPendiente;
-  setSelected({ cancha, hora });
-  setReservaPendiente(null);
-  setMensaje("");
+  const recargarCantidades = async () => {
+    try {
+      const data = await backendClient.get('reservas/cantidad', { fecha: selectedDate });
+      const mapa = {};
+      (data || []).forEach(it => { mapa[`${it.cancha}-${it.horario}`] = it.cantidad; });
+      setCantidades(mapa);
+    } catch { setCantidades({}); }
+  };
 
-  try {
-    const r = await apiFetch('/api/reservas/reservar', {
-      method: 'POST',
-      body: JSON.stringify({ cancha, horario: hora, fecha: selectedDate })
-    });
-    if (!r.ok) throw new Error((await r.json()).detail || 'Error al reservar');
-    const data = await r.json();
+  const handleConfirmar = async () => {
+    if (!reservaPendiente) return;
+    const { cancha, hora } = reservaPendiente;
+    setSelected({ cancha, hora });
+    setReservaPendiente(null);
+    setMensaje("");
 
-    toast(<MiToast mensaje={`Reserva exitosa: ${data.msg}`} color="var(--color-green-400)" />);
-
-    // ✅ Recargar cantidades desde el backend
-    await recargarCantidades();
-
-    // ✅ Opcional: refrescar detalle si querés que quede abierto con la info nueva
-    // await abrirDetalle(cancha, hora);
-
-  } catch (e) {
-    toast(<MiToast mensaje={`Error: ${e.message}`} color="var(--color-red-400)" />);
-    setSelected(null);
-  }
-};
-
+    try {
+      const data = await backendClient.post('reservas/reservar', {
+        cancha,
+        horario: hora,
+        fecha: selectedDate
+      }); // POST /api/reservas/reservar
+      toast(<MiToast mensaje={`Reserva exitosa: ${data?.msg || 'OK'}`} color="var(--color-green-400)" />);
+      await recargarCantidades();
+    } catch (e) {
+      toast(<MiToast mensaje={`Error: ${e.message}`} color="var(--color-red-400)" />);
+      setSelected(null);
+    }
+  };
 
   const cancelar = async (reservaId) => {
     try {
-      const r = await apiFetch(`/api/reservas/cancelar/${reservaId}`, { method: 'DELETE' });
-      if (!r.ok) throw new Error((await r.json()).detail || 'Error al cancelar');
+      await backendClient.delete(`reservas/cancelar/${reservaId}`); // DELETE /api/reservas/cancelar/:id
       toast(<MiToast mensaje="Reserva cancelada" color="var(--color-red-400)" />);
       setModalOpen(false);
+      await recargarCantidades();
     } catch (e) {
       toast(<MiToast mensaje={e.message} color="var(--color-red-400)" />);
     }
   };
-
-  const recargarCantidades = async () => {
-  try {
-    const r = await apiFetch(`/api/reservas/cantidad?fecha=${selectedDate}`);
-    if (!r.ok) return setCantidades({});
-    const data = await r.json();
-    const mapa = {};
-    for (const it of data) mapa[`${it.cancha}-${it.horario}`] = it.cantidad;
-    setCantidades(mapa);
-  } catch {
-    setCantidades({});
-  }
-};
 
   const handleCancelar = () => {
     setReservaPendiente(null);
@@ -196,7 +199,7 @@ const handleConfirmar = async () => {
           capacity={MAX_CAPACITY}
         />
 
-        {/* MODAL */}
+        {/* MODAL Detalle */}
         {modalOpen && (
           <div className="fixed inset-0 z-50 flex items-center justify-center p-4" role="dialog" aria-modal="true">
             <div className="absolute inset-0 bg-black/70 backdrop-blur-sm" onClick={() => setModalOpen(false)} />
@@ -276,7 +279,8 @@ const handleConfirmar = async () => {
           </div>
         )}
       </div>
-      {/* Componente de confirmación */}
+
+      {/* Confirmación */}
       <MessageConfirm
         mensaje={mensaje}
         onClose={handleCancelar}

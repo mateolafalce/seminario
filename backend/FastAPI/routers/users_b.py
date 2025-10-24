@@ -156,7 +156,7 @@ async def get_all_users(
 
     # Lógica de paginación
     skip = (page - 1) * limit
-
+    
     # Obtener el total de usuarios y los usuarios de la página actual
     total_users = await asyncio.to_thread(lambda: db_client.users.count_documents({}))
     users_cursor = await asyncio.to_thread(

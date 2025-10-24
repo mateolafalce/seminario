@@ -1,5 +1,5 @@
 import React, { useContext, useMemo } from 'react';
-import { Navigate, useLocation, NavLink, Outlet } from 'react-router-dom';
+import { Navigate, useLocation, NavLink, Outlet, useNavigate } from 'react-router-dom';
 import { AuthContext } from '../context/AuthContext';
 import { HiUsers } from "react-icons/hi";
 import { IoStatsChartSharp } from "react-icons/io5";
@@ -27,15 +27,16 @@ function SidebarLink({ to, icon, label }) {
 }
 
 export default function PanelControl() {
-  const { isAuthenticated, isAdmin, tipoAdmin, loading, logout } = useContext(AuthContext);
+  const { isAuthenticated, isAdmin, loading, logout } = useContext(AuthContext);
   const location = useLocation();
+  const navigate = useNavigate();
 
   const perms = useMemo(() => ({
-    showUsuarios: canManageUsers(isAdmin, tipoAdmin),
-    showCanchas: canManageCanchas(isAdmin, tipoAdmin),
-    showReservas: canManageReservas(isAdmin, tipoAdmin),
-    showEstadisticas: canViewStatistics(isAdmin, tipoAdmin),
-  }), [isAdmin, tipoAdmin]);
+    showUsuarios: canManageUsers(isAdmin),
+    showCanchas: canManageCanchas(isAdmin),
+    showReservas: canManageReservas(isAdmin),
+    showEstadisticas: canViewStatistics(isAdmin),
+  }), [isAdmin]);
 
   if (loading) {
     return (
@@ -92,7 +93,7 @@ export default function PanelControl() {
               value={location.pathname.split('/')[2] || ''}
               onChange={(e) => {
                 const value = e.target.value;
-                if (value) window.location.href = `/panel-control/${value}`;
+                if (value) navigate(`/panel-control/${value}`);
               }}
               className="w-full bg-gray-700 text-white text-base p-3 rounded-lg border border-gray-600 focus:outline-none focus:ring-2 focus:ring-yellow-400"
             >

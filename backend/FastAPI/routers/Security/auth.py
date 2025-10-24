@@ -107,3 +107,21 @@ def verify_csrf(request: Request):
     csrf_header = request.headers.get("X-CSRF-Token")
     if not csrf_cookie or not csrf_header or csrf_cookie != csrf_header:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="CSRF validation failed")
+
+async def require_admin(user=Depends(current_user)):
+    uid = user.get("id")
+    if not uid or not ObjectId.is_valid(uid):
+        raise HTTPException(status_code=401, detail="No autenticado")
+
+    oid = ObjectId(uid)
+
+    # 1) colección admins: soporta (a) _id == user_id  o  (b) user == user_id
+    if db_client.admins.find_one({"_id": oid}) or db_client.admins.find_one({"user": oid}):
+        return user
+
+    # 2) flag opcional en users
+    udoc = db_client.users.find_one({"_id": oid}, {"is_admin": 1})
+    if udoc and udoc.get("is_admin"):
+        return user
+
+    raise HTTPException(status_code=403, detail="Requiere administrador")
