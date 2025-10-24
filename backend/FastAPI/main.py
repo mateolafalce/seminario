@@ -57,10 +57,17 @@ app.include_router(matcheo_debug_router.router, prefix="/api")
 app.mount("/images", StaticFiles(directory="static/images"), name="images")
 
 # CORS
+from fastapi.middleware.cors import CORSMiddleware
+
+origins = [
+    "http://localhost:8080",
+    "http://127.0.0.1:8080",
+]
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
-    allow_credentials=True,
+    allow_origins=origins,   
+    allow_credentials=True,  # cookies
     allow_methods=["*"],
-    allow_headers=["*"],
+    allow_headers=["*"],    
 )

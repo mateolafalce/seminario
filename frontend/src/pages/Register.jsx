@@ -1,12 +1,9 @@
-import React, { useContext, useState } from 'react';
-import { AuthContext } from '../context/AuthContext';
+import React, { useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import AuthForm from '../components/common/AuthForm/AuthForm';
 import MessageAlert from '../components/common/Alert/MessageAlert';
-import MiToast from "../components/common/Toast/MiToast";
-import { toast } from 'react-toastify';
-
-const BACKEND_URL = `http://${window.location.hostname}:8000`;
+import backendClient from '../services/backendClient';
+import { errorToast } from '../utils/apiHelpers';
 
 function Register() {
   const [errores, setErrores] = useState({});
@@ -16,7 +13,6 @@ function Register() {
   const location = useLocation();
   const params = new URLSearchParams(location.search);
   const esAdmin = params.get('admin') === '1';
-  const { loginWithToken } = useContext(AuthContext);
 
   const campos = [
     { nombre: "nombre", etiqueta: "Nombre", tipo: "text", placeholder: "Tu nombre" },
@@ -39,34 +35,19 @@ function Register() {
     }
 
     try {
-      const url = window.location.hostname === "localhost"
-        ? `${BACKEND_URL}/api/users_b/register`
-        : "/api/users_b/register";
-      const response = await fetch(url, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          nombre: valores.nombre,
-          apellido: valores.apellido,
-          email: valores.email, 
-          password: valores.password,
-          username: valores.username,
-        }),
+      await backendClient.post('users_b/register', {
+        nombre: valores.nombre,
+        apellido: valores.apellido,
+        email: valores.email,
+        password: valores.password,
+        username: valores.username,
       });
-      if (response.ok) {
-        const data = await response.json();
-        setMensajeExito('¡Usuario registrado exitosamente!');
-        loginWithToken(data.accessToken);
-        setTimeout(() => {
-          navigate('/');
-        }, 1500);
-      } else {
-        const errorData = await response.json();
-        setErrores({ general: errorData.detail || 'Error al registrar usuario' });
-      }
+
+      setMensajeExito('¡Usuario registrado! Revisa tu email para habilitar la cuenta.');
+      setTimeout(() => navigate('/login'), 1500);
     } catch (error) {
-      setErrores({ general: 'Error de conexión con el servidor' });
-      toast(<MiToast mensaje="Error del servidor" color="var(--color-red-400)"/>);
+      setErrores({ general: error.message || 'Error al registrar usuario' });
+      errorToast(error.message);
     } finally {
       setCargando(false);
     }
@@ -74,9 +55,7 @@ function Register() {
 
   return (
     <div className='mt-[3rem]'>
-      {mensajeExito && (
-        <MessageAlert tipo='success' mensaje={mensajeExito} />
-      )}
+      {mensajeExito && <MessageAlert tipo='success' mensaje={mensajeExito} />}
       <AuthForm
         titulo="Crear Usuario"
         campos={campos}

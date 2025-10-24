@@ -1,147 +1,122 @@
-import React, { createContext, useState, useEffect, useRef, useCallback } from 'react';
-import { useNavigate, useLocation } from 'react-router-dom';
-import { createApi } from '../utils/api';
-import MiToast from '../components/common/Toast/MiToast';
-import { toast } from "react-toastify";
+import React, { createContext, useEffect, useState, useCallback } from 'react';
+import backendClient from '../services/backendClient';
 
 export const AuthContext = createContext();
 
-function isTokenExpired(token) {
-  if (!token) return true;
-  try {
-    const payload = JSON.parse(atob(token.split('.')[1]));
-    if (!payload.exp) return true;
-    return Date.now() >= payload.exp * 1000;
-  } catch {
-    return true;
-  }
-}
+const getCookie = (name) => {
+  const n = `${name}=`;
+  return document.cookie
+    .split(';')
+    .map(c => c.trim())
+    .find(c => c.startsWith(n))
+    ?.slice(n.length) || '';
+};
+const hasSession = () => !!getCookie('csrf_token');
 
-export const AuthProvider = ({ children }) => {
+const STORAGE_KEYS = {
+  IS_ADMIN: 'ui_isAdmin',
+  IS_EMPLEADO: 'ui_isEmpleado',
+};
+
+const readBool = (k) => localStorage.getItem(k) === 'true';
+const writeBool = (k, v) => localStorage.setItem(k, v ? 'true' : 'false');
+const clearBool = (k) => localStorage.removeItem(k);
+
+const AuthProvider = ({ children }) => {
+  const [loading, setLoading] = useState(true);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [isAdmin, setIsAdmin] = useState(false);
   const [isEmpleado, setIsEmpleado] = useState(false);
   const [habilitado, setHabilitado] = useState(false);
+  const [tipoAdmin] = useState(null);
   const [user, setUser] = useState(null);
   const [redirectAfterLogin, setRedirectAfterLogin] = useState(null);
-  const [authReady, setAuthReady] = useState(false);
 
-  const navigate = useNavigate();
-  const location = useLocation();
-
-  // locks para no spamear toasts/logouts en ráfaga
-  const unauthorizedLockRef = useRef(false);
-  const last401Ref = useRef(0);
-
+  // Carga inicial de sesión (evitar 401 si no hay cookies)
   useEffect(() => {
-    const token = localStorage.getItem('accessToken');
-    const storedIsAdmin = localStorage.getItem('isAdmin');
-    const storedIsEmpleado = localStorage.getItem('isEmpleado');
-    const storedHabilitado = localStorage.getItem('habilitado');
-    const storedUser = localStorage.getItem('user');
-
-    if (token) {
-      setIsAuthenticated(true);
-      setIsAdmin(storedIsAdmin === 'true');
-      setIsEmpleado(storedIsEmpleado === 'true' || storedIsEmpleado === true);
-      setHabilitado(storedHabilitado === 'true');
-      if (storedUser) setUser(JSON.parse(storedUser));
-    } else {
-      setIsAuthenticated(false);
-      setIsAdmin(false);
-      setIsEmpleado(false);
-      setHabilitado(false);
-      setUser(null);
-    }
-    setAuthReady(true);
+    let mounted = true;
+    (async () => {
+      // Si no hay csrf_token, no hay sesión -> no llames /me
+      if (!hasSession()) {
+        if (mounted) {
+          setIsAuthenticated(false);
+          setUser(null);
+          setIsAdmin(false);
+          setIsEmpleado(false);
+          setHabilitado(false);
+          setLoading(false);
+        }
+        return;
+      }
+      try {
+        const me = await backendClient.get('users_b/me');
+        if (!mounted) return;
+        setIsAuthenticated(true);
+        setUser(me);
+        setHabilitado(me?.habilitado ?? false);
+        setIsAdmin(readBool(STORAGE_KEYS.IS_ADMIN));
+        setIsEmpleado(readBool(STORAGE_KEYS.IS_EMPLEADO));
+      } catch {
+        if (!mounted) return;
+        setIsAuthenticated(false);
+        setUser(null);
+        setIsAdmin(false);
+        setIsEmpleado(false);
+        setHabilitado(false);
+      } finally {
+        if (mounted) setLoading(false);
+      }
+    })();
+    return () => { mounted = false; };
   }, []);
 
-  // Si el token expira, cerramos sesión y redirigimos a login
-  useEffect(() => {
-    const token = localStorage.getItem('accessToken');
-    if (token && isTokenExpired(token)) {
-      logout();
-      navigate('/login', { replace: true });
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [location.pathname]);
+  const login = useCallback(async (username, password) => {
+    const form = new URLSearchParams();
+    form.append('username', username);
+    form.append('password', password);
 
-  const logout = useCallback(() => {
-    localStorage.removeItem('accessToken');
-    localStorage.removeItem('isAdmin');
-    localStorage.removeItem('isEmpleado');
-    localStorage.removeItem('habilitado');
-    localStorage.removeItem('user');
+    const data = await backendClient.post('users_b/login', form);
+
+    setIsAdmin(!!data.is_admin);
+    setIsEmpleado(!!data.is_empleado);
+    setHabilitado(!!data.habilitado);
+    writeBool(STORAGE_KEYS.IS_ADMIN, !!data.is_admin);
+    writeBool(STORAGE_KEYS.IS_EMPLEADO, !!data.is_empleado);
+
+    // pequeño retry por si el navegador aplica Set-Cookie un tick después
+    let me;
+    try {
+      me = await backendClient.get('users_b/me');
+    } catch {
+      await new Promise(r => setTimeout(r, 75));
+      me = await backendClient.get('users_b/me');
+    }
+
+    setIsAuthenticated(true);
+    setUser(me);
+
+    return data;
+  }, []);
+
+  const logout = useCallback(async () => {
+    try { await backendClient.post('users_b/logout'); } catch {}
     setIsAuthenticated(false);
     setIsAdmin(false);
     setIsEmpleado(false);
     setHabilitado(false);
     setUser(null);
+    clearBool(STORAGE_KEYS.IS_ADMIN);
+    clearBool(STORAGE_KEYS.IS_EMPLEADO);
   }, []);
-
-  // 👉 se invoca desde apiFetch en 401
-  const handleUnauthorized = useCallback(() => {
-    const now = Date.now();
-    // Evitar múltiples ejecuciones simultáneas
-    if (unauthorizedLockRef.current || now - last401Ref.current < 2000) return;
-    unauthorizedLockRef.current = true;
-    last401Ref.current = now;
-
-    // guardamos a dónde volver
-    setRedirectAfterLogin(window.location.pathname + window.location.search);
-
-    // Evitar toast si ya estamos en /login
-    if (location.pathname !== '/login') {
-      toast(<MiToast mensaje="Tu sesión ha expirado. Por favor, inicia sesión de nuevo." tipo="warning" />, {
-        toastId: 'session-expired', // evita duplicados
-      });
-    }
-
-    logout();
-    setTimeout(() => {
-      navigate('/login', { replace: true });
-      // liberamos el lock
-      setTimeout(() => { unauthorizedLockRef.current = false; }, 500);
-    }, 200); // redirige rápido para que los componentes desmonten y no sigan pidiendo
-  }, [location.pathname, logout, navigate]);
-
-  const apiFetch = createApi(handleUnauthorized); // ver utils/api abajo
-
-  const login = (token, isAdminUser, isEmpleadoUser, habilitadoUser, userData) => {
-    localStorage.setItem('accessToken', token);
-    localStorage.setItem('isAdmin', isAdminUser);
-    localStorage.setItem('isEmpleado', isEmpleadoUser);
-    localStorage.setItem('habilitado', habilitadoUser);
-    if (userData) {
-      localStorage.setItem('user', JSON.stringify(userData));
-      setUser(userData);
-    }
-    setIsAuthenticated(true);
-    setIsAdmin(isAdminUser);
-    setIsEmpleado(isEmpleadoUser);
-    setHabilitado(habilitadoUser);
-  };
-
-  const loginWithToken = (token) => {
-    try {
-      const payload = JSON.parse(atob(token.split('.')[1]));
-      localStorage.setItem('accessToken', token);
-      setIsAuthenticated(true);
-      setIsAdmin(payload.is_admin || false);
-      setIsEmpleado(payload.is_empleado || false);
-      setHabilitado(payload.habilitado || false);
-      setUser({ id: payload.id });
-    } catch {
-      logout();
-    }
-  };
 
   return (
     <AuthContext.Provider value={{
-      apiFetch, isAuthenticated, isAdmin, isEmpleado, habilitado, user,
-      login, logout, loginWithToken, redirectAfterLogin, setRedirectAfterLogin, authReady
+      loading, isAuthenticated, isAdmin, isEmpleado, habilitado, tipoAdmin, user,
+      login, logout, redirectAfterLogin, setRedirectAfterLogin,
     }}>
       {children}
     </AuthContext.Provider>
   );
 };
+
+export default AuthProvider;

@@ -1,10 +1,9 @@
 import { useEffect, useState } from "react";
 import { generarHorarios } from "../components/usuarios/ReservaTabla";
 import Button from "../components/common/Button/Button";
-import MiToast from "../components/common/Toast/MiToast";
-import { toast } from "react-toastify";
-import { FiCheck } from "react-icons/fi";
 import MessageConfirm from '../components/common/Confirm/MessageConfirm';
+import backendClient from '../services/backendClient';
+import { safeToast, errorToast, successToast } from '../utils/apiHelpers';
 
 /* ------------------------------------------
    Config
@@ -82,30 +81,16 @@ export default function PreferenciasUsuario() {
   const [preferenciaEditar, setPreferenciaEditar] = useState(null);
   const [canchasDisponibles, setCanchasDisponibles] = useState([]);
   const [loadingCanchas, setLoadingCanchas] = useState(true);
+  const [confirmData, setConfirmData] = useState({ open: false, id: null });
 
   // Cargar canchas desde el backend
   useEffect(() => {
     const fetchCanchas = async () => {
       try {
-        const url =
-          window.location.hostname === "localhost"
-            ? `${BACKEND_URL}/api/canchas/listar`
-            : "/api/canchas/listar";
-        
-        const res = await fetch(url, {
-          headers: { Authorization: `Bearer ${localStorage.getItem("accessToken")}` }
-        });
-
-        if (res.ok) {
-          const data = await res.json();
-          // Extraer solo los nombres de las canchas
-          setCanchasDisponibles(data.map(cancha => cancha.nombre));
-        } else {
-          toast(<MiToast mensaje="Error al cargar las canchas" color="#ef4444" />);
-        }
+        const data = await backendClient.get('canchas/listar');
+        setCanchasDisponibles(data.map(cancha => cancha.nombre));
       } catch (error) {
-        console.error("Error fetching canchas:", error);
-        toast(<MiToast mensaje="Error de conexión al cargar canchas" color="#ef4444" />);
+        errorToast("Error al cargar las canchas");
       } finally {
         setLoadingCanchas(false);
       }
@@ -116,13 +101,8 @@ export default function PreferenciasUsuario() {
 
   // cargar preferencias guardadas
   useEffect(() => {
-    const url =
-      window.location.hostname === "localhost"
-        ? `${BACKEND_URL}/api/preferencias/obtener`
-        : "/api/preferencias/obtener";
-    fetch(url, { headers: { Authorization: `Bearer ${localStorage.getItem("accessToken")}` } })
-      .then((res) => (res.ok ? res.json() : []))
-      .then((data) => setPreferenciasGuardadas(data))
+    backendClient.get('preferencias/obtener')
+      .then(setPreferenciasGuardadas)
       .catch(() => {});
   }, []);
 
@@ -151,48 +131,27 @@ export default function PreferenciasUsuario() {
     e.preventDefault();
 
     if (!preferencias.dias.length || !preferencias.horarios.length || !preferencias.canchas.length) {
-      toast(<MiToast mensaje="Seleccioná al menos un día, un horario y una cancha." color="#ef4444" />);
+      errorToast("Seleccioná al menos un día, un horario y una cancha.");
       return;
     }
 
     const isEditing = !!preferenciaEditar;
-    const url = isEditing
-      ? window.location.hostname === "localhost"
-        ? `${BACKEND_URL}/api/preferencias/modificar/${preferenciaEditar.id}`
-        : `/api/preferencias/modificar/${preferenciaEditar.id}`
-      : window.location.hostname === "localhost"
-      ? `${BACKEND_URL}/api/preferencias/guardar`
-      : "/api/preferencias/guardar";
+    
+    try {
+      if (isEditing) {
+        await backendClient.put(`preferencias/modificar/${preferenciaEditar.id}`, preferencias);
+      } else {
+        await backendClient.post('preferencias/guardar', preferencias);
+      }
 
-    const res = await fetch(url, {
-      method: isEditing ? "PUT" : "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${localStorage.getItem("accessToken")}`,
-      },
-      body: JSON.stringify(preferencias),
-    });
-
-    if (res.ok) {
-      toast(
-        <MiToast
-          mensaje={isEditing ? "Preferencia actualizada" : "Preferencias guardadas"}
-          color="#eaff00"
-        />
-      );
+      successToast(isEditing ? "Preferencia actualizada" : "Preferencias guardadas");
       resetConstructor();
       setPreferenciaEditar(null);
 
-      const urlObtener =
-        window.location.hostname === "localhost"
-          ? `${BACKEND_URL}/api/preferencias/obtener`
-          : "/api/preferencias/obtener";
-      fetch(urlObtener, { headers: { Authorization: `Bearer ${localStorage.getItem("accessToken")}` } })
-        .then((r) => r.json())
-        .then(setPreferenciasGuardadas);
-    } else {
-      const err = await res.json();
-      toast(<MiToast mensaje={`Error: ${err.detail || "Error desconocido"}`} color="#ef4444" />);
+      const data = await backendClient.get('preferencias/obtener');
+      setPreferenciasGuardadas(data);
+    } catch (error) {
+      errorToast(error.message || "Error desconocido");
     }
   };
 
@@ -231,37 +190,22 @@ export default function PreferenciasUsuario() {
   }
 
   // Si confirma la eliminación
-async function confirmarEliminar() {
-  const id = confirmData.id;
-  setConfirmData({ open: false, id: null });
+  async function confirmarEliminar() {
+    const id = confirmData.id;
+    setConfirmData({ open: false, id: null });
 
-  const url =
-    window.location.hostname === "localhost"
-      ? `${BACKEND_URL}/api/preferencias/eliminar/${id}`
-      : `/api/preferencias/eliminar/${id}`;
-
-  try {
-    const res = await fetch(url, {
-      method: "DELETE",
-      headers: { Authorization: `Bearer ${localStorage.getItem("accessToken")}` },
-    });
-
-    if (res.ok) {
-      toast(<MiToast mensaje="Preferencia eliminada." color="#eaff00" />);
+    try {
+      await backendClient.delete(`preferencias/eliminar/${id}`);
+      successToast("Preferencia eliminada.");
       setPreferenciasGuardadas((prev) => prev.filter((p) => p.id !== id));
-    } else {
-      const err = await res.json();
-      toast(<MiToast mensaje={`Error: ${err.detail || "Error desconocido"}`} color="#ef4444" />);
+    } catch (error) {
+      errorToast(error.message || "Error desconocido");
     }
-  } catch (e) {
-    toast(<MiToast mensaje="Error de conexión." color="#ef4444" />);
   }
-}
 
-
-function cancelarAccion() {
-  setConfirmData({ open: false, id: null });
-}
+  function cancelarAccion() {
+    setConfirmData({ open: false, id: null });
+  }
 
   return (
     <div className="w-full max-w-3xl mx-auto px-4 py-8">
@@ -388,14 +332,14 @@ function cancelarAccion() {
           </ul>
         )}
       </div>
-          {confirmData.open && (
-      <MessageConfirm
-        mensaje="¿Seguro que deseas cancelar esta reserva?"
-        onClose={cancelarAccion}
-        onConfirm={confirmarEliminar}
-        onCancel={cancelarAccion}
-      />
-    )}
+      {confirmData.open && (
+        <MessageConfirm
+          mensaje="¿Seguro que deseas cancelar esta reserva?"
+          onClose={cancelarAccion}
+          onConfirm={confirmarEliminar}
+          onCancel={cancelarAccion}
+        />
+      )}
     </div>
   );
 }

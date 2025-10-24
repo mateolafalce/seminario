@@ -1,6 +1,6 @@
-import React, { useEffect, useState, useContext, memo } from "react";
-import { AuthContext } from "../context/AuthContext";
+import React, { useEffect, useState, memo } from "react";
 import { toast } from "react-toastify";
+import backendClient from "../services/backendClient";
 import Modal from "../components/common/Modal/Modal";
 import {
   FiUser,
@@ -201,7 +201,6 @@ const ReviewsSkeleton = () => (
 ------------------------------------------- */
 
 function MisDatos() {
-  const { apiFetch } = useContext(AuthContext);
   const [datos, setDatos] = useState(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [form, setForm] = useState({ nombre: "", apellido: "", email: "" });
@@ -215,61 +214,45 @@ function MisDatos() {
   const [totalReviews, setTotalReviews] = useState(0);
   const [loadingResenias, setLoadingResenias] = useState(false);
 
-  // Perfil
+  // PERFIL (GET)
   useEffect(() => {
     let active = true;
     (async () => {
       setLoadingPerfil(true);
       try {
-        const response = await apiFetch("/api/users_b/perfil");
+        const data = await backendClient.get('users_b/perfil');
         if (!active) return;
-        if (response.ok) {
-          const data = await response.json();
-          setDatos(data);
-        } else {
-          toast.error("No se pudieron cargar los datos del perfil.");
-        }
-      } catch {
+        setDatos(data);
+      } catch (e) {
         toast.error("Error de red al cargar el perfil.");
       } finally {
         if (active) setLoadingPerfil(false);
       }
     })();
-    return () => {
-      active = false;
-    };
-  }, [apiFetch]);
+    return () => { active = false; };
+  }, []);
 
-  // Reseñas
+  // RESEÑAS (GET)
   useEffect(() => {
     let active = true;
     (async () => {
       setLoadingResenias(true);
       try {
-        const basePath = encodeURI("/api/users_b/reseñas/listar");
-        const url = `${basePath}?page=${page}&limit=${limit}`;
-        const response = await apiFetch(url);
+        const data = await backendClient.get('users_b/resenias/mias', { page, limit });
         if (!active) return;
-        if (response.ok) {
-          const data = await response.json();
-          const lista = data?.reseñas || data?.resenias || data?.results || data?.items || [];
-          setReviews(Array.isArray(lista) ? lista : []);
-          setTotalReviews(Number(data?.total) || lista.length || 0);
-        } else {
-          setReviews([]);
-          setTotalReviews(0);
-          toast.error("Error al obtener reseñas");
-        }
+        const lista = Array.isArray(data?.resenias) ? data.resenias : [];
+        setReviews(lista);
+        setTotalReviews(Number(data?.total) || lista.length || 0);
       } catch {
-        toast.error("Error al conectar con el servidor");
+        setReviews([]);
+        setTotalReviews(0);
+        toast.error("Error al obtener reseñas");
       } finally {
         if (active) setLoadingResenias(false);
       }
     })();
-    return () => {
-      active = false;
-    };
-  }, [apiFetch, page, limit]);
+    return () => { active = false; };
+  }, [page, limit]);
 
   const handleOpenEditModal = () => {
     if (datos) {
@@ -284,27 +267,18 @@ function MisDatos() {
 
   const handleChange = (e) => setForm({ ...form, [e.target.name]: e.target.value });
 
+  // EDITAR PERFIL (PUT)
   const handleSubmit = async (e) => {
     e.preventDefault();
     setIsSubmitting(true);
     try {
-      const response = await apiFetch("/api/users_b/me/", {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(form),
-      });
-
-      if (response.ok) {
-        const updatedData = await response.json();
-        setDatos(updatedData);
-        toast.success("Datos actualizados correctamente");
-        setIsModalOpen(false);
-      } else {
-        const error = await response.json();
-        toast.error(error.detail || "Error al actualizar los datos");
-      }
-    } catch {
-      toast.error("Error de red al actualizar los datos.");
+      const updated = await backendClient.put('users_b/me/', form);
+      toast.success("Datos actualizados correctamente");
+      setDatos(prev => ({ ...prev, ...form })); // o usa `updated` si backend devuelve el perfil completo
+      setIsModalOpen(false);
+    } catch (err) {
+      const msg = err?.data?.detail || err?.message || "Error al actualizar los datos";
+      toast.error(msg);
     } finally {
       setIsSubmitting(false);
     }

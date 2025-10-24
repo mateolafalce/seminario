@@ -9,7 +9,7 @@ import asyncio
 from db.client import db_client
 from routers.Security.auth import current_user
 
-router = APIRouter(prefix="/users_b", tags=["Reseñas"])
+router = APIRouter(prefix="/users_b", tags=["Resenias"])  # sin ñ
 
 ARG_TZ = pytz.timezone("America/Argentina/Buenos_Aires")
 
@@ -19,8 +19,8 @@ class ReseñaInput(BaseModel):
     observacion: str = Field(..., min_length=3, max_length=500)
     reserva_id: Optional[str] = None  # opcional, si el front lo envía mejor
 
-@router.get("/calificaciones")
-async def listar_calificaciones():
+@router.get("/resenias/calificaciones")
+async def resenias_calificaciones():
     """
     Devuelve las calificaciones disponibles.
     Prioriza la colección `calificaciones` ({_id, numero}).
@@ -87,8 +87,8 @@ def _buscar_reserva_compartida(i_oid: ObjectId, j_oid: ObjectId, reserva_id: Opt
     return None
 
 
-@router.post("/reseñar")
-async def crear_reseña(payload: ReseñaInput, user: dict = Depends(current_user)):
+@router.post("/resenias/crear")
+async def resenias_crear(payload: ReseñaInput, user: dict = Depends(current_user)):
     """
     Crea una reseña i → j SOLO si existe una reserva Confirmada finalizada con ambos.
     Evita duplicados por (i, j, reserva).
@@ -181,8 +181,8 @@ async def crear_reseña(payload: ReseñaInput, user: dict = Depends(current_user
     return {"msg": "Reseña guardada", "id": str(inserted.inserted_id)}
 
 
-@router.get("/reseñas/listar")
-async def listar_reseñas_recibidas(
+@router.get("/resenias/mias")
+async def resenias_mias(
     page: int = Query(1, ge=1),
     limit: int = Query(10, ge=1, le=50),
     user: dict = Depends(current_user)
