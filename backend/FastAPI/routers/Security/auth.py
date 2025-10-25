@@ -4,6 +4,7 @@ from datetime import datetime, timedelta, timezone
 from db.client import db_client
 from bson import ObjectId
 import asyncio, os, secrets
+from services.authz import user_has_any_role, get_user_roles_and_perms, user_has_permission
 
 ALGORITHM = "HS256"
 SECRET = os.getenv("JWT_SECRET", "201d573bd7d1344d3a3bfce1550b69102fd11be3db6d379508b6cccc58ea230b")
@@ -115,13 +116,43 @@ async def require_admin(user=Depends(current_user)):
 
     oid = ObjectId(uid)
 
-    # 1) colección admins: soporta (a) _id == user_id  o  (b) user == user_id
-    if db_client.admins.find_one({"_id": oid}) or db_client.admins.find_one({"user": oid}):
+    # RBAC check using authz service
+    is_admin = user_has_any_role(oid, "admin")
+    
+    if is_admin:
         return user
 
-    # 2) flag opcional en users
+    # 2) flag opcional en users (fallback legacy)
     udoc = db_client.users.find_one({"_id": oid}, {"is_admin": 1})
     if udoc and udoc.get("is_admin"):
         return user
 
     raise HTTPException(status_code=403, detail="Requiere administrador")
+
+def require_roles(*role_names: str):
+    async def _dep(user = Depends(current_user)):
+        uid = (user or {}).get("id")
+        if not uid or not ObjectId.is_valid(uid):
+            raise HTTPException(status_code=401, detail="No autenticado")
+        if not user_has_any_role(ObjectId(uid), *role_names):
+            raise HTTPException(status_code=403, detail=f"Requiere rol: {', '.join(role_names)}")
+        return user
+    return _dep
+
+def require_perms(*perms: str):
+    async def _dep(user = Depends(current_user)):
+        uid = (user or {}).get("id")
+        if not uid or not ObjectId.is_valid(uid):
+            raise HTTPException(status_code=401, detail="No autenticado")
+        uoid = ObjectId(uid)
+
+        # Admin siempre pasa
+        if user_has_any_role(uoid, "admin"):
+            return user
+
+        for p in perms:
+            if user_has_permission(uoid, p):
+                return user
+
+        raise HTTPException(status_code=403, detail="Permiso insuficiente")
+    return _dep

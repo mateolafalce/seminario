@@ -1,4 +1,3 @@
-# backend/FastAPI/services/authz.py
 from typing import List, Set, Dict
 from datetime import datetime
 from bson import ObjectId
@@ -72,50 +71,7 @@ def assign_role(user_id: str, role_name: str) -> bool:
     )
     return True
 
-# ========= dependencias FastAPI =========
-from fastapi import Depends, HTTPException
-from routers.Security.auth import current_user
-
-def require_roles(*role_names: str):
-    async def _dep(user=Depends(current_user)):
-        uid = (user or {}).get("id")
-        if not uid or not ObjectId.is_valid(uid):
-            raise HTTPException(status_code=401, detail="No autenticado")
-        if not user_has_any_role(ObjectId(uid), *role_names):
-            raise HTTPException(status_code=403, detail=f"Requiere rol: {', '.join(role_names)}")
-        return user
-    return _dep
-
-def require_perms(*perms: str):
-    async def _dep(user=Depends(current_user)):
-        uid = (user or {}).get("id")
-        if not uid or not ObjectId.is_valid(uid):
-            raise HTTPException(status_code=401, detail="No autenticado")
-        uoid = ObjectId(uid)
-
-        # Admin siempre pasa
-        if user_has_any_role(uoid, "admin"):
-            return user
-
-        for p in perms:
-            if user_has_permission(uoid, p):
-                return user
-
-        # --- Compatibilidad con tu diseño actual ---
-        # Si no migraste aún, respetá colecciones viejas:
-        # 1) admins => equivalen a rol admin
-        if db_client.admins.find_one({"user": uoid}):
-            return user
-        # 2) empleados => equivalente a permiso de empleado en reservas
-        if db_client.empleados.find_one({"user": uoid}) and any(
-            p.startswith("reservas.") for p in perms
-        ):
-            return user
-
-        raise HTTPException(status_code=403, detail="Permiso insuficiente")
-    return _dep
-
-# ========= util para exponer en /me si querés =========
+# ========= util opcional =========
 def get_user_roles_and_perms(user_oid: ObjectId) -> Dict:
     roles = _get_roles_docs(_get_user_role_ids(user_oid))
     return {

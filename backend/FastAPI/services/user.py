@@ -1,0 +1,185 @@
+from __future__ import annotations
+from typing import Optional, Tuple, Dict, Any
+from bson import ObjectId
+from pymongo import ASCENDING
+from datetime import datetime
+import pytz
+
+from db.client import db_client
+from services.persona import create_persona_for_user
+from services.authz import assign_role
+from utils.security import (
+    generate_salt, hash_password_with_salt,
+    verify_password_with_salt, is_bcrypt_hash
+)
+
+# opcional: solo por compat (si quedara algún usuario viejo en bcrypt)
+try:
+    from passlib.context import CryptContext
+    _crypt = CryptContext(schemes=["bcrypt"])
+except Exception:
+    _crypt = None
+
+# ======================
+# Utilidades internas
+# ======================
+_TZ_AR = pytz.timezone("America/Argentina/Buenos_Aires")
+
+def _now_ar_str() -> str:
+    return datetime.now(_TZ_AR).strftime("%Y-%m-%d %H:%M:%S")
+
+# ======================
+# Índices
+# ======================
+def ensure_user_indexes() -> None:
+    """
+    username: único
+    persona : uno-a-uno con users (único)
+    """
+    db_client.users.create_index([("username", ASCENDING)], unique=True, name="users_username_1_unique")
+    db_client.users.create_index([("persona", ASCENDING)], unique=True, name="users_persona_1_unique")
+
+# ======================
+# Lectura
+# ======================
+def get_user_by_id(user_id: ObjectId | str) -> Optional[Dict[str, Any]]:
+    oid = ObjectId(user_id) if not isinstance(user_id, ObjectId) else user_id
+    return db_client.users.find_one({"_id": oid})
+
+def get_user_by_username(username: str) -> Optional[Dict[str, Any]]:
+    return db_client.users.find_one({"username": username})
+
+# ======================
+# Password
+# ======================
+def verify_password(user_doc: Dict[str, Any], plain: str) -> bool:
+    pwd = user_doc.get("password", "")
+    salt = user_doc.get("salt")
+    if salt:
+        return verify_password_with_salt(plain, salt, pwd)
+    if is_bcrypt_hash(pwd) and _crypt:
+        return _crypt.verify(plain, pwd)
+    return False
+
+# ======================
+# Escritura
+# ======================
+def create_user_account(
+    username: str,
+    raw_password: str,
+    persona_id: ObjectId,
+    habilitado: bool = False,
+    categoria: Optional[ObjectId] = None,
+) -> ObjectId:
+    ensure_user_indexes()
+
+    salt = generate_salt()
+    hashed = hash_password_with_salt(raw_password, salt)
+
+    doc = {
+        "username": username,
+        "password": hashed,
+        "salt": salt,
+        "persona": persona_id,
+        "habilitado": bool(habilitado),
+        "categoria": categoria,
+        "fecha_registro": _now_ar_str(),
+        "ultima_conexion": None,
+        "habilitacion_token": None,
+    }
+    return db_client.users.insert_one(doc).inserted_id
+
+def update_last_login(user_id: ObjectId | str) -> None:
+    oid = ObjectId(user_id) if not isinstance(user_id, ObjectId) else user_id
+    db_client.users.update_one({"_id": oid}, {"$set": {"ultima_conexion": _now_ar_str()}})
+
+# ======================
+# Registro “end-to-end”
+# ======================
+def register_new_user(payload) -> Tuple[ObjectId, ObjectId]:
+    """
+    Orquesta el alta:
+    1) crea/actualiza PERSONA (dni único) con nombre/apellido/email
+    2) crea USER (username/password) apuntando a persona
+    3) asigna rol 'usuario'
+    Retorna: (user_id, persona_id)
+    """
+    from db.models.user import RegisterUser  # hint, no hard requirement
+    # Persona
+    persona_id = create_persona_for_user(
+        nombre=payload.nombre,
+        apellido=payload.apellido,
+        email=payload.email,
+        dni=payload.dni,
+    )
+    # User
+    user_id = create_user_account(
+        username=payload.username,
+        raw_password=payload.password,
+        persona_id=persona_id,
+        habilitado=False,
+        categoria=None,
+    )
+    # Rol por defecto
+    assign_role(str(user_id), "usuario")
+    return user_id, persona_id
+
+# ======================
+# JOIN user + persona
+# ======================
+def get_user_and_persona(user_id: ObjectId | str) -> Tuple[Optional[Dict], Optional[Dict]]:
+    u = get_user_by_id(user_id)
+    if not u:
+        return None, None
+    p = db_client.personas.find_one({"_id": u.get("persona")}) if u.get("persona") else None
+    return u, p
+
+# ======================
+# Eliminación en cascada
+# ======================
+def delete_user_cascade(user_id: ObjectId | str) -> bool:
+    """
+    Borra el usuario y TODO lo asociado (preferencias, pesos, notif_logs, reseñas,
+    roles, reservas –elimina o saca al usuario–, y colecciones legacy admins/empleados).
+    """
+    oid = ObjectId(user_id) if not isinstance(user_id, ObjectId) else user_id
+
+    # preferencias
+    db_client.preferencias.delete_many({"usuario_id": oid})
+
+    # pesos
+    db_client.pesos.delete_many({"$or": [{"i": oid}, {"j": oid}]})
+
+    # notificaciones logs
+    db_client.notif_logs.delete_many({"$or": [{"origen": oid}, {"usuario": oid}]})
+
+    # reseñas
+    db_client.resenias.delete_many({"$or": [{"i": oid}, {"j": oid}]})
+
+    # reservas: si queda solo el user -> eliminar; si hay más -> hacer pull
+    reservas_usuario = list(db_client.reservas.find({"usuarios.id": oid}))
+    for r in reservas_usuario:
+        cant = len(r.get("usuarios", []))
+        if cant <= 1:
+            db_client.reservas.delete_one({"_id": r["_id"]})
+            try:
+                from services.scheduler import cancelar_recordatorio_reserva
+                cancelar_recordatorio_reserva(str(r["_id"]))
+            except Exception:
+                pass
+        else:
+            db_client.reservas.update_one(
+                {"_id": r["_id"]},
+                {"$pull": {"usuarios": {"id": oid}}}
+            )
+
+    # RBAC
+    db_client.user_roles.delete_many({"user": oid})
+
+    # Legacy (por si aún existe)
+    db_client.admins.delete_one({"user": oid})
+    db_client.empleados.delete_one({"user": oid})
+
+    # Por último, el usuario
+    res = db_client.users.delete_one({"_id": oid})
+    return res.deleted_count > 0

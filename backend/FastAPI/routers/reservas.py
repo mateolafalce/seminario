@@ -27,6 +27,7 @@ from collections import OrderedDict
 # NUEVO: usa las clases y el schema
 from db.models.reserva import ReservaCreate as Reserva, ReservaUsuarioRef
 from db.schemas.reserva import reserva_schema_db, reservas_schema_db
+from routers.Security.auth import require_perms, user_has_any_role
 
 router = APIRouter(prefix="/reservas",
                    tags=["reservas"],
@@ -474,17 +475,10 @@ async def cancelar_reserva(
     
     user_oid = ObjectId(user_id)
 
-    # Verificar si el usuario es admin
-    user_db_data = await asyncio.to_thread(
-        lambda: db_client.users.find_one({"_id": user_oid})
+    # Verificar si el usuario es admin usando RBAC
+    es_admin = await asyncio.to_thread(
+        lambda: user_has_any_role(user_oid, "admin")
     )
-    if not user_db_data:
-        raise HTTPException(status_code=404, detail="Usuario no encontrado")
-
-    admin_data = await asyncio.to_thread(
-        lambda: db_client.admins.find_one({"user": user_db_data["_id"]})
-    )
-    es_admin = bool(admin_data)
 
     # Obtener la reserva
     reserva = await asyncio.to_thread(
@@ -588,6 +582,12 @@ async def cancelar_reserva(
         # Notificar a otros usuarios de la reserva
         try:
             from services.email import notificar_cancelacion_reserva
+            
+            # Obtener datos del usuario que cancela
+            user_db_data = await asyncio.to_thread(
+                lambda: db_client.users.find_one({"_id": user_oid})
+            )
+            
             for usuario_data in reserva.get("usuarios", []):
                 # No notificar al usuario que cancela
                 if str(usuario_data.get("id")) == user_id:
@@ -897,13 +897,7 @@ async def confirmar_asistencia(reserva_id: str, user: dict = Depends(current_use
         traceback.print_exc()
         raise HTTPException(status_code=500, detail=f"Error al confirmar asistencia: {str(e)}")
 
-def es_empleado(user_id: str) -> bool:
-    try:
-        return db_client.empleados.find_one({"user": ObjectId(user_id)}) is not None
-    except Exception:
-        return False
-
-@router.get("/listar")
+@router.get("/listar", dependencies=[Depends(require_perms("reservas.dashboard.ver"))])
 async def listar_reservas_por_fecha(
     fecha: str = Query(..., description="Fecha en formato DD-MM-YYYY"),
     user: dict = Depends(current_user)
@@ -917,13 +911,6 @@ async def listar_reservas_por_fecha(
     - estado (lowercase: 'confirmada')
     - resultado (si existe)
     """
-
-    # 🔐 Solo empleados (si querés abrirlo a todos, comenta este bloque)
-    if not es_empleado(user["id"]):
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Solo empleados pueden listar reservas"
-        )
 
     # 🗓️ Validar fecha
     try:

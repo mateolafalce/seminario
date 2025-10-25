@@ -1,31 +1,15 @@
 from fastapi import APIRouter, HTTPException, Depends, Body
 from db.client import db_client
-from routers.Security.auth import current_user
 from bson import ObjectId
 import asyncio
 from db.models.cancha import CanchaCreate, CanchaUpdate
-from db.schemas.cancha import cancha_schema, canchas_schema
+from db.schemas.cancha import canchas_schema
+from routers.Security.auth import require_roles
 
 router = APIRouter(prefix="/canchas", tags=["Canchas"])
 
-# Helper para validar admin (evita duplicar la misma lógica en cada endpoint)
-async def require_admin(user=Depends(current_user)) -> ObjectId:
-    user_id = user.get("id") if isinstance(user, dict) else getattr(user, "id", None)
-    if not user_id or not ObjectId.is_valid(user_id):
-        raise HTTPException(status_code=401, detail="Usuario no autenticado")
-    user_oid = ObjectId(user_id)
-
-    user_db = await asyncio.to_thread(lambda: db_client.users.find_one({"_id": user_oid}))
-    if not user_db:
-        raise HTTPException(status_code=404, detail="Usuario no encontrado")
-
-    admin = await asyncio.to_thread(lambda: db_client.admins.find_one({"user": user_oid}))
-    if not admin:
-        raise HTTPException(status_code=403, detail="Solo los admin pueden realizar esta acción")
-    return user_oid
-
-@router.post("/crear")
-async def crear_cancha(cancha: CanchaCreate, _: ObjectId = Depends(require_admin)):
+@router.post("/crear", dependencies=[Depends(require_roles("admin"))])
+async def crear_cancha(cancha: CanchaCreate):
     # nombre único
     exists = await asyncio.to_thread(lambda: db_client.canchas.find_one({"nombre": cancha.nombre}))
     if exists:
@@ -35,12 +19,12 @@ async def crear_cancha(cancha: CanchaCreate, _: ObjectId = Depends(require_admin
     return {"msg": "Cancha creada con éxito", "id": str(result.inserted_id)}
 
 @router.get("/listar")
-async def listar_canchas(user: dict = Depends(current_user)):
+async def listar_canchas():
     rows = await asyncio.to_thread(lambda: list(db_client.canchas.find()))
     return canchas_schema(rows)
 
-@router.delete("/eliminar/{cancha_id}")
-async def eliminar_cancha(cancha_id: str, _: ObjectId = Depends(require_admin)):
+@router.delete("/eliminar/{cancha_id}", dependencies=[Depends(require_roles("admin"))])
+async def eliminar_cancha(cancha_id: str):
     if not ObjectId.is_valid(cancha_id):
         raise HTTPException(status_code=400, detail="ID de cancha inválido")
     cancha_oid = ObjectId(cancha_id)
@@ -94,11 +78,10 @@ async def eliminar_cancha(cancha_id: str, _: ObjectId = Depends(require_admin)):
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error al eliminar cancha: {str(e)}")
 
-@router.put("/modificar/{cancha_id}")
+@router.put("/modificar/{cancha_id}", dependencies=[Depends(require_roles("admin"))])
 async def modificar_cancha(
     cancha_id: str,
-    data: CanchaUpdate = Body(...),
-    _: ObjectId = Depends(require_admin)
+    data: CanchaUpdate = Body(...)
 ):
     if not ObjectId.is_valid(cancha_id):
         raise HTTPException(status_code=400, detail="ID de cancha inválido")
