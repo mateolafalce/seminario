@@ -1,22 +1,15 @@
 import { useEffect, useState } from "react";
+import { FiCheck } from "react-icons/fi";
 import { generarHorarios } from "../components/usuarios/ReservaTabla";
 import Button from "../components/common/Button/Button";
 import MessageConfirm from '../components/common/Confirm/MessageConfirm';
 import backendClient from '../services/backendClient';
 import { safeToast, errorToast, successToast } from '../utils/apiHelpers';
 
-/* ------------------------------------------
-   Config
-------------------------------------------- */
-const BACKEND_URL = `http://${window.location.hostname}:8000`;
-
 const diasSemana = ["Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado", "Domingo"];
 const horariosDisponibles = generarHorarios();
 const LIMITE_PREFS = 7;
 
-/* ------------------------------------------
-   UI helpers (minimal)
-------------------------------------------- */
 const cx = (...c) => c.filter(Boolean).join(" ");
 
 const Card = ({ className, children }) => (
@@ -116,11 +109,14 @@ export default function PreferenciasUsuario() {
   };
 
   const toggleBulk = (key, list) => {
-    setPreferencias((prev) => {
-      const setPrev = new Set(prev[key]);
-      const every = list.every((i) => setPrev.has(i));
+    setPreferencias(prev => {
+      const prevSet = new Set(prev[key]);
+      const allSelected = list.every(i => prevSet.has(i));
       const next = new Set(prev[key]);
-      (every ? list : list).forEach((i) => (every ? next.delete(i) : next.add(i)));
+
+      if (allSelected) list.forEach(i => next.delete(i));
+      else            list.forEach(i => next.add(i));
+
       return { ...prev, [key]: Array.from(next) };
     });
   };

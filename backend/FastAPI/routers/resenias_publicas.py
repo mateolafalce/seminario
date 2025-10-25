@@ -2,134 +2,136 @@ from fastapi import APIRouter, Query, Depends, HTTPException
 from bson import ObjectId
 from db.client import db_client
 from routers.Security.auth import current_user
+from db.schemas.resenia_publica import top_jugadores_schema, ultimas_resenias_schema
 
 router = APIRouter(
-    prefix="/resenias",   # 👈👈 clave
+    prefix="/resenias",   # se mantiene igual a tu archivo original
     tags=["Reseñas públicas"],
 )
 
 @router.get("/top-jugadores")
 def top_jugadores(limit: int = Query(10, ge=1, le=50)):
+    """
+    Top por promedio (y desempate por cantidad). Compatible con users.nombre/apellido
+    y, si ya migraste, con personas.* (prioriza personas cuando exista).
+    """
     try:
-        # Obtener todas las reseñas y procesar en Python para simplicidad
-        resenias = list(db_client.resenias.find({}, {"j": 1, "numero": 1}))
-        
-        # Agrupar por usuario j y calcular promedio/cantidad
-        user_stats = {}
-        for r in resenias:
-            j_id = str(r.get("j", ""))
-            if j_id:
-                if j_id not in user_stats:
-                    user_stats[j_id] = {"total": 0, "count": 0}
-                user_stats[j_id]["total"] += r.get("numero", 0)
-                user_stats[j_id]["count"] += 1
-        
-        # Calcular promedios y obtener datos de usuarios
-        result = []
-        for j_id, stats in user_stats.items():
-            if stats["count"] >= 1:  # Mínimo 1 reseña
-                try:
-                    user = db_client.users.find_one({"_id": ObjectId(j_id)})
-                    if user:
-                        promedio = stats["total"] / stats["count"]
-                        result.append({
-                            "jugador_id": j_id,
-                            "promedio": round(promedio, 2),
-                            "cantidad": stats["count"],
-                            "nombre": user.get("nombre", ""),
-                            "apellido": user.get("apellido", ""),
-                            "username": user.get("username", "")
-                        })
-                except:
-                    continue
-        
-        # Ordenar por promedio descendente
-        result.sort(key=lambda x: (x["promedio"], x["cantidad"]), reverse=True)
-        return result[:limit]
+        pipeline = [
+            {"$group": {"_id": "$j", "promedio": {"$avg": "$numero"}, "cantidad": {"$sum": 1}}},
+            {"$match": {"_id": {"$ne": None}}},
+            {"$sort": {"promedio": -1, "cantidad": -1, "_id": 1}},
+            {"$limit": limit},
+            {"$lookup": {"from": "users", "localField": "_id", "foreignField": "_id", "as": "u"}},
+            {"$unwind": "$u"},
+            {"$lookup": {"from": "personas", "localField": "u.persona", "foreignField": "_id", "as": "p"}},
+            {"$unwind": {"path": "$p", "preserveNullAndEmptyArrays": True}},
+            {"$project": {
+                "jugador_id": {"$toString": "$_id"},
+                "promedio": {"$round": ["$promedio", 2]},
+                "cantidad": 1,
+                "nombre": {"$ifNull": ["$p.nombre", "$u.nombre"]},
+                "apellido": {"$ifNull": ["$p.apellido", "$u.apellido"]},
+                "username": {"$ifNull": ["$u.username", ""]},
+            }},
+        ]
+        rows = list(db_client.resenias.aggregate(pipeline))
+        return top_jugadores_schema(rows)
     except Exception as e:
         print("Error en top-jugadores:", e)
         return []
 
 @router.get("/ultimas")
 def ultimas_resenias(limit: int = Query(10, ge=1, le=50)):
+    """
+    Últimas reseñas, con autor y destinatario. Lista segura para UI.
+    """
     try:
-        # Obtener últimas reseñas ordenadas por fecha
-        resenias = list(db_client.resenias.find({}).sort("fecha", -1).limit(limit))
-        
-        result = []
-        for r in resenias:
-            try:
-                # Obtener datos del autor (i)
-                autor = db_client.users.find_one({"_id": r.get("i")})
-                # Obtener datos del destinatario (j)
-                destinatario = db_client.users.find_one({"_id": r.get("j")})
-                
-                if autor and destinatario:
-                    result.append({
-                        "_id": str(r.get("_id", "")),
-                        "numero": r.get("numero", 0),
-                        "observacion": r.get("observacion", ""),
-                        "fecha": r.get("fecha"),
-                        "autor": {
-                            "nombre": autor.get("nombre", ""),
-                            "apellido": autor.get("apellido", ""),
-                            "username": autor.get("username", "")
-                        },
-                        "destinatario": {
-                            "nombre": destinatario.get("nombre", ""),
-                            "apellido": destinatario.get("apellido", ""),
-                            "username": destinatario.get("username", "")
-                        }
-                    })
-            except:
-                continue
-        
-        return result
+        pipeline = [
+            {"$sort": {"fecha": -1, "_id": -1}},
+            {"$limit": limit},
+
+            # Autor
+            {"$lookup": {"from": "users", "localField": "i", "foreignField": "_id", "as": "autor_u"}},
+            {"$unwind": "$autor_u"},
+            {"$lookup": {"from": "personas", "localField": "autor_u.persona", "foreignField": "_id", "as": "autor_p"}},
+            {"$unwind": {"path": "$autor_p", "preserveNullAndEmptyArrays": True}},
+
+            # Destinatario
+            {"$lookup": {"from": "users", "localField": "j", "foreignField": "_id", "as": "dest_u"}},
+            {"$unwind": "$dest_u"},
+            {"$lookup": {"from": "personas", "localField": "dest_u.persona", "foreignField": "_id", "as": "dest_p"}},
+            {"$unwind": {"path": "$dest_p", "preserveNullAndEmptyArrays": True}},
+
+            {"$project": {
+                "_id": {"$toString": "$_id"},
+                "numero": 1,
+                "observacion": {"$ifNull": ["$observacion", ""]},
+                "fecha": 1,
+                "autor": {
+                    "id": {"$toString": "$autor_u._id"},
+                    "nombre": {"$ifNull": ["$autor_p.nombre", "$autor_u.nombre"]},
+                    "apellido": {"$ifNull": ["$autor_p.apellido", "$autor_u.apellido"]},
+                    "username": {"$ifNull": ["$autor_u.username", ""]},
+                },
+                "destinatario": {
+                    "id": {"$toString": "$dest_u._id"},
+                    "nombre": {"$ifNull": ["$dest_p.nombre", "$dest_u.nombre"]},
+                    "apellido": {"$ifNull": ["$dest_p.apellido", "$dest_u.apellido"]},
+                    "username": {"$ifNull": ["$dest_u.username", ""]},
+                },
+            }},
+        ]
+        rows = list(db_client.resenias.aggregate(pipeline))
+        return ultimas_resenias_schema(rows)
     except Exception as e:
         print("Error en ultimas:", e)
         return []
 
 @router.get("/stats")
 def mis_resenias_stats(user=Depends(current_user)):
+    """
+    Promedio y cantidad de reseñas recibidas + últimas 5 con autor.
+    """
     try:
-        user_id = ObjectId(user["id"])
-        
-        # Contar reseñas recibidas
-        resenias = list(db_client.resenias.find({"j": user_id}, {"numero": 1}))
-        
-        if not resenias:
-            return {"promedio": 0.0, "cantidad": 0, "ultimas": []}
-        
-        # Calcular promedio
-        total = sum(r.get("numero", 0) for r in resenias)
-        promedio = round(total / len(resenias), 2)
-        
-        # Obtener últimas 5 reseñas con autor
-        ultimas_docs = list(db_client.resenias.find({"j": user_id}).sort("fecha", -1).limit(5))
-        ultimas = []
-        
-        for r in ultimas_docs:
-            try:
-                autor = db_client.users.find_one({"_id": r.get("i")})
-                if autor:
-                    ultimas.append({
-                        "numero": r.get("numero", 0),
-                        "observacion": r.get("observacion", ""),
-                        "fecha": r.get("fecha"),
-                        "autor": {
-                            "nombre": autor.get("nombre", ""),
-                            "apellido": autor.get("apellido", ""),
-                            "username": autor.get("username", "")
-                        }
-                    })
-            except:
-                continue
-        
-        return {
-            "promedio": promedio,
-            "cantidad": len(resenias),
-            "ultimas": ultimas
-        }
+        if not user or not user.get("id") or not ObjectId.is_valid(user["id"]):
+            raise HTTPException(status_code=401, detail="Usuario no autenticado")
+
+        j_oid = ObjectId(user["id"])
+
+        # promedio / cantidad
+        g = list(db_client.resenias.aggregate([
+            {"$match": {"j": j_oid}},
+            {"$group": {"_id": None, "promedio": {"$avg": "$numero"}, "cantidad": {"$sum": 1}}},
+        ]))
+        promedio = round(float(g[0]["promedio"]), 2) if g else 0.0
+        cantidad = int(g[0]["cantidad"]) if g else 0
+
+        # últimas 5 con autor
+        pipeline = [
+            {"$match": {"j": j_oid}},
+            {"$sort": {"fecha": -1, "_id": -1}},
+            {"$limit": 5},
+            {"$lookup": {"from": "users", "localField": "i", "foreignField": "_id", "as": "autor_u"}},
+            {"$unwind": "$autor_u"},
+            {"$lookup": {"from": "personas", "localField": "autor_u.persona", "foreignField": "_id", "as": "autor_p"}},
+            {"$unwind": {"path": "$autor_p", "preserveNullAndEmptyArrays": True}},
+            {"$project": {
+                "numero": 1,
+                "observacion": {"$ifNull": ["$observacion", ""]},
+                "fecha": 1,
+                "autor": {
+                    "id": {"$toString": "$autor_u._id"},
+                    "nombre": {"$ifNull": ["$autor_p.nombre", "$autor_u.nombre"]},
+                    "apellido": {"$ifNull": ["$autor_p.apellido", "$autor_u.apellido"]},
+                    "username": {"$ifNull": ["$autor_u.username", ""]},
+                },
+            }},
+        ]
+        ultimas = list(db_client.resenias.aggregate(pipeline))
+
+        return {"promedio": promedio, "cantidad": cantidad, "ultimas": ultimas}
+    except HTTPException:
+        raise
     except Exception as e:
         print("Error en stats:", e)
         return {"promedio": 0.0, "cantidad": 0, "ultimas": []}

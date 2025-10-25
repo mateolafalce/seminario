@@ -24,16 +24,9 @@ from services.email import notificar_posible_matcheo
 from pymongo.errors import DuplicateKeyError
 import os
 from collections import OrderedDict  
-
-class ReservaUsuario(BaseModel):
-    id: str
-    confirmado: bool = False
-
-class Reserva(BaseModel):
-    cancha: str
-    horario: str
-    fecha: str
-    usuarios: List[ReservaUsuario] = Field(default_factory=list)
+# NUEVO: usa las clases y el schema
+from db.models.reserva import ReservaCreate as Reserva, ReservaUsuarioRef
+from db.schemas.reserva import reserva_schema_db, reservas_schema_db
 
 router = APIRouter(prefix="/reservas",
                    tags=["reservas"],
@@ -47,28 +40,6 @@ def get_estado_ids_activos():
     if not est_res or not est_conf:
         raise ValueError("Faltan estados 'Reservada' o 'Confirmada' en estadoreserva")
     return est_res["_id"], est_conf["_id"]
-
-def clean_mongo_doc(doc):
-    """Convierte todos los ObjectId a string, incluyendo en estructuras anidadas"""
-    if isinstance(doc, dict):
-        # Crear una copia para evitar modificar el diccionario mientras se itera
-        result = {}
-        for key, value in doc.items():
-            if isinstance(value, ObjectId):
-                result[key] = str(value)
-            elif isinstance(value, list):
-                result[key] = [clean_mongo_doc(item) for item in value]
-            elif isinstance(value, dict):
-                result[key] = clean_mongo_doc(value)
-            else:
-                result[key] = value
-        return result
-    elif isinstance(doc, list):
-        return [clean_mongo_doc(item) for item in doc]
-    elif isinstance(doc, ObjectId):
-        return str(doc)
-    else:
-        return doc
 
 def tiene_conflicto_slot(user_oid, fecha, horario_id):
     est_res = db_client.estadoreserva.find_one({"nombre": "Reservada"})
@@ -400,7 +371,8 @@ async def reservar(reserva: Reserva, user: dict = Depends(current_user)):
                 return nueva_reserva
 
         resultado = await asyncio.to_thread(operaciones_sincronas)
-        return {"msg": "Reserva guardada", "reserva": clean_mongo_doc(resultado)}
+        # CAMBIO: usar reserva_schema_db en lugar de clean_mongo_doc
+        return {"msg": "Reserva guardada", "reserva": reserva_schema_db(resultado)}
 
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))

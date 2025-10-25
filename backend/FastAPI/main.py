@@ -1,4 +1,4 @@
-from routers import matcheo_debug as matcheo_debug_router  
+from routers import matcheo_debug as matcheo_debug_router
 import os
 import asyncio
 from contextlib import asynccontextmanager
@@ -11,22 +11,28 @@ from services.scheduler import start_scheduler, shutdown_scheduler
 from services.notifs import ensure_notif_indexes, ensure_unique_slot_index
 from routers.reservas import cerrar_reservas_vencidas
 
+
+from services.authz import ensure_rbac_indexes_and_seed  # ⬅️ NUEVO
+
 def _bool_env(key: str, default=False):
     return os.getenv(key, str(default)).lower() == "true"
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     # === STARTUP ===
-    # 1) índices (rápido – Mongo >=4.2 no bloquea writes durante index build concurrente)
     try:
+        # índices que ya tenías
         await asyncio.to_thread(ensure_notif_indexes)
         await asyncio.to_thread(ensure_unique_slot_index)
+
+        # ⬅️ NUEVO: crea/actualiza colecciones e índices de RBAC y hace seed (admin/empleado/usuario)
+        await asyncio.to_thread(ensure_rbac_indexes_and_seed)
+
     except Exception as e:
-        print(f"Error creando índices: {e}")
+        print(f"Error creando índices/seed: {e}")
 
     # 2) NO bloquees startup con trabajo pesado
     if _bool_env("HEAVY_ON_BOOT", False):
-        # dispara sin esperar (fire-and-forget)
         asyncio.create_task(asyncio.to_thread(cerrar_reservas_vencidas))
     else:
         print("⏭️ HEAVY_ON_BOOT desactivado")
@@ -51,23 +57,23 @@ app.include_router(empleado.router, prefix="/api")
 app.include_router(horarios.router, prefix="/api")
 app.include_router(resenias.router, prefix="/api")
 app.include_router(resenias_publicas.router, prefix="/api")
-app.include_router(matcheo_debug_router.router, prefix="/api") 
+app.include_router(matcheo_debug_router.router, prefix="/api")
 
 # Static
 app.mount("/images", StaticFiles(directory="static/images"), name="images")
 
 # CORS
-from fastapi.middleware.cors import CORSMiddleware
-
 origins = [
     "http://localhost:8080",
     "http://127.0.0.1:8080",
+    # opcional: agrega los puertos que uses (Vite/Next/etc.)
+    # "http://localhost:5173",
+    # "http://localhost:3000",
 ]
-
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=origins,   
+    allow_origins=origins,
     allow_credentials=True,  # cookies
     allow_methods=["*"],
-    allow_headers=["*"],    
+    allow_headers=["*"],
 )

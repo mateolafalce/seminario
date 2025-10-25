@@ -1,23 +1,17 @@
 from fastapi import APIRouter, Depends, HTTPException, Query
-from pydantic import BaseModel, Field
 from typing import Optional, List, Dict
 from bson import ObjectId
 from datetime import datetime
 import pytz
 import asyncio
-
 from db.client import db_client
 from routers.Security.auth import current_user
+from db.models.resenia import ReseniaCreate
+from db.schemas.resenia import calificaciones_schema
 
 router = APIRouter(prefix="/users_b", tags=["Resenias"])  # sin ñ
 
 ARG_TZ = pytz.timezone("America/Argentina/Buenos_Aires")
-
-class ReseñaInput(BaseModel):
-    con: str  # usuario a reseñar (j)
-    calificacion: str  # _id de la calificación (o opcionalmente un número)
-    observacion: str = Field(..., min_length=3, max_length=500)
-    reserva_id: Optional[str] = None  # opcional, si el front lo envía mejor
 
 @router.get("/resenias/calificaciones")
 async def resenias_calificaciones():
@@ -27,12 +21,11 @@ async def resenias_calificaciones():
     Si no existe/está vacía, devuelve [1..5] simuladas (sin _id real).
     """
     def _work():
-        cols = list(db_client.calificaciones.find({}, {"_id": 1, "numero": 1}))
-        if cols:
-            return {"calificaciones": [{"_id": str(c["_id"]), "numero": c.get("numero")} for c in cols]}
-        # fallback 1..5
-        return {"calificaciones": [{"_id": str(i), "numero": i} for i in range(1, 6)]}
-
+        rows = list(db_client.calificaciones.find({}, {"_id": 1, "numero": 1}))
+        if rows:
+            return calificaciones_schema(rows)
+        # fallback 1..5 si no hay colección
+        return calificaciones_schema([{"_id": i, "numero": i} for i in range(1, 6)])
     return await asyncio.to_thread(_work)
 
 
@@ -88,7 +81,7 @@ def _buscar_reserva_compartida(i_oid: ObjectId, j_oid: ObjectId, reserva_id: Opt
 
 
 @router.post("/resenias/crear")
-async def resenias_crear(payload: ReseñaInput, user: dict = Depends(current_user)):
+async def resenias_crear(payload: ReseniaCreate, user: dict = Depends(current_user)):
     """
     Crea una reseña i → j SOLO si existe una reserva Confirmada finalizada con ambos.
     Evita duplicados por (i, j, reserva).
@@ -193,7 +186,6 @@ async def resenias_mias(
     if not user.get("id") or not ObjectId.is_valid(user["id"]):
         raise HTTPException(status_code=401, detail="Usuario no autenticado")
     j_oid = ObjectId(user["id"])
-
     skip = (page - 1) * limit
 
     def _work():
@@ -203,18 +195,26 @@ async def resenias_mias(
             {"$sort": {"fecha": -1}},
             {"$skip": skip},
             {"$limit": limit},
-            {"$lookup": {"from": "users", "localField": "i", "foreignField": "_id", "as": "autor"}},
-            {"$unwind": "$autor"},
+
+            # autor (user)
+            {"$lookup": {"from": "users", "localField": "i", "foreignField": "_id", "as": "autor_u"}},
+            {"$unwind": "$autor_u"},
+
+            # personas del autor (funciona ahora o cuando migres)
+            {"$lookup": {"from": "personas", "localField": "autor_u.persona", "foreignField": "_id", "as": "autor_p"}},
+            {"$unwind": {"path": "$autor_p", "preserveNullAndEmptyArrays": True}},
+
             {"$project": {
                 "_id": {"$toString": "$_id"},
                 "numero": 1,
                 "observacion": 1,
                 "fecha": 1,
                 "autor": {
-                    "id": {"$toString": "$autor._id"},
-                    "nombre": "$autor.nombre",
-                    "apellido": "$autor.apellido",
-                    "username": "$autor.username"
+                    "id": {"$toString": "$autor_u._id"},
+                    # si ya migraste, sale de personas; si no, cae a users.*
+                    "nombre": {"$ifNull": ["$autor_p.nombre", "$autor_u.nombre"]},
+                    "apellido": {"$ifNull": ["$autor_p.apellido", "$autor_u.apellido"]},
+                    "username": {"$ifNull": ["$autor_u.username", ""]},
                 }
             }}
         ]))
