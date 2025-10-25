@@ -1,5 +1,5 @@
 // src/pages/MisReservas.jsx
-import React, { useState, useEffect, useContext, useMemo } from 'react';
+import React, { useState, useEffect, useContext, useMemo, useCallback } from 'react';
 import { AuthContext } from '../context/AuthContext';
 import Button from '../components/common/Button/Button';
 import Modal from '../components/common/Modal/Modal';
@@ -30,7 +30,7 @@ function TabButton({ active, onClick, icon, label, count }) {
 }
 
 function MisReservas() {
-  const { isAuthenticated, user } = useContext(AuthContext);   // 👈 sin apiFetch
+  const { isAuthenticated, user } = useContext(AuthContext);
 
   const [vista, setVista] = useState('proximos');
   const [proximasReservas, setProximasReservas] = useState([]);
@@ -50,7 +50,9 @@ function MisReservas() {
   // Confirmación al cancelar
   const [confirmData, setConfirmData] = useState({ open: false, id: null });
 
-  async function cargarListas() {
+  // 🔧 Centralizamos la carga en una función reutilizable
+  const cargarListas = useCallback(async (signal) => {
+    if (!isAuthenticated) return;
     setLoading(true);
     setErrorMsg('');
     try {
@@ -58,25 +60,31 @@ function MisReservas() {
         backendClient.get('reservas/mis-reservas', {
           estados: 'Reservada,Confirmada',
           incluir_pasadas: 'false',
-        }),
+        }, { signal }),
         backendClient.get('reservas/mis-reservas', {
           estados: 'Confirmada,Completada,Cancelada',
           incluir_pasadas: 'true',
-        }),
+        }, { signal }),
       ]);
 
       setProximasReservas(Array.isArray(listaProx) ? listaProx : []);
       setHistorial(Array.isArray(listaHist) ? listaHist : []);
     } catch (e) {
+      if (signal?.aborted) return;
       const msg = e?.message || 'No se pudieron cargar tus reservas.';
       setErrorMsg(msg);
       safeToast(msg, '#F43F5E');
     } finally {
-      setLoading(false);
+      if (!signal?.aborted) setLoading(false);
     }
-  }
+  }, [isAuthenticated]);
 
-  useEffect(() => { if (isAuthenticated) cargarListas(); }, [isAuthenticated]);
+  // Carga inicial usando la función
+  useEffect(() => {
+    const ac = new AbortController();
+    cargarListas(ac.signal);
+    return () => ac.abort();
+  }, [cargarListas]);
 
   async function handleConfirmar(id) {
     try {
@@ -92,13 +100,14 @@ function MisReservas() {
     setReservaSeleccionada(reserva);
     setLoadingJugadores(true);
     setModalJugadoresAbierto(true);
+    const ac = new AbortController();
     try {
       const detalle = await backendClient.get('reservas/detalle', {
         cancha: reserva.cancha,
         horario: reserva.horario,
         fecha: reserva.fecha,
         ...(user?.id ? { usuario_id: user.id } : {}),
-      }); // GET /api/reservas/detalle
+      }, { signal: ac.signal });
       setDetalleReserva(detalle);
       const usuarios = (detalle?.usuarios || [])
         .filter(u => u.usuario_id !== user?.id)
@@ -111,6 +120,7 @@ function MisReservas() {
         }));
       setJugadoresReserva(usuarios);
     } catch (e) {
+      if (ac.signal.aborted) return;
       safeToast(e?.message || 'No se pudieron obtener los jugadores', '#F43F5E');
       setJugadoresReserva([]);
     } finally {

@@ -5,6 +5,7 @@ from db.client import db_client
 from bson import ObjectId
 import asyncio, os, secrets
 from services.authz import user_has_any_role, get_user_roles_and_perms, user_has_permission
+import logging
 
 ALGORITHM = "HS256"
 SECRET = os.getenv("JWT_SECRET", "201d573bd7d1344d3a3bfce1550b69102fd11be3db6d379508b6cccc58ea230b")
@@ -13,6 +14,8 @@ ACCESS_MINUTES = int(os.getenv("ACCESS_MINUTES", "60"))
 # Cookies
 ACCESS_COOKIE = "access_token"
 CSRF_COOKIE = "csrf_token"
+
+sec_log = logging.getLogger("security")
 
 def create_access_token(sub: str, extra: dict | None = None):
     to_encode = {
@@ -68,33 +71,39 @@ def clear_auth_cookies(response: Response):
     response.delete_cookie(CSRF_COOKIE, path="/", domain=DOMAIN)
 
 async def current_user(request: Request):
-    """
-    Lee el JWT desde la cookie HttpOnly `access_token` y retorna el usuario básico.
-    Reemplaza el uso de OAuth2PasswordBearer (ya no usamos Authorization header).
-    """
     token = request.cookies.get(ACCESS_COOKIE)
     if not token:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Not authenticated")
 
     try:
         payload = decode_token(token)
-        username: str = payload.get("sub")
-        if not username:
+        uid = payload.get("id")   # el id viene en el token (extra)
+        if not uid:
             raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid token")
     except JWTError:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid token")
 
-    user = await asyncio.to_thread(lambda: db_client.users.find_one({"username": username}))
-    if user is None:
+    try:
+        oid = ObjectId(uid)
+    except Exception:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid token")
+
+    u = await asyncio.to_thread(lambda: db_client.users.find_one({"_id": oid}))
+    if not u:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="User not found")
 
+    rp = get_user_roles_and_perms(oid)  # {"roles":[...], "permissions":[...]}
+
+    # Log opcional (no sensible)
+    sec_log.info("AUTH ok user=%s roles=[%s] perms=%d",
+                 u["username"], ", ".join(rp["roles"]) or "-", len(rp["permissions"]))
+
     return {
-        "id": str(user["_id"]),
-        "username": user.get("username"),
-        "nombre": user.get("nombre"),
-        "email": user.get("email"),
-        "habilitado": user.get("habilitado"),
-        "categoria": user.get("categoria")
+        "id": str(u["_id"]),
+        "username": u["username"],
+        "habilitado": bool(u.get("habilitado", False)),
+        "roles": rp["roles"],
+        "permissions": rp["permissions"],
     }
 
 def verify_csrf(request: Request):
@@ -110,23 +119,8 @@ def verify_csrf(request: Request):
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="CSRF validation failed")
 
 async def require_admin(user=Depends(current_user)):
-    uid = user.get("id")
-    if not uid or not ObjectId.is_valid(uid):
-        raise HTTPException(status_code=401, detail="No autenticado")
-
-    oid = ObjectId(uid)
-
-    # RBAC check using authz service
-    is_admin = user_has_any_role(oid, "admin")
-    
-    if is_admin:
+    if "admin" in (user.get("roles") or []):
         return user
-
-    # 2) flag opcional en users (fallback legacy)
-    udoc = db_client.users.find_one({"_id": oid}, {"is_admin": 1})
-    if udoc and udoc.get("is_admin"):
-        return user
-
     raise HTTPException(status_code=403, detail="Requiere administrador")
 
 def require_roles(*role_names: str):

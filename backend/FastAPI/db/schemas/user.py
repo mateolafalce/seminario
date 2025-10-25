@@ -10,9 +10,6 @@ def _str(obj) -> Optional[str]:
     return str(obj) if obj is not None else None
 
 
-# ==============================
-# Serializadores de Usuario (cuenta)
-# ==============================
 def user_schema(user: Dict[str, Any]) -> Optional[dict]:
     """
     Forma pública de usuario (solo datos de la cuenta).
@@ -51,10 +48,6 @@ def users_schema(users: Iterable[Dict[str, Any]]) -> List[dict]:
     return [user_schema(u) for u in (users or [])]
 
 
-# ==============================
-# Helper para “JOIN lógico” con Persona
-# (cuando quieras responder user + datos personales en una sola respuesta)
-# ==============================
 def user_with_persona_schema(user: Dict[str, Any], persona: Optional[Dict[str, Any]]) -> dict:
     """
     Une datos de la cuenta (user) + datos personales (persona).

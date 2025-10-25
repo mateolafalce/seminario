@@ -4,26 +4,17 @@ import { AuthContext } from "../../../context/AuthContext";
 import Button from "../Button/Button";
 import logoCompleto from "../../../assets/icons/logoCompletoBlanco.svg";
 import { motion, AnimatePresence } from "framer-motion";
-
-// Links centrales (visibilidad por rol)
-const centerLinks = [
-  { label: "Home", path: "/home", show: ({ isAuthenticated }) => isAuthenticated },
-  { label: "Reseñas", path: "/resenias", show: ({ isAuthenticated }) => isAuthenticated },
-  { label: "Turnos", path: "/reserva", show: ({ isAuthenticated }) => isAuthenticated },
-  { label: "Reservas", path: "/mis-reservas", show: ({ isAuthenticated }) => isAuthenticated },
-  { label: "Preferencias", path: "/preferencias", show: ({ isAuthenticated }) => isAuthenticated },
-  { label: "Datos", path: "/mis-datos", show: ({ isAuthenticated }) => isAuthenticated },
-  { label: "Resultados", path: "/cargar-resultados", show: ({ isAuthenticated, isEmpleado }) => isAuthenticated && isEmpleado },
-  { label: "Panel", path: "/admin/dashboard", show: ({ isAuthenticated, isAdmin }) => isAuthenticated && isAdmin },
-];
+import { canManageUsers, canManageReservas } from "../../../utils/permissions";
 
 function CustomNavbar() {
   const navigate = useNavigate();
   const location = useLocation();
-  const { isAuthenticated, logout, isAdmin, isEmpleado } = useContext(AuthContext);
+  const { isAuthenticated, logout, roles, permissions } = useContext(AuthContext);
+  const me = { roles, permissions };
 
   const [scrolled, setScrolled] = useState(false);
   const [showOffcanvas, setShowOffcanvas] = useState(false);
+  const [loggingOut, setLoggingOut] = useState(false);
 
   // fondo blur al scrollear
   useEffect(() => {
@@ -57,11 +48,17 @@ function CustomNavbar() {
     }
   }, [showOffcanvas]);
 
-  const handleLogout = useCallback(() => {
-    logout();
-    setShowOffcanvas(false);
-    window.location.replace("/home");
-  }, [logout]);
+  const handleLogout = useCallback(async () => {
+    if (loggingOut) return;
+    setLoggingOut(true);
+    try {
+      await logout();
+      setShowOffcanvas(false);
+      navigate('/home', { replace: true });
+    } finally {
+      setLoggingOut(false);
+    }
+  }, [logout, loggingOut, navigate]);
 
   const handleNavigate = useCallback(
     (path) => {
@@ -75,9 +72,10 @@ function CustomNavbar() {
     if (isAuthenticated) {
       return (
         <Button
-          texto="Cerrar Sesión"
+          texto={loggingOut ? "Cerrando..." : "Cerrar Sesión"}
           onClick={handleLogout}
           variant="session"
+          disabled={loggingOut}
           className={isMobile ? "mb-2" : ""}
         />
       );
@@ -100,10 +98,20 @@ function CustomNavbar() {
     );
   };
 
+  // Links centrales (visibilidad por rol/permisos)
+  const links = [
+    { label: "Home", path: "/home", show: () => isAuthenticated },
+    { label: "Reseñas", path: "/resenias", show: () => isAuthenticated },
+    { label: "Turnos", path: "/reserva", show: () => isAuthenticated },
+    { label: "Reservas", path: "/mis-reservas", show: () => isAuthenticated },
+    { label: "Preferencias", path: "/preferencias", show: () => isAuthenticated },
+    { label: "Datos", path: "/mis-datos", show: () => isAuthenticated },
+    { label: "Resultados", path: "/cargar-resultados", show: () => isAuthenticated && (canManageReservas(me) || permissions.includes('reservas.resultado.cargar')) },
+    { label: "Panel", path: "/admin/dashboard", show: () => isAuthenticated && canManageUsers(me) },
+  ];
+
   // Links visibles
-  const visibleLinks = centerLinks.filter(link =>
-    link.show({ isAuthenticated, isAdmin, isEmpleado })
-  );
+  const visibleLinks = links.filter(link => link.show());
 
   // estilos (desktop: solo cambio de color -> yellow-400)
   const navButtonBase =

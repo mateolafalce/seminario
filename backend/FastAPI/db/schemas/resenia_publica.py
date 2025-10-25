@@ -9,23 +9,19 @@ def _to_str(x: Any) -> Any:
 
 def public_user_min(u: Optional[Dict[str, Any]], p: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
     """
-    Devuelve un mini perfil público. Si hay persona, prioriza persona;
-    si aún no migraste, cae a users.nombre/apellido.
+    Devuelve un mini perfil público. Toma nombre/apellido desde 'persona' (p).
     """
     if not u: u = {}
     p = p or {}
     return {
         "id": _to_str(u.get("_id")),
-        "nombre": p.get("nombre") or u.get("nombre", "") or "",
-        "apellido": p.get("apellido") or u.get("apellido", "") or "",
+        "nombre": p.get("nombre", ""),
+        "apellido": p.get("apellido", ""),
         "username": u.get("username", "") or "",
     }
 
 def top_jugador_row(row: Dict[str, Any]) -> Dict[str, Any]:
-    """
-    Formatea una fila agregada de top jugadores.
-    Espera campos ya proyectados: jugador_id, promedio, cantidad, nombre/apellido/username.
-    """
+    """Fila agregada de top jugadores, ya proyectada."""
     return {
         "jugador_id": str(row.get("jugador_id") or row.get("_id") or ""),
         "promedio": float(row.get("promedio", 0)),
@@ -39,9 +35,7 @@ def top_jugadores_schema(rows: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
     return [top_jugador_row(_to_str(r)) for r in rows if r]
 
 def public_resenia_row(r: Dict[str, Any]) -> Dict[str, Any]:
-    """
-    Row de 'últimas'. Espera autor/destinatario ya proyectados.
-    """
+    """Row de 'últimas'. Espera autor/destinatario ya proyectados desde 'personas'."""
     r = _to_str(r)
     return {
         "_id": r.get("_id", ""),

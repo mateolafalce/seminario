@@ -1,13 +1,14 @@
-import { useEffect, useState } from "react";
+import { useContext, useEffect, useState } from "react";
 import { FiCheck } from "react-icons/fi";
-import { generarHorarios } from "../components/usuarios/ReservaTabla";
+// import { generarHorarios } from "../components/usuarios/ReservaTabla";
 import Button from "../components/common/Button/Button";
 import MessageConfirm from '../components/common/Confirm/MessageConfirm';
 import backendClient from '../services/backendClient';
 import { safeToast, errorToast, successToast } from '../utils/apiHelpers';
+import { AuthContext } from '../context/AuthContext';
 
 const diasSemana = ["Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado", "Domingo"];
-const horariosDisponibles = generarHorarios();
+// const horariosDisponibles = generarHorarios();
 const LIMITE_PREFS = 7;
 
 const cx = (...c) => c.filter(Boolean).join(" ");
@@ -68,11 +69,12 @@ const gruposHorarios = (lista) => {
    Componente
 ------------------------------------------- */
 export default function PreferenciasUsuario() {
-  const habilitado = localStorage.getItem("habilitado");
+  const { habilitado, loading } = useContext(AuthContext);
   const [preferencias, setPreferencias] = useState({ dias: [], horarios: [], canchas: [] });
   const [preferenciasGuardadas, setPreferenciasGuardadas] = useState([]);
   const [preferenciaEditar, setPreferenciaEditar] = useState(null);
   const [canchasDisponibles, setCanchasDisponibles] = useState([]);
+  const [horariosDisponibles, setHorariosDisponibles] = useState([]);
   const [loadingCanchas, setLoadingCanchas] = useState(true);
   const [confirmData, setConfirmData] = useState({ open: false, id: null });
 
@@ -81,23 +83,41 @@ export default function PreferenciasUsuario() {
     const fetchCanchas = async () => {
       try {
         const data = await backendClient.get('canchas/listar');
-        setCanchasDisponibles(data.map(cancha => cancha.nombre));
+        const nombres = (data || []).map(c => c?.nombre).filter(Boolean);
+        setCanchasDisponibles([...new Set(nombres)].sort((a, b) => a.localeCompare(b)));
       } catch (error) {
         errorToast("Error al cargar las canchas");
+        setCanchasDisponibles([]);
       } finally {
         setLoadingCanchas(false);
       }
     };
-
     fetchCanchas();
+  }, []);
+
+  // Cargar horarios desde el backend
+  useEffect(() => {
+    let alive = true;
+    (async () => {
+      try {
+        const data = await backendClient.get('horarios/listar');
+        const arr = Array.isArray(data) ? data.map(h => (h?.hora ?? h)).filter(Boolean) : [];
+        if (alive) setHorariosDisponibles(arr);
+      } catch {
+        if (alive) setHorariosDisponibles([]);
+      }
+    })();
+    return () => { alive = false; };
   }, []);
 
   // cargar preferencias guardadas
   useEffect(() => {
+    if (loading) return;           // esperar a /me
+    if (!habilitado) return;       // si no está habilitado, no pegues al endpoint
     backendClient.get('preferencias/obtener')
       .then(setPreferenciasGuardadas)
       .catch(() => {});
-  }, []);
+  }, [loading, habilitado]);
 
   const reachedLimit = !preferenciaEditar && preferenciasGuardadas.length >= LIMITE_PREFS;
 
@@ -287,7 +307,10 @@ export default function PreferenciasUsuario() {
           texto={preferenciaEditar ? "Actualizar" : "Guardar"}
           onClick={handleSubmit}
           className="w-full"
-          disabled={reachedLimit || loadingCanchas}
+          disabled={
+            reachedLimit || loadingCanchas ||
+            !preferencias.dias.length || !preferencias.horarios.length || !preferencias.canchas.length
+          }
         />
         {preferenciaEditar ? (
           <Button texto="Cancelar" variant="secondary" onClick={handleCancelEdit} className="w-full" />

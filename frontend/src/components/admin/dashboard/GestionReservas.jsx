@@ -79,7 +79,8 @@ export default function GestionReservas() {
     }
   };
 
-  // Eliminar (usa cookie + CSRF, no hace falta Authorization)
+  // Eliminar: autenticación por cookies HttpOnly + CSRF (SIN Authorization header)
+
   const eliminarReservaUsuario = async (reservaId) => {
     if (!window.confirm("¿Eliminar esta reserva?")) return;
     try {

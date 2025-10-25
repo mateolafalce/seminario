@@ -3,7 +3,6 @@ from datetime import datetime
 from bson import ObjectId
 from db.client import db_client
 
-# ========= índices + seed =========
 def ensure_rbac_indexes_and_seed():
     from pymongo import ASCENDING
     db_client.roles.create_index([("name", ASCENDING)], unique=True, name="roles_name_1_unique")
@@ -25,7 +24,6 @@ def _seed_role(name: str, permissions: List[str]):
         upsert=True
     )
 
-# ========= core =========
 def _get_user_role_ids(user_oid: ObjectId) -> List[ObjectId]:
     return [doc["role"] for doc in db_client.user_roles.find({"user": user_oid}, {"role": 1})]
 
@@ -56,7 +54,7 @@ def user_has_permission(user_oid: ObjectId, perm: str) -> bool:
     maybe = perm.split(".", 1)[0] + ".*"
     return maybe in perms
 
-# ========= asignación =========
+
 def assign_role(user_id: str, role_name: str) -> bool:
     if not ObjectId.is_valid(user_id):
         return False
@@ -71,7 +69,6 @@ def assign_role(user_id: str, role_name: str) -> bool:
     )
     return True
 
-# ========= util opcional =========
 def get_user_roles_and_perms(user_oid: ObjectId) -> Dict:
     roles = _get_roles_docs(_get_user_role_ids(user_oid))
     return {

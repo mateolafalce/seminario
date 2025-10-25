@@ -1,12 +1,15 @@
 from __future__ import annotations
-from typing import Optional, Tuple, Dict, Any
+from typing import Optional, Tuple, Dict, Any, List
 from bson import ObjectId
 from pymongo import ASCENDING
 from datetime import datetime
 import pytz
 
 from db.client import db_client
-from services.persona import create_persona_for_user
+from services.persona import (
+    create_persona_for_user,
+    update_persona_fields
+)
 from services.authz import assign_role
 from utils.security import (
     generate_salt, hash_password_with_salt,
@@ -20,17 +23,12 @@ try:
 except Exception:
     _crypt = None
 
-# ======================
-# Utilidades internas
-# ======================
 _TZ_AR = pytz.timezone("America/Argentina/Buenos_Aires")
 
 def _now_ar_str() -> str:
     return datetime.now(_TZ_AR).strftime("%Y-%m-%d %H:%M:%S")
 
-# ======================
-# Índices
-# ======================
+
 def ensure_user_indexes() -> None:
     """
     username: único
@@ -39,9 +37,7 @@ def ensure_user_indexes() -> None:
     db_client.users.create_index([("username", ASCENDING)], unique=True, name="users_username_1_unique")
     db_client.users.create_index([("persona", ASCENDING)], unique=True, name="users_persona_1_unique")
 
-# ======================
-# Lectura
-# ======================
+
 def get_user_by_id(user_id: ObjectId | str) -> Optional[Dict[str, Any]]:
     oid = ObjectId(user_id) if not isinstance(user_id, ObjectId) else user_id
     return db_client.users.find_one({"_id": oid})
@@ -49,9 +45,7 @@ def get_user_by_id(user_id: ObjectId | str) -> Optional[Dict[str, Any]]:
 def get_user_by_username(username: str) -> Optional[Dict[str, Any]]:
     return db_client.users.find_one({"username": username})
 
-# ======================
-# Password
-# ======================
+
 def verify_password(user_doc: Dict[str, Any], plain: str) -> bool:
     pwd = user_doc.get("password", "")
     salt = user_doc.get("salt")
@@ -61,9 +55,6 @@ def verify_password(user_doc: Dict[str, Any], plain: str) -> bool:
         return _crypt.verify(plain, pwd)
     return False
 
-# ======================
-# Escritura
-# ======================
 def create_user_account(
     username: str,
     raw_password: str,
@@ -93,9 +84,7 @@ def update_last_login(user_id: ObjectId | str) -> None:
     oid = ObjectId(user_id) if not isinstance(user_id, ObjectId) else user_id
     db_client.users.update_one({"_id": oid}, {"$set": {"ultima_conexion": _now_ar_str()}})
 
-# ======================
-# Registro “end-to-end”
-# ======================
+
 def register_new_user(payload) -> Tuple[ObjectId, ObjectId]:
     """
     Orquesta el alta:
@@ -124,9 +113,7 @@ def register_new_user(payload) -> Tuple[ObjectId, ObjectId]:
     assign_role(str(user_id), "usuario")
     return user_id, persona_id
 
-# ======================
-# JOIN user + persona
-# ======================
+
 def get_user_and_persona(user_id: ObjectId | str) -> Tuple[Optional[Dict], Optional[Dict]]:
     u = get_user_by_id(user_id)
     if not u:
@@ -134,9 +121,7 @@ def get_user_and_persona(user_id: ObjectId | str) -> Tuple[Optional[Dict], Optio
     p = db_client.personas.find_one({"_id": u.get("persona")}) if u.get("persona") else None
     return u, p
 
-# ======================
-# Eliminación en cascada
-# ======================
+
 def delete_user_cascade(user_id: ObjectId | str) -> bool:
     """
     Borra el usuario y TODO lo asociado (preferencias, pesos, notif_logs, reseñas,
@@ -183,3 +168,78 @@ def delete_user_cascade(user_id: ObjectId | str) -> bool:
     # Por último, el usuario
     res = db_client.users.delete_one({"_id": oid})
     return res.deleted_count > 0
+
+
+def update_persona_by_user_id(user_id, data):
+    oid = ObjectId(user_id) if not isinstance(user_id, ObjectId) else user_id
+    u = db_client.users.find_one({"_id": oid}, {"persona": 1})
+    if not u or not u.get("persona"):
+        raise ValueError("Usuario o persona no encontrados")
+    p = update_persona_fields(u["persona"], data)
+    ufull = db_client.users.find_one({"_id": oid})
+    return ufull, p
+
+
+def list_users_with_personas(page: int = 1, limit: int = 10) -> List[Dict[str, Any]]:
+    """
+    Lista users con join a personas. Devuelve items con subobjeto 'persona'.
+    """
+    skip = max(page - 1, 0) * limit
+    pipeline = [
+        {"$lookup": {
+            "from": "personas",
+            "localField": "persona",
+            "foreignField": "_id",
+            "as": "persona"
+        }},
+        {"$unwind": "$persona"},
+        {"$project": {
+            "_id": 1, "username": 1, "roles": 1, "habilitado": 1,
+            "persona": {
+                "id": {"$toString": "$persona._id"},
+                "nombre": "$persona.nombre",
+                "apellido": "$persona.apellido",
+                "email": "$persona.email",
+                "dni": "$persona.dni"
+            }
+        }},
+        {"$skip": skip},
+        {"$limit": limit},
+    ]
+    return list(db_client.users.aggregate(pipeline))
+
+
+def search_users_by_persona(term: str, limit: int = 50) -> List[Dict[str, Any]]:
+    """
+    Busca por nombre/apellido/email en 'personas' y devuelve users joineados.
+    """
+    regex = {"$regex": term, "$options": "i"}
+    persona_ids = [p["_id"] for p in db_client.personas.find(
+        {"$or": [{"nombre": regex}, {"apellido": regex}, {"email": regex}]},
+        {"_id": 1}
+    )]
+    if not persona_ids:
+        return []
+
+    pipeline = [
+        {"$match": {"persona": {"$in": persona_ids}}},
+        {"$lookup": {
+            "from": "personas",
+            "localField": "persona",
+            "foreignField": "_id",
+            "as": "persona"
+        }},
+        {"$unwind": "$persona"},
+        {"$project": {
+            "_id": 1, "username": 1, "roles": 1, "habilitado": 1,
+            "persona": {
+                "id": {"$toString": "$persona._id"},
+                "nombre": "$persona.nombre",
+                "apellido": "$persona.apellido",
+                "email": "$persona.email",
+                "dni": "$persona.dni"
+            }
+        }},
+        {"$limit": limit},
+    ]
+    return list(db_client.users.aggregate(pipeline))

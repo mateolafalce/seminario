@@ -32,11 +32,7 @@ function VerUsuarios({ show, onHide }) {
       const url = window.location.hostname === "localhost"
         ? `${BACKEND_URL}/api/users_b/admin/users?page=${page}&limit=${limit}`
         : `/api/users_b/admin/users?page=${page}&limit=${limit}`;
-      const response = await fetch(url, {
-        headers: {
-          'Authorization': `Bearer ${localStorage.getItem('accessToken')}`,
-        },
-      });
+      const response = await fetch(url);
 
       if (!response.ok) {
         if (response.status === 401) {
@@ -97,7 +93,6 @@ function VerUsuarios({ show, onHide }) {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'Authorization': `Bearer ${localStorage.getItem('accessToken')}`,
       },
       body: JSON.stringify({
         identificador: usuarioEditar.id,

@@ -5,7 +5,7 @@ from routers.Security.auth import current_user
 from db.schemas.resenia_publica import top_jugadores_schema, ultimas_resenias_schema
 
 router = APIRouter(
-    prefix="/resenias",   # se mantiene igual a tu archivo original
+    prefix="/resenias",  
     tags=["Reseñas públicas"],
 )
 
@@ -29,8 +29,8 @@ def top_jugadores(limit: int = Query(10, ge=1, le=50)):
                 "jugador_id": {"$toString": "$_id"},
                 "promedio": {"$round": ["$promedio", 2]},
                 "cantidad": 1,
-                "nombre": {"$ifNull": ["$p.nombre", "$u.nombre"]},
-                "apellido": {"$ifNull": ["$p.apellido", "$u.apellido"]},
+                "nombre": {"$ifNull": ["$p.nombre", ""]},
+                "apellido": {"$ifNull": ["$p.apellido", ""]},
                 "username": {"$ifNull": ["$u.username", ""]},
             }},
         ]
@@ -69,14 +69,14 @@ def ultimas_resenias(limit: int = Query(10, ge=1, le=50)):
                 "fecha": 1,
                 "autor": {
                     "id": {"$toString": "$autor_u._id"},
-                    "nombre": {"$ifNull": ["$autor_p.nombre", "$autor_u.nombre"]},
-                    "apellido": {"$ifNull": ["$autor_p.apellido", "$autor_u.apellido"]},
+                    "nombre": {"$ifNull": ["$autor_p.nombre", ""]},
+                    "apellido": {"$ifNull": ["$autor_p.apellido", ""]},
                     "username": {"$ifNull": ["$autor_u.username", ""]},
                 },
                 "destinatario": {
                     "id": {"$toString": "$dest_u._id"},
-                    "nombre": {"$ifNull": ["$dest_p.nombre", "$dest_u.nombre"]},
-                    "apellido": {"$ifNull": ["$dest_p.apellido", "$dest_u.apellido"]},
+                    "nombre": {"$ifNull": ["$dest_p.nombre", ""]},
+                    "apellido": {"$ifNull": ["$dest_p.apellido", ""]},
                     "username": {"$ifNull": ["$dest_u.username", ""]},
                 },
             }},
@@ -121,8 +121,8 @@ def mis_resenias_stats(user=Depends(current_user)):
                 "fecha": 1,
                 "autor": {
                     "id": {"$toString": "$autor_u._id"},
-                    "nombre": {"$ifNull": ["$autor_p.nombre", "$autor_u.nombre"]},
-                    "apellido": {"$ifNull": ["$autor_p.apellido", "$autor_u.apellido"]},
+                    "nombre": {"$ifNull": ["$autor_p.nombre", ""]},
+                    "apellido": {"$ifNull": ["$autor_p.apellido", ""]},
                     "username": {"$ifNull": ["$autor_u.username", ""]},
                 },
             }},

@@ -21,11 +21,6 @@ def search_user_db(field: str, key):
         print(f"Error al buscar usuario: {e}")
         return None
 
-def is_admin(user_id: str) -> bool:
-    if not ObjectId.is_valid(user_id):
-        return False
-    return user_has_any_role(ObjectId(user_id), "admin")
-
 # Legacy helper (si alguien lo usa): retorna UserDB si el user (por _id/user) es admin vía RBAC
 def search_user_db_admin(field: str, key):
     try:

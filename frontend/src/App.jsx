@@ -1,6 +1,7 @@
+// App.jsx
 import './index.css';
 import { BrowserRouter as Router, Routes, Route, Navigate, useLocation } from 'react-router-dom';
-import React, { useState, useEffect, useContext } from 'react';
+import React, { useState, useEffect, useContext, useMemo } from 'react';
 
 import Login from './pages/Login';
 import Register from './pages/Register';
@@ -21,7 +22,7 @@ import 'react-toastify/dist/ReactToastify.css';
 
 import AuthProvider, { AuthContext } from './context/AuthContext';
 
-// Nuevo: permisos
+// Permisos (modelo nuevo basado en roles/permissions)
 import {
   canManageUsers,
   canManageCanchas,
@@ -31,13 +32,12 @@ import {
 
 // PanelControl y tabs hijas
 import PanelControl, { TabUsuarios, TabCanchas, TabReservas } from './pages/PanelControl';
+import TabHorarios from './pages/TabHorarios'; // 👈 NUEVO
 
 // ---------- Layout que esconde Navbar en /panel-control ----------
 function MainLayout({ children }) {
   const location = useLocation();
-
-  // Oculta navbar cuando estás en el panel (cualquier tamaño, ajustá si querés solo desktop)
-  const hideNavbar = location.pathname.startsWith('/panel-control');
+  const hideNavbar = location.pathname.startsWith('/panel-control'); // ocultar navbar en el panel
 
   return (
     <>
@@ -61,11 +61,11 @@ function MainLayout({ children }) {
 
 // ---------- Protege pestañas específicas del panel ----------
 function PermissionRoute({ check, children }) {
-  const { loading, isAdmin, tipoAdmin } = useContext(AuthContext);
+  const { loading, isAuthenticated, roles, permissions } = useContext(AuthContext);
+  const me = useMemo(() => ({ roles, permissions }), [roles, permissions]);
 
   if (loading) return <div className="p-6 text-gray-200">Cargando…</div>;
-  if (!isAdmin || !check(isAdmin, tipoAdmin)) {
-    // sin permiso -> panel raíz
+  if (!isAuthenticated || !check(me)) {
     return <Navigate to="/panel-control" replace />;
   }
   return children;
@@ -73,13 +73,19 @@ function PermissionRoute({ check, children }) {
 
 // ---------- Auto redirige a la primera pestaña permitida ----------
 function AutoRedirectPanel() {
-  const { loading, isAdmin, tipoAdmin } = useContext(AuthContext);
-  if (loading) return <div className="p-6 text-gray-200">Cargando…</div>;
+  const { loading, isAuthenticated, roles, permissions } = useContext(AuthContext);
+  const me = useMemo(() => ({ roles, permissions }), [roles, permissions]);
 
-  if (canManageUsers(isAdmin, tipoAdmin))    return <Navigate to="/panel-control/usuarios" replace />;
-  if (canManageCanchas(isAdmin, tipoAdmin))  return <Navigate to="/panel-control/canchas" replace />;
-  if (canManageReservas(isAdmin, tipoAdmin)) return <Navigate to="/panel-control/reservas" replace />;
-  if (canViewStatistics(isAdmin, tipoAdmin)) return <Navigate to="/panel-control/estadisticas" replace />;
+  if (loading) return <div className="p-6 text-gray-200">Cargando…</div>;
+  if (!isAuthenticated) return <Navigate to="/login" replace />;
+
+  // Orden sugerido: usuarios → canchas → horarios → reservas → estadísticas
+  if (canManageUsers(me))     return <Navigate to="/panel-control/usuarios" replace />;
+  if (canManageCanchas(me))   return <Navigate to="/panel-control/canchas" replace />;
+  if (canManageCanchas(me))   return <Navigate to="/panel-control/horarios" replace />; // 👈 NUEVO
+  if (canManageReservas(me))  return <Navigate to="/panel-control/reservas" replace />;
+  if (canViewStatistics(me))  return <Navigate to="/panel-control/estadisticas" replace />;
+
   return <Navigate to="/" replace />;
 }
 
@@ -88,7 +94,7 @@ function AppWithTimeout() {
   const [showTimeoutOverlay, setShowTimeoutOverlay] = useState(false);
   const { logout, isAuthenticated } = useContext(AuthContext);
   const [lastActivity, setLastActivity] = useState(Date.now());
-  const inactivityTimeout = 60 * 60 * 1000;
+  const inactivityTimeout = 60 * 60 * 1000; // 60 min
 
   const resetInactivityTimer = () => setLastActivity(Date.now());
 
@@ -170,6 +176,16 @@ function AppWithTimeout() {
             }
           />
 
+          {/* 👇 NUEVA pestaña Horarios (mismo permiso que canchas) */}
+          <Route
+            path="horarios"
+            element={
+              <PermissionRoute check={canManageCanchas}>
+                <TabHorarios />
+              </PermissionRoute>
+            }
+          />
+
           <Route
             path="reservas"
             element={
@@ -179,8 +195,8 @@ function AppWithTimeout() {
             }
           />
 
-          {/* Si agregás estadísticas: */}
-          {/* <Route
+          {/* Si agregás estadísticas:
+          <Route
             path="estadisticas"
             element={
               <PermissionRoute check={canViewStatistics}>

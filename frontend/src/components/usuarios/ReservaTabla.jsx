@@ -5,32 +5,10 @@ import { toast } from 'react-toastify';
 import MiToast from '../common/Toast/MiToast';
 import CourtCarousel from '../reservas/CourtCarousel';
 import MessageConfirm from '../common/Confirm/MessageConfirm';
-import backendClient from '../../services/backendClient'; // 👈 nuevo
+import backendClient from '../../services/backendClient';
 
 // ===== Helpers =====
 const MAX_CAPACITY = 6;
-
-export const generarHorarios = () => {
-  const out = [];
-  let h = 9, m = 0;
-  while (h < 23) {
-    const iH = String(h).padStart(2, '0');
-    const iM = String(m).padStart(2, '0');
-
-    let fh = h + 1, fm = m + 30;
-    if (fm >= 60) { fm -= 60; fh += 1; }
-    if (fh >= 24) break;
-
-    out.push(`${iH}:${iM}-${String(fh).padStart(2,'0')}:${String(fm).padStart(2,'0')}`);
-
-    // paso “90 minutos” (tu lógica original)
-    m += 30;
-    if (m >= 60) { m = 0; h += 1; }
-    h += 1;
-  }
-  return out;
-};
-const HORARIOS = generarHorarios();
 
 const generarFechas = () => {
   const r = [], hoy = new Date();
@@ -50,11 +28,12 @@ const normalizarTexto = (t) => t.trim().replace(/\s+/g, ' ');
 
 // ===== Componente =====
 export default function ReservaTabla() {
-  const { isAuthenticated, user } = useContext(AuthContext); // 👈 ya no usamos apiFetch
+  const { isAuthenticated, user } = useContext(AuthContext);
   const [mensaje, setMensaje] = useState("");
   const [reservaPendiente, setReservaPendiente] = useState(null);
 
   const [canchas, setCanchas] = useState([]);
+  const [horarios, setHorarios] = useState([]); // ✅ ahora desde backend
   const [cantidades, setCantidades] = useState({});
   const [selectedDate, setSelectedDate] = useState(FECHAS[0].value);
   const [selected, setSelected] = useState(null);
@@ -63,12 +42,27 @@ export default function ReservaTabla() {
   const [detalleReserva, setDetalleReserva] = useState(null);
   const [loadingDetalle, setLoadingDetalle] = useState(false);
 
+  // Cargar HORARIOS desde backend 1 sola vez
+  useEffect(() => {
+    let alive = true;
+    (async () => {
+      try {
+        const data = await backendClient.get('horarios/listar');
+        const arr = Array.isArray(data) ? data.map(h => (h?.hora ?? h)).filter(Boolean) : [];
+        if (alive) setHorarios(arr);
+      } catch {
+        if (alive) setHorarios([]);
+      }
+    })();
+    return () => { alive = false; };
+  }, []);
+
   // Cargar canchas (1 vez)
   useEffect(() => {
     let alive = true;
     (async () => {
       try {
-        const data = await backendClient.get('canchas/listar'); // GET /api/canchas/listar
+        const data = await backendClient.get('canchas/listar');
         if (!alive) return;
         setCanchas(Array.isArray(data) ? data.map(c => c.nombre) : []);
       } catch (e) {
@@ -190,7 +184,7 @@ export default function ReservaTabla() {
         {/* Carousel */}
         <CourtCarousel
           canchas={canchas}
-          horarios={HORARIOS}
+          horarios={horarios}  // ✅ ahora vienen del backend
           cantidades={cantidades}
           isAuthenticated={isAuthenticated}
           selected={selected}

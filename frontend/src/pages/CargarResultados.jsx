@@ -6,6 +6,8 @@ import MiToast from "../components/common/Toast/MiToast";
 import ReservaCard from "../components/common/Cards/CardReserva";
 import resultadosApi from "../services/resultadosApi";
 import backendClient from "../services/backendClient";
+import { canManageReservas } from '../utils/permissions';
+import { Navigate } from 'react-router-dom';
 
 // --- helpers
 const generarFechas = () => {
@@ -48,7 +50,10 @@ const derivePlayersCount = (r) => {
 };
 
 function CargarResultados() {
-  const { isEmpleado, isAuthenticated } = useContext(AuthContext);
+  const { isAuthenticated, roles, permissions } = useContext(AuthContext);
+  const me = { roles, permissions };
+  const puedeCargar = canManageReservas(me) || permissions?.includes('reservas.resultado.cargar');
+
   const fechas7 = useMemo(generarFechas, []);
   const [selectedDate, setSelectedDate] = useState(fechas7[0].value);
 
@@ -61,7 +66,7 @@ function CargarResultados() {
   // 🔧 Hook SIEMPRE llamado: el cuerpo se corta si no hay permisos
   useEffect(() => {
     // si no tiene acceso, limpiar y salir
-    if (!isAuthenticated || !isEmpleado) {
+    if (!isAuthenticated || !puedeCargar) {
       setReservas([]);
       setSelectedReserva(null);
       setResultado("");
@@ -89,7 +94,7 @@ function CargarResultados() {
     };
     fetchReservas();
     return () => { cancelled = true; };
-  }, [selectedDate, isAuthenticated, isEmpleado]);
+  }, [selectedDate, isAuthenticated, puedeCargar]);
 
   const handleSelectReserva = async (reserva) => {
     setSelectedReserva(reserva);
@@ -126,14 +131,7 @@ function CargarResultados() {
   };
 
   // 🔐 Gate de acceso (ahora después de TODOS los hooks)
-  if (!isAuthenticated || !isEmpleado) {
-    return (
-      <div className="flex flex-col items-center justify-center min-h-[60vh] text-gray-300">
-        <h2 className="text-xl font-bold mb-4">Acceso restringido</h2>
-        <p>Solo empleados pueden cargar resultados.</p>
-      </div>
-    );
-  }
+  if (!isAuthenticated || !puedeCargar) return <Navigate to="/" replace />;
 
   return (
     <div className="flex flex-col items-center mt-8 min-h-[70vh] w-full py-6">

@@ -4,13 +4,15 @@ import { AuthContext } from '../../../context/AuthContext'
 import AuthForm from '../../common/AuthForm/AuthForm'
 import backendClient from '../../../services/backendClient'
 import ListarCanchas from './ListarCanchas'
+import { canManageCanchas } from '../../../utils/permissions'
 
 function AltaCancha({ refresh }) {
   const [errores, setErrores] = useState({})
   const [loading, setLoading] = useState(false)
   const [mensajeExito, setMensajeExito] = useState('')
   const [refreshCanchas, setRefreshCanchas] = useState(false)
-  const { isAuthenticated, isAdmin, handleUnauthorized } = useContext(AuthContext)
+  const { isAuthenticated, roles, permissions } = useContext(AuthContext)
+  const me = { roles, permissions }
   const navigate = useNavigate()
 
   if (!isAuthenticated) {
@@ -27,7 +29,7 @@ function AltaCancha({ refresh }) {
     )
   }
 
-  if (!isAdmin) {
+  if (!canManageCanchas(me)) {
     return (
       <div className="text-center mt-8">
         <p className="text-red-600 text-lg">No tienes permisos de administrador para ver esta página.</p>

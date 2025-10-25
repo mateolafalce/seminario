@@ -1,17 +1,13 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from bson import ObjectId
 from db.client import db_client
-from routers.Security.auth import current_user
-
-# NUEVO: models + schemas
-from db.models.preferencia import PreferenciaCreate, PreferenciaUpdate
+from routers.Security.auth import current_user, verify_csrf
+from db.models.preferencia import PreferenciaCreate
 from db.schemas.preferencia import preferencia_schema_ui
+from pymongo import ASCENDING
 
 
 router = APIRouter(prefix="/preferencias", tags=["Preferencias"])
-
-# --------- Helpers internos (evita repetir lógica) ---------
-
 
 def _dedupe(seq):
     seen = set()
@@ -76,7 +72,7 @@ def _validate_and_map_input(preferencias: PreferenciaCreate):
 
 # --------- Endpoints ---------
 
-@router.post("/guardar")
+@router.post("/guardar",    dependencies=[Depends(verify_csrf)])
 async def guardar_preferencias(preferencias: PreferenciaCreate, user: dict = Depends(current_user)):
     if user.get("habilitado") is not True:
         raise HTTPException(status_code=403, detail="Usuario no habilitado para hacer reservas")
@@ -114,7 +110,7 @@ async def obtener_preferencias(user: dict = Depends(current_user)):
     return out
 
 
-@router.put("/modificar/{preferencia_id}")
+@router.put("/modificar/{preferencia_id}", dependencies=[Depends(verify_csrf)])
 async def modificar_preferencia(preferencia_id: str, preferencias: PreferenciaCreate, user: dict = Depends(current_user)):
     if not ObjectId.is_valid(preferencia_id):
         raise HTTPException(status_code=400, detail="ID de preferencia inválido")
@@ -135,7 +131,7 @@ async def modificar_preferencia(preferencia_id: str, preferencias: PreferenciaCr
     return {"msg": "Preferencia actualizada con éxito"}
 
 
-@router.delete("/eliminar/{preferencia_id}")
+@router.delete("/eliminar/{preferencia_id}", dependencies=[Depends(verify_csrf)])
 async def eliminar_preferencia(preferencia_id: str, user: dict = Depends(current_user)):
     if not ObjectId.is_valid(preferencia_id):
         raise HTTPException(status_code=400, detail="ID de preferencia inválido")
@@ -150,3 +146,10 @@ async def eliminar_preferencia(preferencia_id: str, user: dict = Depends(current
     if res.deleted_count != 1:
         raise HTTPException(status_code=500, detail="Error al eliminar la preferencia")
     return {"msg": "Preferencia eliminada con éxito"}
+
+# Index recomendado para rendimiento
+def ensure_preferencias_indexes():
+    db_client.preferencias.create_index([("usuario_id", ASCENDING)], name="preferencias_usuario_id_1")
+    db_client.preferencias.create_index([("dias", ASCENDING)],        name="preferencias_dias_1")
+    db_client.preferencias.create_index([("horarios", ASCENDING)],    name="preferencias_horarios_1")
+    db_client.preferencias.create_index([("canchas", ASCENDING)],     name="preferencias_canchas_1")
