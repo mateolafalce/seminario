@@ -5,7 +5,7 @@ from datetime import datetime
 import pytz
 import asyncio
 from db.client import db_client
-from routers.Security.auth import current_user
+from routers.Security.auth import current_user, verify_csrf
 from db.models.resenia import ReseniaCreate
 from db.schemas.resenia import calificaciones_schema
 
@@ -80,7 +80,7 @@ def _buscar_reserva_compartida(i_oid: ObjectId, j_oid: ObjectId, reserva_id: Opt
     return None
 
 
-@router.post("/resenias/crear")
+@router.post("/resenias/crear", dependencies=[Depends(verify_csrf)])
 async def resenias_crear(payload: ReseniaCreate, user: dict = Depends(current_user)):
     """
     Crea una reseña i → j SOLO si existe una reserva Confirmada finalizada con ambos.
@@ -211,9 +211,8 @@ async def resenias_mias(
                 "fecha": 1,
                 "autor": {
                     "id": {"$toString": "$autor_u._id"},
-                    # si ya migraste, sale de personas; si no, cae a users.*
-                    "nombre": {"$ifNull": ["$autor_p.nombre", "$autor_u.nombre"]},
-                    "apellido": {"$ifNull": ["$autor_p.apellido", "$autor_u.apellido"]},
+                    "nombre": {"$ifNull": ["$autor_p.nombre", ""]},
+                    "apellido": {"$ifNull": ["$autor_p.apellido", ""]},
                     "username": {"$ifNull": ["$autor_u.username", ""]},
                 }
             }}

@@ -31,8 +31,7 @@ import {
 } from './utils/permissions';
 
 // PanelControl y tabs hijas
-import PanelControl, { TabUsuarios, TabCanchas, TabReservas } from './pages/PanelControl';
-import TabHorarios from './pages/TabHorarios'; // 👈 NUEVO
+import PanelControl, { TabUsuarios, TabCanchas, TabReservas, TabHorarios, TabCategorias } from './pages/PanelControl';
 
 // ---------- Layout que esconde Navbar en /panel-control ----------
 function MainLayout({ children }) {
@@ -176,12 +175,20 @@ function AppWithTimeout() {
             }
           />
 
-          {/* 👇 NUEVA pestaña Horarios (mismo permiso que canchas) */}
           <Route
             path="horarios"
             element={
               <PermissionRoute check={canManageCanchas}>
                 <TabHorarios />
+              </PermissionRoute>
+            }
+          />
+
+          <Route
+            path="categorias"
+            element={
+              <PermissionRoute check={canManageCanchas}>
+                <TabCategorias />
               </PermissionRoute>
             }
           />

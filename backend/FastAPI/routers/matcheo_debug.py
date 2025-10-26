@@ -1,6 +1,6 @@
 # routers/matcheo_debug.py
 from pydantic import BaseModel, Field
-from fastapi import APIRouter, HTTPException, Query, status, Body
+from fastapi import APIRouter, HTTPException, Query, status, Body, Depends
 from typing import List, Optional, Dict, Any
 from bson import ObjectId
 from datetime import datetime
@@ -8,7 +8,7 @@ import os
 import asyncio
 
 from db.client import db_client
-
+from routers.Security.auth import require_roles, verify_csrf
 
 from services.matcheo import (
     get_recommendation_split,
@@ -20,9 +20,20 @@ from services.matcheo import (
     get_preference_vector,
 )
 
-router = APIRouter(prefix="/matcheo-debug", tags=["Matcheo Debug"])
+# Verificar que debug tools esté habilitado
+if not os.getenv("DEBUG_TOOLS", "").lower() in {"1", "true", "yes"}:
+    def _disabled(*args, **kwargs):
+        raise HTTPException(status_code=404, detail="Not found")
+    
+    # Deshabilitar todos los endpoints si DEBUG_TOOLS no está activo
+    class DisabledRouter:
+        def __getattr__(self, name):
+            return _disabled
+    router = DisabledRouter()
+else:
+    router = APIRouter(prefix="/matcheo-debug", tags=["Matcheo Debug"])
 
-@router.post("/ensure-indexes")
+@router.post("/ensure-indexes", dependencies=[Depends(require_roles("admin")), Depends(verify_csrf)])
 async def ensure_indexes():
     """Build de índices básicos. Idempotente y sin unique=None."""
     created = []
@@ -79,7 +90,7 @@ async def ensure_indexes():
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error creando índices: {e}")
 
-@router.post("/rebuild")
+@router.post("/rebuild", dependencies=[Depends(require_roles("admin")), Depends(verify_csrf)])
 async def rebuild_relations(run_optimize: bool = Query(default=False)):
     """Recalcula A(i,j) (y optimiza α/β opcional) en un hilo para no bloquear el loop."""
     try:
@@ -98,7 +109,7 @@ async def rebuild_relations(run_optimize: bool = Query(default=False)):
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error en rebuild: {e}")
 
-@router.get("/top/{user_id}")
+@router.get("/top/{user_id}", dependencies=[Depends(require_roles("admin"))])
 async def top_for_user(
     user_id: str,
     n: int = Query(default=10, ge=1, le=100),
@@ -125,7 +136,7 @@ async def top_for_user(
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error obteniendo top: {e}")
 
-@router.get("/pair-debug")
+@router.get("/pair-debug", dependencies=[Depends(require_roles("admin"))])
 async def pair_debug(i: str, j: str):
     """Debug de un par: S, J, A, α/β y vectores de preferencias."""
     if not (ObjectId.is_valid(i) and ObjectId.is_valid(j)):
@@ -154,7 +165,7 @@ async def pair_debug(i: str, j: str):
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error calculando: {e}")
 
-@router.get("/notify-dryrun")
+@router.get("/notify-dryrun", dependencies=[Depends(require_roles("admin"))])
 async def notify_dryrun(reserva_id: str, origen: str, ignore_logs: bool = Query(default=False)):
     """
     Simula el envío de notificaciones para una reserva y cuenta:
@@ -256,11 +267,16 @@ async def notify_dryrun(reserva_id: str, origen: str, ignore_logs: bool = Query(
         if uid in ya_notificados:
             item["razones_exclusion"].append("ya_notificado_previamente"); detalles.append(item); continue
 
-        u = db_client.users.find_one({"_id": oid, "habilitado": True})
+        u = db_client.users.find_one({"_id": oid, "habilitado": True}, {"persona": 1})
         if not u:
             item["razones_exclusion"].append("usuario_no_habilitado_o_inexistente"); detalles.append(item); continue
-
-        email = u.get("email")
+        
+        # Buscar email en personas
+        persona = None
+        if u.get("persona"):
+            persona = db_client.personas.find_one({"_id": u["persona"]}, {"email": 1})
+        
+        email = persona.get("email") if persona else None
         if not email:
             item["razones_exclusion"].append("sin_email"); detalles.append(item); continue
         if email in vistos_emails:
@@ -303,7 +319,7 @@ def _get_id_by_nombre(coll, nombre: str) -> Optional[ObjectId]:
 
 # ---------- Seed básico de mundo ----------
 
-@router.post("/seed/minimal-world")
+@router.post("/seed/minimal-world", dependencies=[Depends(require_roles("admin")), Depends(verify_csrf)])
 async def seed_minimal_world(tag: str = Query(default="debug")):
     try:
         # 1. Establecer estado "Reservada" para pruebas
@@ -337,29 +353,39 @@ async def seed_minimal_world(tag: str = Query(default="debug")):
 
 # ---------- Seed de usuarios ----------
 
-@router.post("/seed/users")
+@router.post("/seed/users", dependencies=[Depends(require_roles("admin")), Depends(verify_csrf)])
 async def seed_users(n: int = Query(default=2, ge=1, le=50), tag: str = Query(default="debug")):
     try:
         # Roles básicos
         _upsert_by_nombre(db_client.roles, "usuario", {"permiso": "usuario"})
         _upsert_by_nombre(db_client.roles, "admin", {"permiso": "admin"})
 
-        # Seed de usuarios
+        # Seed de usuarios con personas
         for i in range(n):
             email = f"usuario{i+1}@ejemplo.com"
-            password = "password"
-            nombre = f"Usuario Prueba {i+1}"
-            _id = _upsert_by_nombre(db_client.users, email, {
+            username = f"usuario{i+1}"
+            
+            # 1. Crear persona
+            persona_id = db_client.personas.insert_one({
+                "nombre": f"Usuario{i+1}",
+                "apellido": f"Prueba",
                 "email": email,
-                "password": password,
-                "nombre": nombre,
+                "dni": f"{10000000 + i}",
+                "tag": tag
+            }).inserted_id
+            
+            # 2. Crear usuario (cuenta) referenciando a persona
+            from services.user import hash_password
+            salt, hashed = hash_password("password")
+            db_client.users.insert_one({
+                "username": username,
+                "persona": persona_id,
+                "password": hashed,
+                "salt": salt,
                 "habilitado": True,
-                "rol": "usuario",
-                "prefs": {
-                    "dias": [],
-                    "horarios": [],
-                    "canchas": []
-                }
+                "categoria": None,
+                "fecha_registro": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+                "tag": tag
             })
 
         return {"msg": "Seed de usuarios ejecutado", "n": n, "tag": tag}
@@ -378,7 +404,7 @@ class ReservaIn(BaseModel):
     estado_nombre: str = Field(default="Reservada")
     tag: str = Field(default="debug")
 
-@router.post("/seed/reserva")
+@router.post("/seed/reserva", dependencies=[Depends(require_roles("admin")), Depends(verify_csrf)])
 async def seed_reserva(payload: ReservaIn = Body(...)):
     try:
         # 1. Buscar o crear estado
@@ -424,7 +450,7 @@ async def seed_reserva(payload: ReservaIn = Body(...)):
 
 # ---------- Wipe de datos con tag ----------
 
-@router.post("/seed/wipe")
+@router.post("/seed/wipe", dependencies=[Depends(require_roles("admin")), Depends(verify_csrf)])
 async def seed_wipe(tag: str = Query(default="debug")):
     try:
         # Eliminar reservas
@@ -432,6 +458,9 @@ async def seed_wipe(tag: str = Query(default="debug")):
 
         # Eliminar usuarios
         db_client.users.delete_many({"tag": tag})
+        
+        # Eliminar personas
+        db_client.personas.delete_many({"tag": tag})
 
         return {"msg": "Datos eliminados con tag", "tag": tag}
     except Exception as e:
@@ -439,7 +468,7 @@ async def seed_wipe(tag: str = Query(default="debug")):
 
 # ---------- a_notificar directo ----------
 
-@router.get("/a-notificar/{user_id}")
+@router.get("/a-notificar/{user_id}", dependencies=[Depends(require_roles("admin"))])
 async def a_notificar_route(user_id: str):
     """Obtener lista de usuarios a notificar para un usuario dado."""
     if not ObjectId.is_valid(user_id):
@@ -475,10 +504,11 @@ async def smoke():
 
 # ---------- Limpiar caches de catálogos ----------
 
-@router.post("/invalidate-caches")
+@router.post("/invalidate-caches", dependencies=[Depends(require_roles("admin")), Depends(verify_csrf)])
 async def invalidate_caches():
     try:
         db_client.users.delete_many({})
+        db_client.personas.delete_many({})
         db_client.pesos.delete_many({})
         db_client.reservas.delete_many({})
         db_client.notif_logs.delete_many({})

@@ -1,4 +1,3 @@
-// frontend/src/pages/CargarResultados.jsx
 import React, { useState, useEffect, useContext, useMemo } from "react";
 import { AuthContext } from "../context/AuthContext";
 import { toast } from "react-toastify";
@@ -32,12 +31,12 @@ const generarFechas = () => {
 // Derivar cantidad de jugadores
 const derivePlayersCount = (r) => {
   if (Array.isArray(r.usuarios)) {
-    const confirmados = r.usuarios.filter(u => u?.confirmacion === true).length;
+    const confirmados = r.usuarios.filter(u => u?.confirmado === true).length;
     if (confirmados > 0) return confirmados;
     if (r.usuarios.length > 0) return r.usuarios.length;
   }
   if (Array.isArray(r.jugadores)) {
-    const confirmados = r.jugadores.filter(u => u?.confirmacion === true).length;
+    const confirmados = r.jugadores.filter(u => u?.confirmado === true).length;
     if (confirmados > 0) return confirmados;
     if (r.jugadores.length > 0) return r.jugadores.length;
   }

@@ -4,7 +4,7 @@ import { AuthContext } from '../context/AuthContext';
 import { HiUsers } from "react-icons/hi";
 import { IoStatsChartSharp } from "react-icons/io5";
 import { PiCourtBasketballFill } from "react-icons/pi";
-import { MdAccessTime } from "react-icons/md"; // 👈 Add icon for Horarios
+import { MdAccessTime, MdLayers } from "react-icons/md";
 import { FiLogOut } from 'react-icons/fi';
 import { canManageUsers, canManageCanchas, canManageReservas, canViewStatistics } from '../utils/permissions';
 
@@ -30,6 +30,7 @@ function SidebarLink({ to, icon, label }) {
 export default function PanelControl() {
   const { isAuthenticated, loading, logout, roles, permissions } = useContext(AuthContext);
   const me = useMemo(() => ({ roles, permissions }), [roles, permissions]);
+  const navigate = useNavigate();
 
   const flags = useMemo(() => ({
     showUsuarios: canManageUsers(me),
@@ -56,6 +57,7 @@ export default function PanelControl() {
               {flags.showReservas && <SidebarLink to="/panel-control/reservas" icon={<IoStatsChartSharp />} label="Reservas" />}
               {flags.showCanchas && <SidebarLink to="/panel-control/canchas" icon={<PiCourtBasketballFill />} label="Canchas" />}
               {flags.showCanchas && <SidebarLink to="/panel-control/horarios" icon={<MdAccessTime />} label="Horarios" />}
+              {flags.showCanchas && <SidebarLink to="/panel-control/categorias" icon={<MdLayers size={18} />} label="Categorías" />}
               
               {nothing && (
                 <div className="text-xs text-gray-400 px-3 py-2">
@@ -66,11 +68,11 @@ export default function PanelControl() {
               <div className="my-2 h-px bg-gray-700" />
               
               <button
-                onClick={logout}
-                className="group flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium text-red-300 hover:bg-red-500/10 hover:text-white transition-colors"
+                onClick={() => navigate('/home')}
+                className="group flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium text-yellow-300 hover:bg-yellow-500/10 hover:text-white transition-colors"
               >
                 <FiLogOut className="w-5 h-5" />
-                Cerrar sesión
+                Volver
               </button>
             </nav>
           </div>
@@ -91,6 +93,7 @@ export default function PanelControl() {
               {flags.showReservas && <option value="reservas">Reservas</option>}
               {flags.showCanchas && <option value="canchas">Canchas</option>}
               {flags.showCanchas && <option value="horarios">Horarios</option>}
+              {flags.showCanchas && <option value="categorias">Categorías</option>}
             </select>
           </div>
         </aside>
@@ -109,3 +112,4 @@ export { default as TabUsuarios } from '../components/admin/dashboard/VerUsuario
 export { default as TabCanchas } from '../components/admin/dashboard/VerCanchasInline';
 export { default as TabReservas } from '../components/admin/dashboard/GestionReservas';
 export { default as TabHorarios } from './TabHorarios';
+export { default as TabCategorias } from './TabCategorias';

@@ -242,11 +242,8 @@ def start_scheduler():
     return _scheduler
 
 def shutdown_scheduler():
+    """Detiene el scheduler global de forma segura."""
     global _scheduler
-    if _scheduler:
-        _scheduler.shutdown(wait=False)
-        _scheduler = None
-        print("[scheduler] apagado")
     if _scheduler:
         _scheduler.shutdown(wait=False)
         _scheduler = None

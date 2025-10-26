@@ -1,11 +1,14 @@
-from routers import matcheo_debug as matcheo_debug_router
-import os
-import asyncio
-from contextlib import asynccontextmanager
-from fastapi.staticfiles import StaticFiles
+from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
+from contextlib import asynccontextmanager
+import asyncio
+import os
+import logging
+import uuid
 from routers import users_b, admin_users, reservas, preferencias, canchas, horarios, resenias, resenias_publicas
 from routers import reservas_resultados  # <- nuevo
+from routers import categorias
 from services.scheduler import start_scheduler, shutdown_scheduler
 from services.notifs import ensure_notif_indexes, ensure_unique_slot_index
 from routers.reservas import cerrar_reservas_vencidas
@@ -15,17 +18,18 @@ from services.user import ensure_user_indexes
 from routers.preferencias import ensure_preferencias_indexes
 from services.canchas import ensure_cancha_indexes
 from routers.horarios import ensure_horarios_indexes
-import logging, uuid
-from fastapi import FastAPI, Request
+from services.resenias import ensure_resenias_indexes
+from services.categorias import ensure_categoria_indexes
 from routers.Security.auth import ACCESS_COOKIE, CSRF_COOKIE
 
 def _bool_env(key: str, default=False):
     return os.getenv(key, str(default)).lower() == "true"
 
+ENABLE_MATCHEO_DEBUG = os.getenv("ENABLE_MATCHEO_DEBUG", "false").lower() == "true"
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     try:
-        # índices que ya tenías
         await asyncio.to_thread(ensure_notif_indexes)
         await asyncio.to_thread(ensure_unique_slot_index)
         await asyncio.to_thread(ensure_rbac_indexes_and_seed)
@@ -33,7 +37,9 @@ async def lifespan(app: FastAPI):
         await asyncio.to_thread(ensure_user_indexes)
         await asyncio.to_thread(ensure_preferencias_indexes)
         await asyncio.to_thread(ensure_cancha_indexes)
-        await asyncio.to_thread(ensure_horarios_indexes)   # 👈 agregar
+        await asyncio.to_thread(ensure_horarios_indexes)
+        await asyncio.to_thread(ensure_resenias_indexes)
+        await asyncio.to_thread(ensure_categoria_indexes)
     except Exception as e:
         print(f"Error creando índices/seed: {e}")
 
@@ -73,9 +79,15 @@ app.include_router(canchas.router, prefix="/api")
 app.include_router(horarios.router, prefix="/api")
 app.include_router(resenias.router, prefix="/api")
 app.include_router(resenias_publicas.router, prefix="/api")
-app.include_router(matcheo_debug_router.router, prefix="/api")
 app.include_router(reservas_resultados.router, prefix="/api")
+app.include_router(categorias.router, prefix="/api")
 
+# 📴 Debug deshabilitado por defecto
+if ENABLE_MATCHEO_DEBUG:
+    from routers import matcheo_debug as matcheo_debug_router
+    app.include_router(matcheo_debug_router.router, prefix="/api")
+else:
+    print("⏭️ /api/matcheo-debug deshabilitado")
 
 # Static
 app.mount("/images", StaticFiles(directory="static/images"), name="images")
@@ -84,7 +96,6 @@ app.mount("/images", StaticFiles(directory="static/images"), name="images")
 origins = [
     "http://localhost:8080",
     "http://127.0.0.1:8080",
-
 ]
 app.add_middleware(
     CORSMiddleware,

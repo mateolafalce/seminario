@@ -19,14 +19,6 @@ def ensure_notif_indexes():
     ttl_days = int(os.getenv("NOTIF_TTL_DAYS", "90"))
     db_client.notif_logs.create_index([("created_at", 1)], expireAfterSeconds=ttl_days * 24 * 3600)
 
-def ensure_reservas_slot_unique_index():
-    """Único por (cancha, fecha, hora_inicio) para evitar duplicados por concurrencia."""
-    db_client.reservas.create_index(
-        [("cancha", 1), ("fecha", 1), ("hora_inicio", 1)],
-        unique=True,
-        name="uniq_slot"
-    )
-
 def get_notified_users(reserva_id: ObjectId) -> Set[ObjectId]:
     cur = db_client.notif_logs.find(
         {"reserva": reserva_id, "status": "sent"},
@@ -83,6 +75,10 @@ def log_notifications(reserva_id: ObjectId, origen: ObjectId, destinatarios: Ite
         return len(ops) - sum(1 for e in bwe.details.get("writeErrors", []) if e.get("code") == 11000)
 
 def ensure_unique_slot_index():
+    """
+    Asegura índice único en (cancha, fecha, hora_inicio).
+    Si existe sin unique, lo migra; si no existe, lo crea.
+    """
     coll = db_client.reservas
     keys = [("cancha", 1), ("fecha", 1), ("hora_inicio", 1)]
     desired_name = "uniq_slot"
