@@ -1,297 +1,364 @@
-// src/pages/MisReservas.jsx
-import React, { useState, useEffect, useContext, useMemo, useCallback } from 'react';
-import { AuthContext } from '../context/AuthContext';
-import Button from '../components/common/Button/Button';
-import Modal from '../components/common/Modal/Modal';
-import { FiUsers, FiStar, FiCalendar, FiClock, FiList } from 'react-icons/fi';
-import FormularioReseña from '../components/usuarios/FormularioResenias';
-import ReservaCard, { EmptyState } from '../components/common/Cards/CardReserva';
+import { useContext, useEffect, useState } from "react";
+import { FiCheck } from "react-icons/fi";
+// import { generarHorarios } from "../components/usuarios/ReservaTabla";
+import Button from "../components/common/Button/Button";
 import MessageConfirm from '../components/common/Confirm/MessageConfirm';
-import { safeToast } from '../utils/apiHelpers';
-import backendClient from '../services/backendClient';           // 👈 nuevo
+import backendClient from '../services/backendClient';
+import { safeToast, errorToast, successToast } from '../utils/apiHelpers';
+import { AuthContext } from '../context/AuthContext';
 
-const ACCENT = '#FFC107';
-const cn = (...x) => x.filter(Boolean).join(' ');
+const diasSemana = ["Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado", "Domingo"];
+// const horariosDisponibles = generarHorarios();
+const LIMITE_PREFS = 7;
 
-function TabButton({ active, onClick, icon, label, count }) {
+const cx = (...c) => c.filter(Boolean).join(" ");
+
+const Card = ({ className, children }) => (
+  <div className={cx("rounded-xl border border-white/10 bg-white/[0.05] p-5 sm:p-6", className)}>
+    {children}
+  </div>
+);
+
+const SectionTitle = ({ children }) => (
+  <h3 className="text-base sm:text-lg font-semibold text-white mb-3">{children}</h3>
+);
+
+function Chip({ active, children, onClick }) {
   return (
     <button
+      type="button"
+      aria-pressed={active}
       onClick={onClick}
-      className={cn('relative pb-3 text-sm font-medium transition',
-        active ? 'text-white' : 'text-white/60 hover:text-white')}
+      className={cx(
+        "inline-flex items-center gap-2 rounded-full px-3 py-1.5 text-sm transition",
+        "ring-1 focus:outline-none focus-visible:ring-2",
+        active
+          ? "!bg-[#eaff00] !text-[#0b1220] ring-[#eaff00]/60"
+          : "bg-white/5 text-slate-200 ring-white/10 hover:bg-white/10"
+      )}
     >
-      <span className="inline-flex items-center gap-2">
-        {icon} {label}
-        <span className="rounded-full bg-white/10 px-2 text-xs">{count}</span>
+      <span
+        className={cx(
+          "grid place-items-center h-4 w-4 rounded-full border",
+          active ? "border-[#0b1220]" : "border-white/20"
+        )}
+      >
+        {active ? <FiCheck size={12} /> : null}
       </span>
-      {active && <span className="absolute -bottom-[1px] left-0 right-0 h-0.5" style={{ backgroundColor: ACCENT }} />}
+      {children}
     </button>
   );
 }
 
-function MisReservas() {
-  const { isAuthenticated, user } = useContext(AuthContext);
+/* ------------------------------------------
+   Utils (presets simples)
+------------------------------------------- */
+const parseHour = (bloque) => Number((String(bloque).split("-")[0] || "00:00").split(":")[0] || 0);
+const gruposHorarios = (lista) => {
+  const m = [], t = [], n = [];
+  lista.forEach((h) => {
+    const hh = parseHour(h);
+    if (hh < 12) m.push(h);
+    else if (hh < 18) t.push(h);
+    else n.push(h);
+  });
+  return { m, t, n };
+};
 
-  const [vista, setVista] = useState('proximos');
-  const [proximasReservas, setProximasReservas] = useState([]);
-  const [historial, setHistorial] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [errorMsg, setErrorMsg] = useState('');
-
-  // jugadores / calificación
-  const [modalJugadoresAbierto, setModalJugadoresAbierto] = useState(false);
-  const [jugadoresReserva, setJugadoresReserva] = useState([]);
-  const [reservaSeleccionada, setReservaSeleccionada] = useState(null);
-  const [loadingJugadores, setLoadingJugadores] = useState(false);
-  const [modalCalificacionAbierto, setModalCalificacionAbierto] = useState(false);
-  const [jugadorSeleccionado, setJugadorSeleccionado] = useState(null);
-  const [detalleReserva, setDetalleReserva] = useState(null);
-
-  // Confirmación al cancelar
+/* ------------------------------------------
+   Componente
+------------------------------------------- */
+export default function PreferenciasUsuario() {
+  const { habilitado, loading } = useContext(AuthContext);
+  const [preferencias, setPreferencias] = useState({ dias: [], horarios: [], canchas: [] });
+  const [preferenciasGuardadas, setPreferenciasGuardadas] = useState([]);
+  const [preferenciaEditar, setPreferenciaEditar] = useState(null);
+  const [canchasDisponibles, setCanchasDisponibles] = useState([]);
+  const [horariosDisponibles, setHorariosDisponibles] = useState([]);
+  const [loadingCanchas, setLoadingCanchas] = useState(true);
   const [confirmData, setConfirmData] = useState({ open: false, id: null });
 
-  // 🔧 Centralizamos la carga en una función reutilizable
-  const cargarListas = useCallback(async (signal) => {
-    if (!isAuthenticated) return;
-    setLoading(true);
-    setErrorMsg('');
-    try {
-      const [listaProx, listaHist] = await Promise.all([
-        backendClient.get('reservas/mis-reservas', {
-          estados: 'Reservada,Confirmada',
-          incluir_pasadas: 'false',
-        }, { signal }),
-        backendClient.get('reservas/mis-reservas', {
-          estados: 'Confirmada,Completada,Cancelada',
-          incluir_pasadas: 'true',
-        }, { signal }),
-      ]);
-
-      setProximasReservas(Array.isArray(listaProx) ? listaProx : []);
-      setHistorial(Array.isArray(listaHist) ? listaHist : []);
-    } catch (e) {
-      if (signal?.aborted) return;
-      const msg = e?.message || 'No se pudieron cargar tus reservas.';
-      setErrorMsg(msg);
-      safeToast(msg, '#F43F5E');
-    } finally {
-      if (!signal?.aborted) setLoading(false);
-    }
-  }, [isAuthenticated]);
-
-  // Carga inicial usando la función
+  // Cargar canchas desde el backend
   useEffect(() => {
-    const ac = new AbortController();
-    cargarListas(ac.signal);
-    return () => ac.abort();
-  }, [cargarListas]);
+    const fetchCanchas = async () => {
+      try {
+        const data = await backendClient.get('canchas/listar');
+        const nombres = (data || []).map(c => c?.nombre).filter(Boolean);
+        setCanchasDisponibles([...new Set(nombres)].sort((a, b) => a.localeCompare(b)));
+      } catch (error) {
+        errorToast("Error al cargar las canchas");
+        setCanchasDisponibles([]);
+      } finally {
+        setLoadingCanchas(false);
+      }
+    };
+    fetchCanchas();
+  }, []);
 
-  async function handleConfirmar(id) {
-    try {
-      const data = await backendClient.post(`reservas/confirmar/${id}`); // POST /api/reservas/confirmar/:id
-      safeToast(data?.msg || 'Asistencia confirmada.');
-      await cargarListas();
-    } catch (e) {
-      safeToast(e?.message || 'No se pudo confirmar', '#F43F5E');
+  // Cargar horarios desde el backend
+  useEffect(() => {
+    let alive = true;
+    (async () => {
+      try {
+        const data = await backendClient.get('horarios/listar');
+        const arr = Array.isArray(data) ? data.map(h => (h?.hora ?? h)).filter(Boolean) : [];
+        if (alive) setHorariosDisponibles(arr);
+      } catch {
+        if (alive) setHorariosDisponibles([]);
+      }
+    })();
+    return () => { alive = false; };
+  }, []);
+
+  // cargar preferencias guardadas
+  useEffect(() => {
+    if (loading) return;           // esperar a /me
+    if (!habilitado) return;       // si no está habilitado, no pegues al endpoint
+    backendClient.get('preferencias/obtener')
+      .then(setPreferenciasGuardadas)
+      .catch(() => {});
+  }, [loading, habilitado]);
+
+  const reachedLimit = !preferenciaEditar && preferenciasGuardadas.length >= LIMITE_PREFS;
+
+  const handleToggle = (key, item) => {
+    setPreferencias((prev) => ({
+      ...prev,
+      [key]: prev[key].includes(item) ? prev[key].filter((i) => i !== item) : [...prev[key], item],
+    }));
+  };
+
+  const toggleBulk = (key, list) => {
+    setPreferencias(prev => {
+      const prevSet = new Set(prev[key]);
+      const allSelected = list.every(i => prevSet.has(i));
+      const next = new Set(prev[key]);
+
+      if (allSelected) list.forEach(i => next.delete(i));
+      else            list.forEach(i => next.add(i));
+
+      return { ...prev, [key]: Array.from(next) };
+    });
+  };
+
+  const resetConstructor = () => setPreferencias({ dias: [], horarios: [], canchas: [] });
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+
+    if (!preferencias.dias.length || !preferencias.horarios.length || !preferencias.canchas.length) {
+      errorToast("Seleccioná al menos un día, un horario y una cancha.");
+      return;
     }
-  }
 
-  async function handleVerJugadores(reserva) {
-    setReservaSeleccionada(reserva);
-    setLoadingJugadores(true);
-    setModalJugadoresAbierto(true);
-    const ac = new AbortController();
+    const isEditing = !!preferenciaEditar;
+    
     try {
-      const detalle = await backendClient.get('reservas/detalle', {
-        cancha: reserva.cancha,
-        horario: reserva.horario,
-        fecha: reserva.fecha,
-        ...(user?.id ? { usuario_id: user.id } : {}),
-      }, { signal: ac.signal });
-      setDetalleReserva(detalle);
-      const usuarios = (detalle?.usuarios || [])
-        .filter(u => u.usuario_id !== user?.id)
-        .map(u => ({
-          _id: u.usuario_id,
-          nombre: u.nombre,
-          apellido: u.apellido,
-          username: u.username || '',
-          calificado: !!u.calificado,
-        }));
-      setJugadoresReserva(usuarios);
-    } catch (e) {
-      if (ac.signal.aborted) return;
-      safeToast(e?.message || 'No se pudieron obtener los jugadores', '#F43F5E');
-      setJugadoresReserva([]);
-    } finally {
-      setLoadingJugadores(false);
+      if (isEditing) {
+        await backendClient.put(`preferencias/modificar/${preferenciaEditar.id}`, preferencias);
+      } else {
+        await backendClient.post('preferencias/guardar', preferencias);
+      }
+
+      successToast(isEditing ? "Preferencia actualizada" : "Preferencias guardadas");
+      resetConstructor();
+      setPreferenciaEditar(null);
+
+      const data = await backendClient.get('preferencias/obtener');
+      setPreferenciasGuardadas(data);
+    } catch (error) {
+      errorToast(error.message || "Error desconocido");
     }
-  }
+  };
 
-  function handleCalificarJugador(j) { setJugadorSeleccionado(j); setModalCalificacionAbierto(true); }
-  function handleReseñaExitosa() {
-    setJugadoresReserva(prev => prev.map(x => x._id === jugadorSeleccionado._id ? { ...x, calificado: true } : x));
-    setModalCalificacionAbierto(false);
-    setJugadorSeleccionado(null);
-  }
+  const handleModificarClick = (pref) => {
+    setPreferenciaEditar(pref);
+    setPreferencias({ dias: pref.dias, horarios: pref.horarios, canchas: pref.canchas });
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  };
 
-  const counts = useMemo(() => ({
-    proximos: proximasReservas.length,
-    historial: historial.length
-  }), [proximasReservas.length, historial.length]);
+  const handleCancelEdit = () => {
+    setPreferenciaEditar(null);
+    resetConstructor();
+  };
 
-  if (!isAuthenticated) {
+
+
+  const { m, t, n } = gruposHorarios(horariosDisponibles);
+  const presetLaborables = ["Lunes", "Martes", "Miércoles", "Jueves", "Viernes"];
+  const presetFinde = ["Sábado", "Domingo"];
+
+  if (!habilitado) {
     return (
-      <div className="min-h-[60vh] grid place-items-center px-4">
-        <p className="text-red-400">Debes iniciar sesión para ver tus reservas.</p>
+      <div className="w-full max-w-3xl mx-auto px-4 py-8">
+        <Card className="text-center">
+          <p className="text-rose-300 font-medium">
+            Debes estar habilitado para poder elegir tus preferencias.
+          </p>
+        </Card>
       </div>
     );
   }
 
-  function handleCancelar(id) { setConfirmData({ open: true, id }); }
+  
+  function handleEliminar(id) {
+    setConfirmData({ open: true, id });
+  }
 
-  async function confirmarCancelacion() {
+  // Si confirma la eliminación
+  async function confirmarEliminar() {
     const id = confirmData.id;
     setConfirmData({ open: false, id: null });
+
     try {
-      const data = await backendClient.delete(`reservas/cancelar/${id}`); // DELETE /api/reservas/cancelar/:id
-      safeToast(data?.msg || 'Reserva cancelada.');
-      await cargarListas();
-    } catch (e) {
-      safeToast(e?.message || 'No se pudo cancelar', '#F43F5E');
+      await backendClient.delete(`preferencias/eliminar/${id}`);
+      successToast("Preferencia eliminada.");
+      setPreferenciasGuardadas((prev) => prev.filter((p) => p.id !== id));
+    } catch (error) {
+      errorToast(error.message || "Error desconocido");
     }
   }
-  function cancelarAccion() { setConfirmData({ open: false, id: null }); }
+
+  function cancelarAccion() {
+    setConfirmData({ open: false, id: null });
+  }
 
   return (
-    <div className="min-h-[70vh] py-8 px-4">
-      <div className="mx-auto w-full max-w-5xl">
-        {/* Tabs */}
-        <div className="mb-8 flex items-center justify-between gap-4 border-b border-white/10">
-          <div className="flex gap-6">
-            <TabButton active={vista === 'proximos'} onClick={() => setVista('proximos')} icon={<FiCalendar />} label="Próximas" count={counts.proximos} />
-            <TabButton active={vista === 'historial'} onClick={() => setVista('historial')} icon={<FiList />} label="Historial" count={counts.historial} />
-          </div>
+    <div className="w-full max-w-3xl mx-auto px-4 py-8">
+      {/* DÍAS */}
+      <Card>
+        <SectionTitle>Días</SectionTitle>
+        <div className="pt- mb-3 flex flex-wrap gap-2">
+          <button
+            onClick={() => toggleBulk("dias", presetLaborables)}
+            className="text-xs rounded-full px-3 py-1 ring-1 ring-white/10 text-slate-200 hover:bg-white/10"
+          >
+            Laborables
+          </button>
+          <button
+            onClick={() => toggleBulk("dias", presetFinde)}
+            className="text-xs rounded-full px-3 py-1 ring-1 ring-white/10 text-slate-200 hover:bg-white/10"
+          >
+            Finde
+          </button>
         </div>
+        <div className="flex flex-wrap gap-2">
+          {diasSemana.map((d) => (
+            <Chip key={d} active={preferencias.dias.includes(d)} onClick={() => handleToggle("dias", d)}>
+              {d}
+            </Chip>
+          ))}
+        </div>
+      </Card>
 
-        {errorMsg && (
-          <div className="mb-6 rounded-lg border border-rose-500/30 bg-rose-500/10 p-4 text-rose-200">
-            {errorMsg}
+      {/* HORARIOS */}
+      <Card className="mt-6">
+        <SectionTitle>Horarios</SectionTitle>
+        <div className="mb-3 flex flex-wrap gap-2 text-xs text-slate-300">
+          <button
+            onClick={() => toggleBulk("horarios", m)}
+            className="rounded-full px-3 py-1 ring-1 ring-white/10 hover:bg-white/10"
+          >
+            Mañana
+          </button>
+          <button
+            onClick={() => toggleBulk("horarios", t)}
+            className="rounded-full px-3 py-1 ring-1 ring-white/10 hover:bg-white/10"
+          >
+            Tarde
+          </button>
+          <button
+            onClick={() => toggleBulk("horarios", n)}
+            className="rounded-full px-3 py-1 ring-1 ring-white/10 hover:bg-white/10"
+          >
+            Noche
+          </button>
+        </div>
+        <div className="flex flex-wrap gap-2">
+          {horariosDisponibles.map((h) => (
+            <Chip key={h} active={preferencias.horarios.includes(h)} onClick={() => handleToggle("horarios", h)}>
+              {h}
+            </Chip>
+          ))}
+        </div>
+      </Card>
+
+      {/* CANCHAS */}
+      <Card className="mt-6">
+        <SectionTitle>Canchas</SectionTitle>
+        {loadingCanchas ? (
+          <p className="text-slate-300 text-sm">Cargando canchas...</p>
+        ) : canchasDisponibles.length === 0 ? (
+          <p className="text-slate-300 text-sm">No hay canchas disponibles.</p>
+        ) : (
+          <div className="flex flex-wrap gap-2">
+            {canchasDisponibles.map((c) => (
+              <Chip key={c} active={preferencias.canchas.includes(c)} onClick={() => handleToggle("canchas", c)}>
+                {c}
+              </Chip>
+            ))}
           </div>
         )}
+      </Card>
 
-        {/* Listas */}
-        {loading ? (
-          <p className="text-white/70">Cargando…</p>
-        ) : vista === 'proximos' ? (
-          proximasReservas.length === 0 ? (
-            <div className="rounded-xl border border-white/10 bg-white/5 p-8 text-center max-w-3xl mx-auto">
-              <EmptyState />
-            </div>
-          ) : (
-            <ul className="grid grid-cols-1 gap-8 lg:gap-0 max-w-5xl w-full">
-              {proximasReservas.map((reserva) => (
-                <li key={reserva._id}>
-                  <ReservaCard
-                    reserva={reserva}
-                    mode="proxima"
-                    onConfirmarAsistencia={handleConfirmar}
-                    onCancelar={handleCancelar}
-                  />
-                </li>
-              ))}
-            </ul>
-          )
-        ) : historial.length === 0 ? (
-          <div className="rounded-xl border border-white/10 bg-white/5 p-8 text-center max-w-3xl mx-auto">
-            <EmptyState />
-          </div>
+      {/* Acciones */}
+      <div className="mt-6 grid grid-cols-2 gap-2">
+        <Button
+          texto={preferenciaEditar ? "Actualizar" : "Guardar"}
+          onClick={handleSubmit}
+          className="w-full"
+          disabled={
+            reachedLimit || loadingCanchas ||
+            !preferencias.dias.length || !preferencias.horarios.length || !preferencias.canchas.length
+          }
+        />
+        {preferenciaEditar ? (
+          <Button texto="Cancelar" variant="secondary" onClick={handleCancelEdit} className="w-full" />
         ) : (
-          <ul className="grid grid-cols-1 gap-8 lg:gap-0 max-w-5xl w-full">
-            {historial.map((reserva) => (
-              <li key={reserva._id}>
-                <ReservaCard
-                  reserva={reserva}
-                  mode="historial"
-                  onVerJugadores={handleVerJugadores}
-                />
-              </li>
+          <Button texto="Limpiar" variant="secondary" onClick={resetConstructor} className="w-full" />
+        )}
+      </div>
+      {reachedLimit && (
+        <p className="mt-3 text-xs text-amber-300">
+          Límite de {LIMITE_PREFS} preferencias alcanzado. Eliminá alguna para crear otra.
+        </p>
+      )}
+
+      {/* Guardadas */}
+      <div className="mt-10">
+        <h2 className="text-lg font-semibold text-white mb-3">Guardadas</h2>
+        {preferenciasGuardadas.length === 0 ? (
+          <Card className="text-center">
+            <p className="text-slate-300">No tenés preferencias guardadas todavía.</p>
+          </Card>
+        ) : (
+          <ul className="space-y-3">
+            {preferenciasGuardadas.map((pref) => (
+              <Card key={pref.id} className="p-4">
+                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                  <div className="text-sm text-slate-300">
+                    <span className="text-slate-200 font-medium">Días:</span> {pref.dias.join(", ")} •{" "}
+                    <span className="text-slate-200 font-medium">Horarios:</span> {pref.horarios.join(", ")} •{" "}
+                    <span className="text-slate-200 font-medium">Canchas:</span> {pref.canchas.join(", ")}
+                  </div>
+                  <div className="flex gap-2">
+                    <Button texto="Modificar" variant="yellow" onClick={() => handleModificarClick(pref)} />
+                    <Button texto="Eliminar" variant="danger" onClick={() => handleEliminar(pref.id)} />
+                  </div>
+                </div>
+              </Card>
             ))}
           </ul>
         )}
       </div>
-
-      {/* Modal Jugadores */}
-      <Modal isOpen={modalJugadoresAbierto} onClose={() => setModalJugadoresAbierto(false)}>
-        <div className="p-4 sm:p-6">
-          <h3 className="text-xl font-bold text-white mb-1 flex items-center gap-2">
-            <FiUsers /> Jugadores
-          </h3>
-          <p className="text-white/60 mb-4 flex items-center gap-3 text-sm">
-            <span className="inline-flex items-center gap-1"><FiCalendar /> {reservaSeleccionada?.fecha}</span>
-            <span className="inline-flex items-center gap-1"><FiClock /> {reservaSeleccionada?.horario}</span>
-            <span>{reservaSeleccionada?.cancha}</span>
-          </p>
-
-          {loadingJugadores ? (
-            <div className="text-white/70">Cargando…</div>
-          ) : jugadoresReserva.length === 0 ? (
-            <p className="text-center text-white/70 py-4">No hay jugadores registrados.</p>
-          ) : (
-            <ul className="divide-y divide-white/10 rounded-lg border border-white/10 overflow-hidden">
-              {jugadoresReserva.map((j) => (
-                <li key={j._id} className="py-3 px-4 flex items-center justify-between">
-                  <div>
-                    <p className="text-white font-medium">{j.nombre} {j.apellido}</p>
-                    {j.username && <p className="text-white/60 text-sm">@{j.username}</p>}
-                  </div>
-                  {j.calificado ? (
-                    <span className="text-emerald-400 text-xs inline-flex items-center gap-1"><FiStar /> Calificado</span>
-                  ) : (
-                    <Button
-                      texto="Calificar"
-                      onClick={() => handleCalificarJugador(j)}
-                      variant="default"
-                      className="!bg-transparent !text-yellow-300 !border !border-yellow-300/40 hover:!bg-yellow-300/10 text-sm py-1"
-                    />
-                  )}
-                </li>
-              ))}
-            </ul>
-          )}
-
-          <div className="mt-4 flex justify-end">
-            <Button texto="Cerrar" onClick={() => setModalJugadoresAbierto(false)} variant="cancelar" />
-          </div>
-        </div>
-      </Modal>
-
-      {/* Modal Calificación */}
-      <Modal isOpen={modalCalificacionAbierto} onClose={() => setModalCalificacionAbierto(false)}>
-        <div className="p-4 sm:p-6">
-          {jugadorSeleccionado ? (
-            <FormularioReseña
-              jugadorAReseñar={jugadorSeleccionado}
-              reservaId={detalleReserva?.reserva_id}
-              onReseñaEnviada={handleReseñaExitosa}
-              onCancelar={() => setModalCalificacionAbierto(false)}
-            />
-          ) : (
-            <div className="text-white/70">Cargando…</div>
-          )}
-        </div>
-      </Modal>
-
       {confirmData.open && (
         <MessageConfirm
           mensaje="¿Seguro que deseas cancelar esta reserva?"
           onClose={cancelarAccion}
-          onConfirm={confirmarCancelacion}
+          onConfirm={confirmarEliminar}
           onCancel={cancelarAccion}
         />
       )}
     </div>
   );
 }
-
-export default MisReservas;

@@ -1,20 +1,11 @@
 import { useContext, useEffect, useState } from "react";
 import { FiCheck } from "react-icons/fi";
-<<<<<<< HEAD
 // import { generarHorarios } from "../components/usuarios/ReservaTabla";
 import Button from "../components/common/Button/Button";
 import MessageConfirm from '../components/common/Confirm/MessageConfirm';
 import backendClient from '../services/backendClient';
 import { safeToast, errorToast, successToast } from '../utils/apiHelpers';
 import { AuthContext } from '../context/AuthContext';
-=======
-import MessageConfirm from '../components/common/Confirm/MessageConfirm';
-
-/* ------------------------------------------
-   Config
-------------------------------------------- */
-const BACKEND_URL = `http://${window.location.hostname}:8000`;
->>>>>>> 0df9d41 (PopUp Implementados)
 
 const diasSemana = ["Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado", "Domingo"];
 // const horariosDisponibles = generarHorarios();
@@ -88,12 +79,6 @@ export default function PreferenciasUsuario() {
   const [confirmData, setConfirmData] = useState({ open: false, id: null });
 
   // Cargar canchas desde el backend
-=======
-    // Confirmación al cancelar
-    const [confirmData, setConfirmData] = useState({ open: false, id: null });
-
-  // cargar guardadas
->>>>>>> 0df9d41 (PopUp Implementados)
   useEffect(() => {
     const fetchCanchas = async () => {
       try {
@@ -221,7 +206,6 @@ export default function PreferenciasUsuario() {
   }
 
   // Si confirma la eliminación
-<<<<<<< HEAD
   async function confirmarEliminar() {
     const id = confirmData.id;
     setConfirmData({ open: false, id: null });
@@ -238,39 +222,6 @@ export default function PreferenciasUsuario() {
   function cancelarAccion() {
     setConfirmData({ open: false, id: null });
   }
-=======
-async function confirmarEliminar() {
-  const id = confirmData.id;
-  setConfirmData({ open: false, id: null });
-
-  const url =
-    window.location.hostname === "localhost"
-      ? `${BACKEND_URL}/api/preferencias/eliminar/${id}`
-      : `/api/preferencias/eliminar/${id}`;
-
-  try {
-    const res = await fetch(url, {
-      method: "DELETE",
-      headers: { Authorization: `Bearer ${localStorage.getItem("accessToken")}` },
-    });
-
-    if (res.ok) {
-      toast(<MiToast mensaje="Preferencia eliminada." color="#eaff00" />);
-      setPreferenciasGuardadas((prev) => prev.filter((p) => p.id !== id));
-    } else {
-      const err = await res.json();
-      toast(<MiToast mensaje={`Error: ${err.detail || "Error desconocido"}`} color="#ef4444" />);
-    }
-  } catch (e) {
-    toast(<MiToast mensaje="Error de conexión." color="#ef4444" />);
-  }
-}
-
-
-function cancelarAccion() {
-  setConfirmData({ open: false, id: null });
-}
->>>>>>> 0df9d41 (PopUp Implementados)
 
   return (
     <div className="w-full max-w-3xl mx-auto px-4 py-8">
@@ -400,7 +351,6 @@ function cancelarAccion() {
           </ul>
         )}
       </div>
-<<<<<<< HEAD
       {confirmData.open && (
         <MessageConfirm
           mensaje="¿Seguro que deseas cancelar esta reserva?"
@@ -409,16 +359,6 @@ function cancelarAccion() {
           onCancel={cancelarAccion}
         />
       )}
-=======
-          {confirmData.open && (
-      <MessageConfirm
-        mensaje="¿Seguro que deseas cancelar esta reserva?"
-        onClose={cancelarAccion}
-        onConfirm={confirmarEliminar}
-        onCancel={cancelarAccion}
-      />
-    )}
->>>>>>> 0df9d41 (PopUp Implementados)
     </div>
   );
 }
