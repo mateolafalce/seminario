@@ -2,7 +2,7 @@ import os
 import math
 import random
 from datetime import datetime
-from typing import List, Dict, Tuple
+from typing import List, Dict, Tuple, Optional
 from collections import defaultdict
 from functools import lru_cache
 
@@ -143,13 +143,13 @@ def get_preference_vector(user_id: str) -> Tuple[List[float], List[float], List[
 
     for p in prefs:
         for d in p.get("dias", []):
-            idx = dias_map.get(str(d)); 
+            idx = dias_map.get(str(d))
             if idx is not None: vd[idx] += 1.0
         for h in p.get("horarios", []):
-            idx = horarios_map.get(str(h));
+            idx = horarios_map.get(str(h))
             if idx is not None: vh[idx] += 1.0
         for c in p.get("canchas", []):
-            idx = canchas_map.get(str(c));
+            idx = canchas_map.get(str(c))
             if idx is not None: vc[idx] += 1.0
 
     n = len(prefs)
@@ -159,6 +159,28 @@ def get_preference_vector(user_id: str) -> Tuple[List[float], List[float], List[
         vc = [x / n for x in vc]
 
     return vd, vh, vc
+
+# ==========================
+# Categorías (4ª dimensión)
+# ==========================
+
+@lru_cache(maxsize=1)
+def get_categorias_max_nivel() -> int:
+    """Devuelve el 'nivel' máximo existente en catálogo de categorías o 0 si no hay."""
+    doc = db_client.categorias.find_one(sort=[("nivel", -1)], projection={"nivel": 1})
+    return int(doc["nivel"]) if doc and "nivel" in doc else 0
+
+def get_user_categoria_nivel(user_id: str) -> Optional[int]:
+    """Devuelve el nivel de categoría del usuario o None si no tiene."""
+    if not ObjectId.is_valid(user_id):
+        return None
+    u = db_client.users.find_one({"_id": ObjectId(user_id)}, {"categoria": 1})
+    if not u or not u.get("categoria"):
+        return None
+    cat = db_client.categorias.find_one({"_id": u["categoria"]}, {"nivel": 1})
+    if not cat or "nivel" not in cat:
+        return None
+    return int(cat["nivel"])
 
 # ==========================
 # Distancias / similitudes
@@ -174,36 +196,82 @@ def d(user_id_1: str, user_id_2: str) -> float:
     dd = sum((a - b) ** 2 for a, b in zip(d1, d2))
     dh = sum((a - b) ** 2 for a, b in zip(h1, h2))
     dc = sum((a - b) ** 2 for a, b in zip(c1, c2))
-    return math.sqrt(dd + dh + dc)
+
+    # --- Categoría (ordinal normalizada a [0,1]) ---
+    cat_max = get_categorias_max_nivel()
+    cat1 = get_user_categoria_nivel(user_id_1)
+    cat2 = get_user_categoria_nivel(user_id_2)
+
+    # Si alguno no tiene categoría -> no penalizamos esa dimensión
+    if cat_max > 0 and cat1 is not None and cat2 is not None:
+        cat_diff_norm = abs(cat1 - cat2) / cat_max  # ∈ [0,1]
+    else:
+        cat_diff_norm = 0.0
+
+    return math.sqrt(dd + dh + dc + (cat_diff_norm ** 2))
 
 @lru_cache(maxsize=1)
 def d_max() -> float:
-    """Cota superior simple para normalizar (nº catálogos)."""
-    return math.sqrt(
+    """Cota superior para normalizar (nº catálogos + 1 por categoría si existe)."""
+    base = (
         db_client.dias.count_documents({}) +
         db_client.horarios.count_documents({}) +
         db_client.canchas.count_documents({})
     )
+    cat_term = 1 if db_client.categorias.count_documents({}) > 0 else 0
+    return math.sqrt(base + cat_term)
 
-def S(user_id_1: str, user_id_2: str) -> float:
-    dist = d(user_id_1, user_id_2)
-    dM = d_max()
-    if dist == float("inf") or dM == 0:
-        return 0.0
-    s = 1 - (dist / dM)
-    return max(0.0, min(1.0, s))
-
-def J(user_id_1: str, user_id_2: str) -> float:
-    """Proporción de partidos de i que fueron con j."""
+# J con suavizado
+def J(user_id_1: str, user_id_2: str, lam: float = 2.0) -> float:
     gj = gi(user_id_1, user_id_2)
     gi_tot = g(user_id_1)
-    return (gj / gi_tot) if gi_tot > 0 else 0.0
+    return gj / (gi_tot + lam)
 
+# S que puede ser None si faltan prefs/categoría
+def S(user_id_1: str, user_id_2: str) -> float | None:
+    d1, h1, c1 = get_preference_vector(user_id_1)
+    d2, h2, c2 = get_preference_vector(user_id_2)
+
+    if (not d1 or not d2):
+        return None
+
+    dd = sum((a - b) ** 2 for a, b in zip(d1, d2))
+    dh = sum((a - b) ** 2 for a, b in zip(h1, h2))
+    dc = sum((a - b) ** 2 for a, b in zip(c1, c2))
+
+    # categoría (si ambos tienen nivel)
+    def get_user_nivel(uid):
+        nivel = get_user_categoria_nivel(uid)
+        return nivel if nivel is not None else None
+
+    nivel_i = get_user_nivel(user_id_1)
+    nivel_j = get_user_nivel(user_id_2)
+    dcat = 0.0
+    contrib_cat = 0
+    if nivel_i is not None and nivel_j is not None:
+        NIVEL_MAX = 100.0
+        dcat = (abs(nivel_i - nivel_j) / NIVEL_MAX) ** 2
+        contrib_cat = 1
+
+    d_total = math.sqrt(dd + dh + dc + dcat)
+    dM = math.sqrt(
+        db_client.dias.count_documents({}) +
+        db_client.horarios.count_documents({}) +
+        db_client.canchas.count_documents({}) +
+        contrib_cat
+    )
+    if dM == 0:
+        return None
+    s = 1 - (d_total / dM)
+    return max(0.0, min(1.0, s))
+
+# A que ignora S si no existe
 def A(user_id_1: str, user_id_2: str, alpha: float = 0.5, beta: float = 0.5) -> float:
-    """Score combinado A = α·S + β·J (α+β=1)."""
-    if abs(alpha + beta - 1.0) > 1e-6:
-        raise ValueError("alpha + beta debe ser igual a 1")
-    return alpha * S(user_id_1, user_id_2) + beta * J(user_id_1, user_id_2)
+    s = S(user_id_1, user_id_2)
+    j = J(user_id_1, user_id_2)
+    if s is None:
+        return j
+    return alpha * s + beta * j
 
 # ==========================
 # Pesos (tabla pesos) y top matches
@@ -498,10 +566,9 @@ def get_user_weights(user_id_1: str, user_id_2: str) -> Tuple[float, float, floa
     return 0.5, 0.5, 0.0
 
 def invalidate_catalog_caches():
-    """Si cambiás catálogos (días/horarios/canchas), podés limpiar caches."""
+    """Si cambiás catálogos (días/horarios/canchas/categorías), podés limpiar caches."""
     get_dias_map.cache_clear()
     get_horarios_map.cache_clear()
     get_canchas_map.cache_clear()
+    get_categorias_max_nivel.cache_clear()
     d_max.cache_clear()
-    
-#Falta testear bien este algoritmo u.u

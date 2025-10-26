@@ -1,4 +1,3 @@
-# backend/FastAPI/routers/users_b.py
 from fastapi import APIRouter, Depends, HTTPException, status, Query, Response
 from fastapi.security import OAuth2PasswordRequestForm
 from passlib.context import CryptContext

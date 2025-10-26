@@ -49,9 +49,10 @@ function Register() {
       tipo: "text", 
       placeholder: "Nombre de usuario", 
       autoComplete: "username",
-      minLength: 3,
+      minLength: 1,
       maxLength: 30,
       required: true
+      // minLength: 3,
     },
     { 
       nombre: "password", 
@@ -59,8 +60,9 @@ function Register() {
       tipo: "password", 
       placeholder: "Contraseña", 
       autoComplete: "new-password",
-      minLength: 6,
+      minLength: 1,
       required: true
+      // minLength: 6,
     },
     { 
       nombre: "repeatPassword", 
@@ -68,18 +70,20 @@ function Register() {
       tipo: "password", 
       placeholder: "Repite tu contraseña", 
       autoComplete: "new-password",
-      minLength: 6,
+      minLength: 1,
       required: true
+      // minLength: 6,
     },
     { 
       nombre: "dni", 
-      etiqueta: "DNI (7–8 dígitos)", 
+      etiqueta: "DNI (1–10 dígitos)", 
       tipo: "text", 
       placeholder: "DNI", 
       inputMode: "numeric", 
-      pattern: "\\d{7,8}", 
-      maxLength: 8,
+      maxLength: 10,
       required: true
+      // pattern: "\\d{7,8}", 
+      // maxLength: 8,
     },
   ];
 
@@ -95,10 +99,13 @@ function Register() {
     if (!valores.nombre?.trim()) errs.nombre = "Requerido";
     if (!valores.apellido?.trim()) errs.apellido = "Requerido";
     if (!valores.email?.trim()) errs.email = "Requerido";
-    if (!valores.username || valores.username.length < 3) errs.username = "Mínimo 3 caracteres";
-    if (!valores.password || valores.password.length < 6) errs.password = "Mínimo 6 caracteres";
+    if (!valores.username || valores.username.length < 1) errs.username = "Requerido";
+    // if (!valores.username || valores.username.length < 3) errs.username = "Mínimo 3 caracteres";
+    if (!valores.password || valores.password.length < 1) errs.password = "Requerido";
+    // if (!valores.password || valores.password.length < 6) errs.password = "Mínimo 6 caracteres";
     if (valores.password !== valores.repeatPassword) errs.repeatPassword = "Las contraseñas no coinciden";
-    if (dni.length < 7 || dni.length > 8) errs.dni = "DNI inválido: 7 u 8 dígitos";
+    if (dni.length < 1 || dni.length > 10) errs.dni = "DNI inválido: 1 a 10 dígitos";
+    // if (dni.length < 7 || dni.length > 8) errs.dni = "DNI inválido: 7 u 8 dígitos";
 
     if (Object.keys(errs).length) {
       setErrores(errs);

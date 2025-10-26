@@ -1,4 +1,3 @@
-// App.jsx
 import './index.css';
 import { BrowserRouter as Router, Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import React, { useState, useEffect, useContext, useMemo } from 'react';
@@ -16,18 +15,23 @@ import Habilitado from './pages/Habilitado';
 import MisDatos from './pages/MisDatos';
 import CargarResultados from './pages/CargarResultados';
 import ReseniasPublicas from './pages/ReseniasPublicas';
+import TabAlgoritmo from './pages/TabAlgoritmo';
 
 import { ToastContainer } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 
 import AuthProvider, { AuthContext } from './context/AuthContext';
+import AdminRoute from './components/admin/AdminRoute';
 
 // Permisos (modelo nuevo basado en roles/permissions)
 import {
   canManageUsers,
   canManageCanchas,
   canManageReservas,
-  canViewStatistics
+  canManageHorarios,
+  canManageCategorias,
+  canViewStatistics,
+  canUseAlgoritmo,
 } from './utils/permissions';
 
 // PanelControl y tabs hijas
@@ -178,7 +182,7 @@ function AppWithTimeout() {
           <Route
             path="horarios"
             element={
-              <PermissionRoute check={canManageCanchas}>
+              <PermissionRoute check={canManageHorarios}>
                 <TabHorarios />
               </PermissionRoute>
             }
@@ -187,7 +191,7 @@ function AppWithTimeout() {
           <Route
             path="categorias"
             element={
-              <PermissionRoute check={canManageCanchas}>
+              <PermissionRoute check={canManageCategorias}>
                 <TabCategorias />
               </PermissionRoute>
             }
@@ -202,15 +206,14 @@ function AppWithTimeout() {
             }
           />
 
-          {/* Si agregás estadísticas:
           <Route
-            path="estadisticas"
+            path="algoritmo"
             element={
-              <PermissionRoute check={canViewStatistics}>
-                <Estadisticas />
+              <PermissionRoute check={canUseAlgoritmo}>
+                <TabAlgoritmo />
               </PermissionRoute>
             }
-          /> */}
+          />
         </Route>
 
         {/* Catch-all */}

@@ -1,4 +1,3 @@
-# backend/FastAPI/routers/horarios.py
 from fastapi import APIRouter, Depends, HTTPException, Query
 from bson import ObjectId
 from db.client import db_client

@@ -9,6 +9,7 @@ import uuid
 from routers import users_b, admin_users, reservas, preferencias, canchas, horarios, resenias, resenias_publicas
 from routers import reservas_resultados  # <- nuevo
 from routers import categorias
+from routers import algoritmo
 from services.scheduler import start_scheduler, shutdown_scheduler
 from services.notifs import ensure_notif_indexes, ensure_unique_slot_index
 from routers.reservas import cerrar_reservas_vencidas
@@ -81,6 +82,7 @@ app.include_router(resenias.router, prefix="/api")
 app.include_router(resenias_publicas.router, prefix="/api")
 app.include_router(reservas_resultados.router, prefix="/api")
 app.include_router(categorias.router, prefix="/api")
+app.include_router(algoritmo.router, prefix="/api")
 
 # 📴 Debug deshabilitado por defecto
 if ENABLE_MATCHEO_DEBUG:
