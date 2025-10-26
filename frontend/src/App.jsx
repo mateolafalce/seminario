@@ -1,6 +1,6 @@
 import './index.css';
 import { BrowserRouter as Router, Routes, Route, Navigate, useLocation } from 'react-router-dom';
-import React, { useState, useEffect, useContext, useMemo } from 'react';
+import { useState, useEffect, useContext, useMemo } from 'react';
 
 import Login from './pages/Login';
 import Register from './pages/Register';
