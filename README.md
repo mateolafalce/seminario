@@ -31,7 +31,7 @@ sudo apt install python3-pip
 ```
 
 ```bash
-cd backend/FastAPI/
+cd backend/
 ```
 
 ```bash
