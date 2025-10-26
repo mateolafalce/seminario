@@ -1,48 +1,53 @@
-/**
- * Una función de fábrica que crea un wrapper de fetch configurado.
- * @param {function} handleUnauthorized - La función a llamar cuando se recibe un 401.
- * @returns {function} Una función `apiFetch` que se comporta como fetch pero con manejo de auth.
- */
 export const createApi = (handleUnauthorized) => {
-  const BACKEND_URL = `http://${window.location.hostname}:8000`;
+  const BASE = import.meta.env.VITE_BACKEND_URL || '/api';
 
-  /**
-   * Wrapper para la API fetch que añade automáticamente el token de autorización
-   * y maneja globalmente los errores 401 (Unauthorized).
-   * @param {string} endpoint - El endpoint de la API a llamar (ej. '/api/reservas/mis-reservas').
-   * @param {object} options - Opciones de configuración para fetch (method, body, etc.).
-   * @returns {Promise<Response>} La respuesta de la API.
-   */
-  const apiFetch = async (endpoint, options = {}) => {
-    const token = localStorage.getItem('accessToken');
-    const url = window.location.hostname === "localhost"
-      ? `${BACKEND_URL}${endpoint}`
-      : endpoint;
+  function getCookie(name) {
+    const cookies = (document.cookie || '').split('; ');
+    for (const c of cookies) {
+      const i = c.indexOf('=');
+      if (i === -1) continue;
+      const key = decodeURIComponent(c.slice(0, i));
+      if (key === name) return decodeURIComponent(c.slice(i + 1));
+    }
+    return null;
+  }
 
-    // Configuración de los headers
-    const headers = {
-      'Content-Type': 'application/json',
-      ...options.headers,
-    };
+  function buildUrl(path, params) {
+    const clean = path.startsWith('http') ? path : `${BASE}/${path.replace(/^\/+/, '')}`;
+    if (!params) return clean;
+    const qs = new URLSearchParams(params);
+    return `${clean}?${qs.toString()}`;
+  }
 
-    if (token) {
-      headers['Authorization'] = `Bearer ${token}`;
+  async function requestRaw(path, { method = 'GET', headers = {}, body, params } = {}) {
+    const opts = { method, credentials: 'include', headers: { ...headers } };
+
+    // CSRF solo en mutaciones
+    if (!['GET','HEAD','OPTIONS'].includes(method)) {
+      const csrf = getCookie('csrf_token');
+      if (csrf) opts.headers['X-CSRF-Token'] = csrf;
+
+      if (body && !(body instanceof FormData)) {
+        opts.headers['Content-Type'] = 'application/json';
+        opts.body = JSON.stringify(body);
+      } else if (body) {
+        opts.body = body; // FormData u otro
+      }
     }
 
-    // Realizar la petición
-    const response = await fetch(url, {
-      ...options,
-      headers,
-    });
+    const res = await fetch(buildUrl(path, params), opts);
 
-    // --- MANEJO CENTRALIZADO DE SESIÓN EXPIRADA ---
-    if (response.status === 401) {
-      handleUnauthorized();
-      return response; // No throw, solo manejo global
+    if (res.status === 401 && typeof handleUnauthorized === 'function') {
+      try { handleUnauthorized(); } catch {}
     }
+    return res; // usa tus helpers para parsear
+  }
 
-    return response;
+  return {
+    get:  (path, params) => requestRaw(path, { method: 'GET', params }),
+    post: (path, data)   => requestRaw(path, { method: 'POST', body: data }),
+    put:  (path, data)   => requestRaw(path, { method: 'PUT',  body: data }),
+    del:  (path)         => requestRaw(path, { method: 'DELETE' }),
+    request: requestRaw,
   };
-
-  return apiFetch;
 };

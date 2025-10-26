@@ -2,8 +2,11 @@ import React, { useState, useEffect, useContext, useMemo } from "react";
 import { AuthContext } from "../context/AuthContext";
 import { toast } from "react-toastify";
 import MiToast from "../components/common/Toast/MiToast";
-import ReservaCard from "../components/common/Cards/CardReserva"; 
-import { FiCheckCircle } from "react-icons/fi";
+import ReservaCard from "../components/common/Cards/CardReserva";
+import resultadosApi from "../services/resultadosApi";
+import backendClient from "../services/backendClient";
+import { canManageReservas } from '../utils/permissions';
+import { Navigate } from 'react-router-dom';
 
 // --- helpers
 const generarFechas = () => {
@@ -25,15 +28,15 @@ const generarFechas = () => {
   return fechas;
 };
 
-// Función para derivar la cantidad real de jugadores
+// Derivar cantidad de jugadores
 const derivePlayersCount = (r) => {
   if (Array.isArray(r.usuarios)) {
-    const confirmados = r.usuarios.filter(u => u?.confirmacion === true).length;
+    const confirmados = r.usuarios.filter(u => u?.confirmado === true).length;
     if (confirmados > 0) return confirmados;
     if (r.usuarios.length > 0) return r.usuarios.length;
   }
   if (Array.isArray(r.jugadores)) {
-    const confirmados = r.jugadores.filter(u => u?.confirmacion === true).length;
+    const confirmados = r.jugadores.filter(u => u?.confirmado === true).length;
     if (confirmados > 0) return confirmados;
     if (r.jugadores.length > 0) return r.jugadores.length;
   }
@@ -46,7 +49,10 @@ const derivePlayersCount = (r) => {
 };
 
 function CargarResultados() {
-  const { isEmpleado, apiFetch, isAuthenticated } = useContext(AuthContext);
+  const { isAuthenticated, roles, permissions } = useContext(AuthContext);
+  const me = { roles, permissions };
+  const puedeCargar = canManageReservas(me) || permissions?.includes('reservas.resultado.cargar');
+
   const fechas7 = useMemo(generarFechas, []);
   const [selectedDate, setSelectedDate] = useState(fechas7[0].value);
 
@@ -56,54 +62,47 @@ function CargarResultados() {
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
 
-  // Solo empleados
-  if (!isAuthenticated || !isEmpleado) {
-    return (
-      <div className="flex flex-col items-center justify-center min-h-[60vh] text-gray-300">
-        <h2 className="text-xl font-bold mb-4">Acceso restringido</h2>
-        <p>Solo empleados pueden cargar resultados.</p>
-      </div>
-    );
-  }
-
+  // 🔧 Hook SIEMPRE llamado: el cuerpo se corta si no hay permisos
   useEffect(() => {
+    // si no tiene acceso, limpiar y salir
+    if (!isAuthenticated || !puedeCargar) {
+      setReservas([]);
+      setSelectedReserva(null);
+      setResultado("");
+      setLoading(false);
+      return;
+    }
+
+    let cancelled = false;
     const fetchReservas = async () => {
       setLoading(true);
       setSelectedReserva(null);
       setResultado("");
       try {
-        const resp = await apiFetch(`/api/reservas/listar?fecha=${selectedDate}`);
-        if (resp.ok) {
-          const data = await resp.json();
-          // OJO con el casing del estado: normalizamos a minúsculas
-          const confirmadas = data.filter(
-            (r) => String(r.estado || "").toLowerCase() === "confirmada"
-          );
-          setReservas(confirmadas);
-        } else {
-          setReservas([]);
-        }
+        // backendClient.get devuelve JSON ya parseado
+        const data = await backendClient.get("reservas/listar", { fecha: selectedDate });
+        const confirmadas = (data || []).filter(
+          (r) => String(r.estado || "").toLowerCase() === "confirmada"
+        );
+        if (!cancelled) setReservas(confirmadas);
       } catch {
-        setReservas([]);
+        if (!cancelled) setReservas([]);
+      } finally {
+        if (!cancelled) setLoading(false);
       }
-      setLoading(false);
     };
     fetchReservas();
-  }, [selectedDate, apiFetch]);
+    return () => { cancelled = true; };
+  }, [selectedDate, isAuthenticated, puedeCargar]);
 
   const handleSelectReserva = async (reserva) => {
     setSelectedReserva(reserva);
-    setResultado(""); // momentáneo
+    setResultado("");
     try {
-      const response = await apiFetch(`/api/empleado/resultado/${reserva._id}`);
-      if (response.ok) {
-        const data = await response.json();
-        setResultado(data.resultado || "");
-        setSelectedReserva({ ...reserva, resultado: data.resultado || "" });
-      } else {
-        setResultado("");
-        setSelectedReserva({ ...reserva, resultado: "" });
-      }
+      const data = await resultadosApi.ver(reserva._id); // <- JSON directo
+      const resTxt = data?.resultado || "";
+      setResultado(resTxt);
+      setSelectedReserva({ ...reserva, resultado: resTxt });
     } catch {
       setResultado("");
       setSelectedReserva({ ...reserva, resultado: "" });
@@ -112,57 +111,26 @@ function CargarResultados() {
 
   const handleCargarResultado = async () => {
     if (!selectedReserva || !resultado.trim()) {
-      toast(
-        <MiToast
-          mensaje="Completa todos los campos"
-          color="var(--color-red-400)"
-        />
-      );
+      toast(<MiToast mensaje="Completa todos los campos" color="var(--color-red-400)" />);
       return;
     }
     setSaving(true);
     try {
-      const resp = await apiFetch("/api/empleado/cargar_resultado", {
-        method: "POST",
-        body: JSON.stringify({
-          reserva_id: selectedReserva._id,
-          resultado: resultado.trim(),
-        }),
-      });
-      if (resp.ok) {
-        toast(
-          <MiToast
-            mensaje="Resultado guardado correctamente"
-            color="var(--color-green-400)"
-          />
-        );
-        // sync en lista y selección
-        setReservas((prev) =>
-          prev.map((r) =>
-            r._id === selectedReserva._id
-              ? { ...r, resultado: resultado.trim() }
-              : r
-          )
-        );
-        setSelectedReserva((prev) =>
-          prev ? { ...prev, resultado: resultado.trim() } : prev
-        );
-      } else {
-        const error = await resp.json();
-        toast(
-          <MiToast
-            mensaje={error.detail || "Error al guardar resultado"}
-            color="var(--color-red-400)"
-          />
-        );
-      }
-    } catch {
-      toast(
-        <MiToast mensaje="Error al guardar resultado" color="var(--color-red-400)" />
+      await resultadosApi.cargar(selectedReserva._id, resultado.trim()); // <- success/throws
+      toast(<MiToast mensaje="Resultado guardado correctamente" color="var(--color-green-400)" />);
+      setReservas((prev) =>
+        prev.map((r) => (r._id === selectedReserva._id ? { ...r, resultado: resultado.trim() } : r))
       );
+      setSelectedReserva((prev) => (prev ? { ...prev, resultado: resultado.trim() } : prev));
+    } catch (err) {
+      const msg = err?.message || "Error al guardar resultado";
+      toast(<MiToast mensaje={msg} color="var(--color-red-400)" />);
     }
     setSaving(false);
   };
+
+  // 🔐 Gate de acceso (ahora después de TODOS los hooks)
+  if (!isAuthenticated || !puedeCargar) return <Navigate to="/" replace />;
 
   return (
     <div className="flex flex-col items-center mt-8 min-h-[70vh] w-full py-6">
@@ -172,10 +140,7 @@ function CargarResultados() {
 
       {/* Selector de fecha */}
       <div className="mb-6 w-full max-w-xs">
-        <label
-          htmlFor="fecha-select"
-          className="block text-sm font-medium text-gray-300 mb-2 text-center"
-        >
+        <label htmlFor="fecha-select" className="block text-sm font-medium text-gray-300 mb-2 text-center">
           Selecciona una fecha:
         </label>
         <select
@@ -192,33 +157,22 @@ function CargarResultados() {
         </select>
       </div>
 
-      {/* Listado de confirmadas usando ReservaCard */}
+      {/* Listado de confirmadas */}
       <div className="w-full max-w-3xl">
-        <h3 className="text-base font-semibold text-[#eaff00] mb-3 text-center">
-          Reservas Confirmadas
-        </h3>
-
+        <h3 className="text-base font-semibold text-[#eaff00] mb-3 text-center">Reservas Confirmadas</h3>
         {loading ? (
           <div className="text-center text-gray-300">Cargando...</div>
         ) : reservas.length === 0 ? (
-          <div className="text-center text-gray-400">
-            No hay reservas confirmadas para esta fecha.
-          </div>
+          <div className="text-center text-gray-400">No hay reservas confirmadas para esta fecha.</div>
         ) : (
           <ul className="space-y-3">
             {reservas.map((reserva) => {
               const isSelected = selectedReserva?._id === reserva._id;
 
-              // Normalizar estado y fecha para la UI
               const estadoUI =
-                String(reserva.estado || "").toLowerCase() === "confirmada"
-                  ? "Confirmada"
-                  : String(reserva.estado || "Reservada");
+                String(reserva.estado || "").toLowerCase() === "confirmada" ? "Confirmada" : String(reserva.estado || "Reservada");
 
-              const fechaUI =
-                reserva.fecha && reserva.fecha !== "--/--/----"
-                  ? reserva.fecha
-                  : selectedDate;
+              const fechaUI = reserva.fecha && reserva.fecha !== "--/--/----" ? reserva.fecha : selectedDate;
 
               const reservaUI = { ...reserva, estado: estadoUI, fecha: fechaUI };
               const playersCount = derivePlayersCount(reserva);
@@ -233,7 +187,7 @@ function CargarResultados() {
                   playersCountOverride={playersCount}
                   bottomActions={
                     isSelected ? (
-                      <span className="inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[11px] font-semibold ring-1 text-emerald-300 ring-emerald-400/30">
+                      <span className="inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[11px] font-semibold text-emerald-300 ring-emerald-400/30">
                         ✓ Seleccionada
                       </span>
                     ) : (
@@ -264,13 +218,11 @@ function CargarResultados() {
             <br />
             <span className="font-semibold">Horario:</span> {selectedReserva.horario}
             <br />
-            <span className="font-semibold">Jugador/Grupo:</span>{" "}
-            {selectedReserva.usuario_nombre || "—"}
+            <span className="font-semibold">Jugador/Grupo:</span> {selectedReserva.usuario_nombre || "—"}
             <br />
             {selectedReserva.resultado && (
               <span>
-                <span className="font-semibold text-[#eaff00]">Resultado actual:</span>{" "}
-                {selectedReserva.resultado}
+                <span className="font-semibold text-[#eaff00]">Resultado actual:</span> {selectedReserva.resultado}
               </span>
             )}
           </div>

@@ -4,15 +4,17 @@ import VerUsuarios from '../components/usuarios/VerUsuarios'
 import Card from '../components/usuarios/Card'
 import { AuthContext } from '../context/AuthContext';
 import Button from '../components/common/Button/Button';
+import { Navigate } from 'react-router-dom';
+import { hasRole } from '../utils/permissions';
 
 function Admin() {
     const [showModal, setShowModal] = useState(false);
-    const { isAuthenticated, isAdmin } = useContext(AuthContext);
+    const { isAuthenticated, roles, permissions } = useContext(AuthContext);
+    const me = { roles, permissions };
+    const isAdmin = hasRole(me, 'admin');
     const navigate = useNavigate();
 
-    if (!isAuthenticated || !isAdmin) {
-      return <p className="text-center text-red-400 mt-10">No tienes permisos para ver esta página.</p>
-    }
+    if (!isAuthenticated || !isAdmin) return <Navigate to="/" replace />;
 
     return(
         <>

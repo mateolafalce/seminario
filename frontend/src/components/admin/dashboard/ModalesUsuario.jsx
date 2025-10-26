@@ -4,33 +4,39 @@ import Button from '../../common/Button/Button';
 import { IoMdAlert } from "react-icons/io";
 import { BiSolidError } from "react-icons/bi";
 import { GrStatusGood } from "react-icons/gr";
+import useCategorias from '../../../hooks/useCategorias';
 
-const categorias = ['2da','3ra','4ta', '5ta','6ta', '7ta', '8ta'];
-
-// Modales para editar, eliminar y mostrar mensajes sobre usuarios
 const ModalesUsuario = ({ modales, onEditar, onEliminar }) => {
   const [usuarioEditar, setUsuarioEditar] = useState(null);
   const [mensaje, setMensaje] = useState({ tipo: '', titulo: '', texto: '' });
   const [modalMensajeAbierto, setModalMensajeAbierto] = useState(false);
 
-  // Actualiza el usuario a editar cuando cambia el modal
+  const { nombres: categoriasNombres, loading: loadingCategorias } = useCategorias();
+
   useEffect(() => {
     if (modales.usuarioSeleccionado && modales.modalEditar) {
       const { id, nombre, apellido, email, categoria, habilitado } = modales.usuarioSeleccionado;
-      setUsuarioEditar({ id, nombre, apellido, email: email || "", categoria: categoria || "", habilitado });
+      setUsuarioEditar({
+        id,
+        nombre,
+        apellido,
+        email: email || '',
+        categoria: typeof categoria === 'string' && categoria.trim() ? categoria : '',
+        habilitado: !!habilitado
+      });
     }
   }, [modales.usuarioSeleccionado, modales.modalEditar]);
 
-  // Muestra un mensaje en modal
   const mostrarMensaje = (tipo, titulo, texto) => {
     setMensaje({ tipo, titulo, texto });
     setModalMensajeAbierto(true);
   };
 
-  // Envía cambios de edición al padre
   const handleEditar = async (e) => {
     e.preventDefault();
-    if (!onEditar) return mostrarMensaje('error', 'Error', 'No se puede editar el usuario.');
+    if (!onEditar || !usuarioEditar) {
+      return mostrarMensaje('error', 'Error', 'No se puede editar el usuario.');
+    }
     const resultado = await onEditar(usuarioEditar);
     if (resultado.success) {
       modales.cerrarEditar();
@@ -40,7 +46,6 @@ const ModalesUsuario = ({ modales, onEditar, onEliminar }) => {
     }
   };
 
-  // Solicita eliminar usuario al padre
   const handleEliminar = async () => {
     const resultado = await onEliminar(modales.usuarioSeleccionado.id);
     if (resultado.success) {
@@ -57,12 +62,19 @@ const ModalesUsuario = ({ modales, onEditar, onEliminar }) => {
       <Modal isOpen={modales.modalEditar} onClose={modales.cerrarEditar}>
         <div className="flex items-center justify-between border-b border-gray-700 px-6 py-4">
           <h5 className="text-xl font-bold text-white">Editar Usuario</h5>
-          <button type="button" className="text-gray-400 hover:text-gray-200 text-3xl font-bold focus:outline-none" onClick={modales.cerrarEditar}>×</button>
+          <button
+            type="button"
+            className="text-gray-400 hover:text-gray-200 text-3xl font-bold focus:outline-none"
+            onClick={modales.cerrarEditar}
+          >
+            ×
+          </button>
         </div>
+
         <div className="px-6 py-6">
           <form onSubmit={handleEditar} className="space-y-4">
             <div className="grid grid-cols-1 gap-4">
-              {['nombre', 'apellido'].map((field, i) => (
+              {['nombre', 'apellido'].map((field) => (
                 <input
                   key={field}
                   type="text"
@@ -73,6 +85,7 @@ const ModalesUsuario = ({ modales, onEditar, onEliminar }) => {
                   required
                 />
               ))}
+
               <input
                 type="email"
                 value={usuarioEditar?.email || ''}
@@ -81,15 +94,19 @@ const ModalesUsuario = ({ modales, onEditar, onEliminar }) => {
                 placeholder="Email"
                 required
               />
+
               <select
                 value={usuarioEditar?.categoria || ''}
                 onChange={e => setUsuarioEditar({ ...usuarioEditar, categoria: e.target.value })}
                 className="w-full px-4 py-3 rounded-lg border border-gray-600 bg-gray-900 text-white focus:outline-none focus:ring-2 focus:ring-[#E5FF00]"
               >
-                <option value="">Seleccionar categoría</option>
-                {categorias.map(cat => <option key={cat} value={cat}>{cat}</option>)}
+                <option value="">{loadingCategorias ? 'Cargando…' : 'Sin categoría'}</option>
+                {categoriasNombres.map(cat => (
+                  <option key={cat} value={cat}>{cat}</option>
+                ))}
               </select>
             </div>
+
             <div className="flex items-center gap-3 py-2">
               <input
                 type="checkbox"
@@ -99,6 +116,7 @@ const ModalesUsuario = ({ modales, onEditar, onEliminar }) => {
               />
               <label className="text-white">Usuario habilitado</label>
             </div>
+
             <div className="flex gap-3 pt-4">
               <Button type="submit" texto="Guardar Cambios" variant="default" className="flex-1" />
               <Button type="button" texto="Cancelar" onClick={modales.cerrarEditar} variant="cancelar" className="flex-1" />
@@ -106,7 +124,6 @@ const ModalesUsuario = ({ modales, onEditar, onEliminar }) => {
           </form>
         </div>
       </Modal>
-
 
       {/* Modal de confirmación de eliminación */}
       <Modal isOpen={modales.modalEliminar} onClose={modales.cerrarEliminar} size="sm" closeOnOverlayClick={false}>
@@ -128,28 +145,42 @@ const ModalesUsuario = ({ modales, onEditar, onEliminar }) => {
         </div>
       </Modal>
 
-
-      {/* Modal de mensajes de éxito/error */}
+      {/* Modal de mensajes */}
       <Modal isOpen={modalMensajeAbierto} onClose={() => setModalMensajeAbierto(false)} size="sm" role="alertdialog">
-        <div className={`px-6 py-6 text-center rounded-b-2xl ${mensaje.tipo === 'success'
-          ? 'border-green-400'
-          : mensaje.tipo === 'error'
-            ? 'border-red-400'
-            : 'border-blue-400'}`}>
+        <div
+          className={`px-6 py-6 text-center rounded-b-2xl ${
+            mensaje.tipo === 'success'
+              ? 'border-green-400'
+              : mensaje.tipo === 'error'
+              ? 'border-red-400'
+              : 'border-blue-400'
+          }`}
+        >
           <div className="mb-4 flex justify-center">
             {mensaje.tipo === 'success' && <GrStatusGood className="text-green-400 w-14 h-14" />}
             {mensaje.tipo === 'error' && <BiSolidError className="text-red-400 w-14 h-14" />}
             {!['success', 'error'].includes(mensaje.tipo) && <IoMdAlert className="text-blue-400 w-14 h-14" />}
           </div>
           <h5 className="text-xl font-bold mb-3 text-white">{mensaje.titulo}</h5>
-          <p className={`text-base mb-6 font-medium ${mensaje.tipo === 'success'
-            ? 'text-green-400'
-            : mensaje.tipo === 'error'
-              ? 'text-red-400'
-              : 'text-blue-400'}`}>
+          <p
+            className={`text-base mb-6 font-medium ${
+              mensaje.tipo === 'success'
+                ? 'text-green-400'
+                : mensaje.tipo === 'error'
+                ? 'text-red-400'
+                : 'text-blue-400'
+            }`}
+          >
             {mensaje.texto}
           </p>
-          <Button type="button" texto="Entendido" onClick={() => setModalMensajeAbierto(false)} variant="default" className="w-full" autoFocus />
+          <Button
+            type="button"
+            texto="Entendido"
+            onClick={() => setModalMensajeAbierto(false)}
+            variant="default"
+            className="w-full"
+            autoFocus
+          />
         </div>
       </Modal>
     </>

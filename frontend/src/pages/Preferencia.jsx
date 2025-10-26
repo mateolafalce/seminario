@@ -1,23 +1,16 @@
-import { useEffect, useState } from "react";
-import { generarHorarios } from "../components/usuarios/ReservaTabla";
-import Button from "../components/common/Button/Button";
-import MiToast from "../components/common/Toast/MiToast";
-import { toast } from "react-toastify";
+import { useContext, useEffect, useState } from "react";
 import { FiCheck } from "react-icons/fi";
+// import { generarHorarios } from "../components/usuarios/ReservaTabla";
+import Button from "../components/common/Button/Button";
 import MessageConfirm from '../components/common/Confirm/MessageConfirm';
-
-/* ------------------------------------------
-   Config
-------------------------------------------- */
-const BACKEND_URL = `http://${window.location.hostname}:8000`;
+import backendClient from '../services/backendClient';
+import { safeToast, errorToast, successToast } from '../utils/apiHelpers';
+import { AuthContext } from '../context/AuthContext';
 
 const diasSemana = ["Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado", "Domingo"];
-const horariosDisponibles = generarHorarios();
+// const horariosDisponibles = generarHorarios();
 const LIMITE_PREFS = 7;
 
-/* ------------------------------------------
-   UI helpers (minimal)
-------------------------------------------- */
 const cx = (...c) => c.filter(Boolean).join(" ");
 
 const Card = ({ className, children }) => (
@@ -76,54 +69,55 @@ const gruposHorarios = (lista) => {
    Componente
 ------------------------------------------- */
 export default function PreferenciasUsuario() {
-  const habilitado = localStorage.getItem("habilitado");
+  const { habilitado, loading } = useContext(AuthContext);
   const [preferencias, setPreferencias] = useState({ dias: [], horarios: [], canchas: [] });
   const [preferenciasGuardadas, setPreferenciasGuardadas] = useState([]);
   const [preferenciaEditar, setPreferenciaEditar] = useState(null);
   const [canchasDisponibles, setCanchasDisponibles] = useState([]);
+  const [horariosDisponibles, setHorariosDisponibles] = useState([]);
   const [loadingCanchas, setLoadingCanchas] = useState(true);
+  const [confirmData, setConfirmData] = useState({ open: false, id: null });
 
   // Cargar canchas desde el backend
   useEffect(() => {
     const fetchCanchas = async () => {
       try {
-        const url =
-          window.location.hostname === "localhost"
-            ? `${BACKEND_URL}/api/canchas/listar`
-            : "/api/canchas/listar";
-        
-        const res = await fetch(url, {
-          headers: { Authorization: `Bearer ${localStorage.getItem("accessToken")}` }
-        });
-
-        if (res.ok) {
-          const data = await res.json();
-          // Extraer solo los nombres de las canchas
-          setCanchasDisponibles(data.map(cancha => cancha.nombre));
-        } else {
-          toast(<MiToast mensaje="Error al cargar las canchas" color="#ef4444" />);
-        }
+        const data = await backendClient.get('canchas/listar');
+        const nombres = (data || []).map(c => c?.nombre).filter(Boolean);
+        setCanchasDisponibles([...new Set(nombres)].sort((a, b) => a.localeCompare(b)));
       } catch (error) {
-        console.error("Error fetching canchas:", error);
-        toast(<MiToast mensaje="Error de conexión al cargar canchas" color="#ef4444" />);
+        errorToast("Error al cargar las canchas");
+        setCanchasDisponibles([]);
       } finally {
         setLoadingCanchas(false);
       }
     };
-
     fetchCanchas();
   }, []);
 
+  // Cargar horarios desde el backend
   useEffect(() => {
-    const url =
-      window.location.hostname === "localhost"
-        ? `${BACKEND_URL}/api/preferencias/obtener`
-        : "/api/preferencias/obtener";
-    fetch(url, { headers: { Authorization: `Bearer ${localStorage.getItem("accessToken")}` } })
-      .then((res) => (res.ok ? res.json() : []))
-      .then((data) => setPreferenciasGuardadas(data))
-      .catch(() => {});
+    let alive = true;
+    (async () => {
+      try {
+        const data = await backendClient.get('horarios/listar');
+        const arr = Array.isArray(data) ? data.map(h => (h?.hora ?? h)).filter(Boolean) : [];
+        if (alive) setHorariosDisponibles(arr);
+      } catch {
+        if (alive) setHorariosDisponibles([]);
+      }
+    })();
+    return () => { alive = false; };
   }, []);
+
+  // cargar preferencias guardadas
+  useEffect(() => {
+    if (loading) return;           // esperar a /me
+    if (!habilitado) return;       // si no está habilitado, no pegues al endpoint
+    backendClient.get('preferencias/obtener')
+      .then(setPreferenciasGuardadas)
+      .catch(() => {});
+  }, [loading, habilitado]);
 
   const reachedLimit = !preferenciaEditar && preferenciasGuardadas.length >= LIMITE_PREFS;
 
@@ -135,11 +129,14 @@ export default function PreferenciasUsuario() {
   };
 
   const toggleBulk = (key, list) => {
-    setPreferencias((prev) => {
-      const setPrev = new Set(prev[key]);
-      const every = list.every((i) => setPrev.has(i));
+    setPreferencias(prev => {
+      const prevSet = new Set(prev[key]);
+      const allSelected = list.every(i => prevSet.has(i));
       const next = new Set(prev[key]);
-      (every ? list : list).forEach((i) => (every ? next.delete(i) : next.add(i)));
+
+      if (allSelected) list.forEach(i => next.delete(i));
+      else            list.forEach(i => next.add(i));
+
       return { ...prev, [key]: Array.from(next) };
     });
   };
@@ -150,48 +147,27 @@ export default function PreferenciasUsuario() {
     e.preventDefault();
 
     if (!preferencias.dias.length || !preferencias.horarios.length || !preferencias.canchas.length) {
-      toast(<MiToast mensaje="Seleccioná al menos un día, un horario y una cancha." color="#ef4444" />);
+      errorToast("Seleccioná al menos un día, un horario y una cancha.");
       return;
     }
 
     const isEditing = !!preferenciaEditar;
-    const url = isEditing
-      ? window.location.hostname === "localhost"
-        ? `${BACKEND_URL}/api/preferencias/modificar/${preferenciaEditar.id}`
-        : `/api/preferencias/modificar/${preferenciaEditar.id}`
-      : window.location.hostname === "localhost"
-      ? `${BACKEND_URL}/api/preferencias/guardar`
-      : "/api/preferencias/guardar";
+    
+    try {
+      if (isEditing) {
+        await backendClient.put(`preferencias/modificar/${preferenciaEditar.id}`, preferencias);
+      } else {
+        await backendClient.post('preferencias/guardar', preferencias);
+      }
 
-    const res = await fetch(url, {
-      method: isEditing ? "PUT" : "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${localStorage.getItem("accessToken")}`,
-      },
-      body: JSON.stringify(preferencias),
-    });
-
-    if (res.ok) {
-      toast(
-        <MiToast
-          mensaje={isEditing ? "Preferencia actualizada" : "Preferencias guardadas"}
-          color="#eaff00"
-        />
-      );
+      successToast(isEditing ? "Preferencia actualizada" : "Preferencias guardadas");
       resetConstructor();
       setPreferenciaEditar(null);
 
-      const urlObtener =
-        window.location.hostname === "localhost"
-          ? `${BACKEND_URL}/api/preferencias/obtener`
-          : "/api/preferencias/obtener";
-      fetch(urlObtener, { headers: { Authorization: `Bearer ${localStorage.getItem("accessToken")}` } })
-        .then((r) => r.json())
-        .then(setPreferenciasGuardadas);
-    } else {
-      const err = await res.json();
-      toast(<MiToast mensaje={`Error: ${err.detail || "Error desconocido"}`} color="#ef4444" />);
+      const data = await backendClient.get('preferencias/obtener');
+      setPreferenciasGuardadas(data);
+    } catch (error) {
+      errorToast(error.message || "Error desconocido");
     }
   };
 
@@ -230,37 +206,22 @@ export default function PreferenciasUsuario() {
   }
 
   // Si confirma la eliminación
-async function confirmarEliminar() {
-  const id = confirmData.id;
-  setConfirmData({ open: false, id: null });
+  async function confirmarEliminar() {
+    const id = confirmData.id;
+    setConfirmData({ open: false, id: null });
 
-  const url =
-    window.location.hostname === "localhost"
-      ? `${BACKEND_URL}/api/preferencias/eliminar/${id}`
-      : `/api/preferencias/eliminar/${id}`;
-
-  try {
-    const res = await fetch(url, {
-      method: "DELETE",
-      headers: { Authorization: `Bearer ${localStorage.getItem("accessToken")}` },
-    });
-
-    if (res.ok) {
-      toast(<MiToast mensaje="Preferencia eliminada." color="#eaff00" />);
+    try {
+      await backendClient.delete(`preferencias/eliminar/${id}`);
+      successToast("Preferencia eliminada.");
       setPreferenciasGuardadas((prev) => prev.filter((p) => p.id !== id));
-    } else {
-      const err = await res.json();
-      toast(<MiToast mensaje={`Error: ${err.detail || "Error desconocido"}`} color="#ef4444" />);
+    } catch (error) {
+      errorToast(error.message || "Error desconocido");
     }
-  } catch (e) {
-    toast(<MiToast mensaje="Error de conexión." color="#ef4444" />);
   }
-}
 
-
-function cancelarAccion() {
-  setConfirmData({ open: false, id: null });
-}
+  function cancelarAccion() {
+    setConfirmData({ open: false, id: null });
+  }
 
   return (
     <div className="w-full max-w-3xl mx-auto px-4 py-8">
@@ -346,7 +307,10 @@ function cancelarAccion() {
           texto={preferenciaEditar ? "Actualizar" : "Guardar"}
           onClick={handleSubmit}
           className="w-full"
-          disabled={reachedLimit || loadingCanchas}
+          disabled={
+            reachedLimit || loadingCanchas ||
+            !preferencias.dias.length || !preferencias.horarios.length || !preferencias.canchas.length
+          }
         />
         {preferenciaEditar ? (
           <Button texto="Cancelar" variant="secondary" onClick={handleCancelEdit} className="w-full" />
@@ -387,14 +351,14 @@ function cancelarAccion() {
           </ul>
         )}
       </div>
-          {confirmData.open && (
-      <MessageConfirm
-        mensaje="¿Seguro que deseas cancelar esta reserva?"
-        onClose={cancelarAccion}
-        onConfirm={confirmarEliminar}
-        onCancel={cancelarAccion}
-      />
-    )}
+      {confirmData.open && (
+        <MessageConfirm
+          mensaje="¿Seguro que deseas cancelar esta reserva?"
+          onClose={cancelarAccion}
+          onConfirm={confirmarEliminar}
+          onCancel={cancelarAccion}
+        />
+      )}
     </div>
   );
 }

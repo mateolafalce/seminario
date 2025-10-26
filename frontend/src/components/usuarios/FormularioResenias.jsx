@@ -1,7 +1,7 @@
-import React, { useState, useEffect, useContext } from 'react';
-import { AuthContext } from '../../context/AuthContext';
+import React, { useState, useEffect } from 'react';
+import backendClient from '../../services/backendClient';
 import { toast } from 'react-toastify';
-import Button from '../common/Button/Button'; // ← ¡Ruta corregida!
+import Button from '../common/Button/Button';
 
 // Props que recibirá el componente:
 // - jugadorAReseñar: Objeto con los datos del jugador a calificar.
@@ -9,8 +9,6 @@ import Button from '../common/Button/Button'; // ← ¡Ruta corregida!
 // - onCancelar: Función para cerrar o cancelar la acción.
 
 const FormularioReseña = ({ jugadorAReseñar, reservaId, onReseñaEnviada, onCancelar }) => {
-  const { apiFetch } = useContext(AuthContext);
-
   // Estados internos del formulario
   const [calificacion, setCalificacion] = useState("");
   const [observacion, setObservacion] = useState('');
@@ -21,19 +19,14 @@ const FormularioReseña = ({ jugadorAReseñar, reservaId, onReseñaEnviada, onCa
   useEffect(() => {
     const fetchCalificaciones = async () => {
       try {
-        const response = await apiFetch("/api/users_b/calificaciones");
-        if (response.ok) {
-          const data = await response.json();
-          setCalificacionesDisponibles(data.calificaciones || []);
-        } else {
-          toast.error("No se pudieron cargar las calificaciones.");
-        }
+        const data = await backendClient.get('users_b/resenias/calificaciones');
+        setCalificacionesDisponibles(data.calificaciones || []);
       } catch (error) {
-        console.error("Error al cargar calificaciones:", error);
+        toast.error("No se pudieron cargar las calificaciones.");
       }
     };
     fetchCalificaciones();
-  }, [apiFetch]);
+  }, []);
 
   // Maneja el envío del formulario
   const handleSubmit = async (e) => {
@@ -45,28 +38,17 @@ const FormularioReseña = ({ jugadorAReseñar, reservaId, onReseñaEnviada, onCa
 
     setLoading(true);
     try {
-      const response = await apiFetch('/api/users_b/reseñar', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          con: jugadorAReseñar._id, // Usamos el ID del jugador recibido por props
-          calificacion: calificacion,
-          observacion: observacion,
-          reserva_id: reservaId, // <-- importante
-        }),
+      await backendClient.post('users_b/resenias/crear', {
+        con: jugadorAReseñar._id,
+        calificacion,
+        observacion,
+        reserva_id: reservaId,
       });
-
-      if (response.ok) {
-        toast.success("Jugador calificado correctamente");
-        if (onReseñaEnviada) {
-          onReseñaEnviada(); // Llama a la función del padre para notificar el éxito
-        }
-      } else {
-        const error = await response.json();
-        toast.error(error.detail || "Error al enviar la calificación");
-      }
+      toast.success("Jugador calificado correctamente");
+      if (onReseñaEnviada) onReseñaEnviada();
     } catch (error) {
-      toast.error("Error de conexión al enviar la calificación.");
+      const msg = error?.data?.detail || error?.message || "Error al enviar la calificación";
+      toast.error(msg);
     } finally {
       setLoading(false);
     }

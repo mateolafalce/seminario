@@ -1,43 +1,49 @@
-import { useState, useEffect, useContext } from "react";
-import { AuthContext } from "../context/AuthContext";
+import { useState, useEffect } from "react";
+import adminApi from "../services/adminApi";
 
-// Hook personalizado para gestionar usuarios desde el backend.
-// Incluye carga, paginación, edición y eliminación de usuarios.
-const BACKEND_URL =
-  window.location.hostname === "localhost"
-    ? `http://${window.location.hostname}:8000`
-    : ""; // En producción se usan rutas relativas
+// helpers de fecha
+const pad = n => String(n).padStart(2, '0');
+const oidToDate = (oid) => new Date(parseInt(oid.slice(0, 8), 16) * 1000);
+const toAr = (d) => new Date(d.toLocaleString('en-US', { timeZone: 'America/Argentina/Buenos_Aires' }));
+const formatAr = (d) => `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`;
+
+const normalizeUser = (u) => {
+  const fecha =
+    u.fecha_registro && String(u.fecha_registro).trim()
+      ? u.fecha_registro
+      : formatAr(toAr(oidToDate(u.id)));
+
+  const categoria =
+    typeof u.categoria === 'string' && u.categoria.trim()
+      ? u.categoria
+      : 'Sin categoría';
+
+  return {
+    ...u,
+    fecha_registro: fecha,
+    categoria,
+    ultima_conexion: u.ultima_conexion || '',
+  };
+};
 
 export function useUsuarios() {
-  // Estados principales para la gestión de usuarios
   const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
-  const { logout } = useContext(AuthContext);
 
-  // Obtiene la lista de usuarios desde el backend, con paginación
   const fetchUsers = async (page = 1) => {
     setLoading(true);
     setError(null);
     try {
-      const limit = 10; // testesar despues tema disenio
-      const url = window.location.hostname === "localhost"
-        ? `${BACKEND_URL}/api/users_b/admin/users?page=${page}&limit=${limit}`
-        : `/api/users_b/admin/users?page=${page}&limit=${limit}`;
-      const res = await fetch(url, {
-        headers: {
-          'Authorization': `Bearer ${localStorage.getItem('accessToken')}`,
-        },
-      });
-      if (!res.ok) throw new Error("Error al cargar usuarios");
-      const data = await res.json();
-      setUsers(data.users || []);
+      const data = await adminApi.users.list(page, 10); // 👈 cookies + CSRF ya vienen de backendClient
+      setUsers((data.users || []).map(normalizeUser));
       setTotalPages(Math.ceil(data.total / data.limit));
       setCurrentPage(data.page);
-    } catch (err) {
-      setError("Error al cargar usuarios");
+    } catch (e) {
+      console.error("list users:", e);
+      setError(e?.data?.detail || "Error al cargar usuarios");
       setUsers([]);
       setTotalPages(1);
     } finally {
@@ -45,12 +51,8 @@ export function useUsuarios() {
     }
   };
 
-  // Carga inicial de usuarios al montar el hook
-  useEffect(() => {
-    fetchUsers();
-  }, []);
+  useEffect(() => { fetchUsers(); }, []);
 
-  // Cambia de página en la paginación
   const handlePageChange = (newPage) => {
     if (newPage > 0 && newPage <= totalPages) {
       setCurrentPage(newPage);
@@ -58,71 +60,35 @@ export function useUsuarios() {
     }
   };
 
-  // Edita un usuario en el backend
-  const editarUsuario = async (usuarioData) => {
+  const editarUsuario = async (u) => {
     try {
-      const url = window.location.hostname === "localhost"
-        ? `http://${window.location.hostname}:8000/api/users_b/${usuarioData.id}`
-        : `/api/users_b/${usuarioData.id}`;
-      const response = await fetch(url, {
-        method: "PUT",
-        headers: {
-          "Content-Type": "application/json",
-          "Authorization": `Bearer ${localStorage.getItem("accessToken")}`
-        },
-        body: JSON.stringify({
-          nombre: usuarioData.nombre,
-          apellido: usuarioData.apellido,
-          email: usuarioData.email,
-          habilitado: usuarioData.habilitado,
-          categoria: usuarioData.categoria,
-        }),
-      });
-      if (response.status === 401) {
-        logout();
-        return { success: false, error: "Sesión expirada. Por favor inicia sesión nuevamente." };
-      }
-      if (response.ok) {
-        return { success: true };
-      } else {
-        const errorData = await response.json();
-        return { success: false, error: errorData.detail || "Error al editar usuario" };
-      }
-    } catch (error) {
-      return { success: false, error: "Error de conexión" };
+      const payload = {
+        nombre: u.nombre,
+        apellido: u.apellido,
+        email: u.email,
+        habilitado: u.habilitado,
+        categoria: u.categoria && u.categoria !== "Sin categoría" ? u.categoria : null,
+      };
+      await adminApi.users.update(u.id, payload);
+      return { success: true };
+    } catch (e) {
+      console.error("update user:", e);
+      return { success: false, error: e?.data?.detail || e.message || "Error al editar usuario" };
     }
   };
 
-  // Elimina un usuario en el backend
-  const eliminarUsuario = async (usuarioId) => {
+  const eliminarUsuario = async (id) => {
     try {
-      const url = window.location.hostname === "localhost"
-        ? `http://${window.location.hostname}:8000/api/users_b/${usuarioId}`
-        : `/api/users_b/${usuarioId}`;
-      const response = await fetch(url, {
-        method: "DELETE",
-        headers: {
-          "Authorization": `Bearer ${localStorage.getItem("accessToken")}`
-        }
-      });
-      if (response.status === 401) {
-        logout();
-        return { success: false, error: "Sesión expirada. Por favor inicia sesión nuevamente." };
-      }
-      if (response.ok) {
-        return { success: true };
-      } else {
-        const errorData = await response.json();
-        return { success: false, error: errorData.detail || "Error al eliminar usuario" };
-      }
-    } catch (error) {
-      return { success: false, error: "Error de conexión" };
+      await adminApi.users.remove(id);
+      return { success: true };
+    } catch (e) {
+      console.error("delete user:", e);
+      return { success: false, error: e?.data?.detail || e.message || "Error al eliminar usuario" };
     }
   };
 
-  // Devuelve los estados y funciones principales del hook
   return {
     users, loading, error, currentPage, totalPages,
     fetchUsers, handlePageChange, editarUsuario, eliminarUsuario
   };
-};
+}

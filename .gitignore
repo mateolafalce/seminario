@@ -1,7 +1,7 @@
 __pycache__/
 *.py[cod]
-/backend/FastAPI/venv/
-/backend/FastAPI/.venv/
+/backend/venv/
+/backend/.venv/
 /backend/.venv/
 /.venv
 /frontend/node_modules/

@@ -2,20 +2,18 @@ import React, { useState, useContext } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { AuthContext } from '../../../context/AuthContext'
 import AuthForm from '../../common/AuthForm/AuthForm'
-import { createApi } from '../../../utils/api'
+import backendClient from '../../../services/backendClient'
 import ListarCanchas from './ListarCanchas'
+import { canManageCanchas } from '../../../utils/permissions'
 
 function AltaCancha({ refresh }) {
   const [errores, setErrores] = useState({})
   const [loading, setLoading] = useState(false)
   const [mensajeExito, setMensajeExito] = useState('')
   const [refreshCanchas, setRefreshCanchas] = useState(false)
-  const { isAuthenticated, isAdmin, handleUnauthorized } = useContext(AuthContext)
+  const { isAuthenticated, roles, permissions } = useContext(AuthContext)
+  const me = { roles, permissions }
   const navigate = useNavigate()
-  const apiFetch = createApi(() => {
-    alert('Sesión expirada. Inicia sesión nuevamente.')
-    navigate('/login')
-  })
 
   if (!isAuthenticated) {
     return (
@@ -31,7 +29,7 @@ function AltaCancha({ refresh }) {
     )
   }
 
-  if (!isAdmin) {
+  if (!canManageCanchas(me)) {
     return (
       <div className="text-center mt-8">
         <p className="text-red-600 text-lg">No tienes permisos de administrador para ver esta página.</p>
@@ -58,16 +56,12 @@ function AltaCancha({ refresh }) {
     }
     setLoading(true)
     try {
-      const response = await apiFetch('/api/canchas/crear', {
-        method: 'POST',
-        body: JSON.stringify({ nombre: valores.nombre }),
-      })
-      if (response.ok) {
+      const response = await backendClient.post('canchas/crear', { nombre: valores.nombre })
+      if (response) {
         setMensajeExito('Cancha creada correctamente')
         setRefreshCanchas(r => !r) // trigger refresh
       } else {
-        const error = await response.json()
-        setErrores({ general: error.detail || 'Error al crear la cancha' })
+        setErrores({ general: 'Error al crear la cancha' })
       }
     } catch (err) {
       setErrores({ general: err.message || 'Error de conexión con el servidor' })

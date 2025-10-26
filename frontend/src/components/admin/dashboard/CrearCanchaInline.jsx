@@ -2,7 +2,7 @@ import React, { useState, useContext } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { AuthContext } from '../../../context/AuthContext'
 import AuthForm from '../../common/AuthForm/AuthForm'
-import { createApi } from '../../../utils/api'
+import backendClient from '../../../services/backendClient'
 
 function CrearCanchaInline({ onCanchaCreada }) {
   const [errores, setErrores] = useState({})
@@ -10,10 +10,6 @@ function CrearCanchaInline({ onCanchaCreada }) {
   const [mensajeExito, setMensajeExito] = useState('')
   const { handleUnauthorized } = useContext(AuthContext)
   const navigate = useNavigate()
-  const apiFetch = createApi(() => {
-    alert('Sesión expirada. Inicia sesión nuevamente.')
-    navigate('/login')
-  })
 
   const campos = [
     { nombre: "nombre", etiqueta: "Nombre de la cancha", tipo: "text", placeholder: "Ej: Cancha 1" }
@@ -28,18 +24,14 @@ function CrearCanchaInline({ onCanchaCreada }) {
     }
     setLoading(true)
     try {
-      const response = await apiFetch('/api/canchas/crear', {
-        method: 'POST',
-        body: JSON.stringify({ nombre: valores.nombre }),
-      })
-      if (response.ok) {
+      const response = await backendClient.post('canchas/crear', { nombre: valores.nombre })
+      if (response) {
         setMensajeExito('Cancha creada correctamente')
         setTimeout(() => {
           if (onCanchaCreada) onCanchaCreada()
         }, 900)
       } else {
-        const error = await response.json()
-        setErrores({ general: error.detail || 'Error al crear la cancha' })
+        setErrores({ general: 'Error al crear la cancha' })
       }
     } catch (err) {
       setErrores({ general: err.message || 'Error de conexión con el servidor' })

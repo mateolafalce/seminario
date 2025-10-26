@@ -1,12 +1,34 @@
-import React, { useContext, useState } from 'react';
-import { AuthContext } from '../context/AuthContext';
+import React, { useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import AuthForm from '../components/common/AuthForm/AuthForm';
 import MessageAlert from '../components/common/Alert/MessageAlert';
-import MiToast from "../components/common/Toast/MiToast";
-import { toast } from 'react-toastify';
+import backendClient from '../services/backendClient';
+import { errorToast } from '../utils/apiHelpers';
 
-const BACKEND_URL = `http://${window.location.hostname}:8000`;
+const onlyDigits = (s) => (s || "").replace(/\D+/g, "");
+
+// Helper para mapear errores 422 de Pydantic
+const fromPydantic422 = (detail) => {
+  const errores = {};
+  if (Array.isArray(detail)) {
+    for (const d of detail) {
+      const field = Array.isArray(d.loc) ? d.loc.at(-1) : d.loc;
+      if (field) errores[field] = d.msg || "Valor inválido";
+    }
+  } else if (typeof detail === "string") {
+    errores.general = detail;
+  }
+  return errores;
+};
+
+// Normalizar errores de la API
+const normalizeApiError = async (error) => {
+  const data = error?.response?.data || {};
+  if (data.detail) return fromPydantic422(data.detail);
+  if (typeof data === "string") return { general: data };
+  if (error.message) return { general: error.message };
+  return { general: "Error desconocido" };
+};
 
 function Register() {
   const [errores, setErrores] = useState({});
@@ -16,15 +38,53 @@ function Register() {
   const location = useLocation();
   const params = new URLSearchParams(location.search);
   const esAdmin = params.get('admin') === '1';
-  const { loginWithToken } = useContext(AuthContext);
 
   const campos = [
-    { nombre: "nombre", etiqueta: "Nombre", tipo: "text", placeholder: "Tu nombre" },
-    { nombre: "apellido", etiqueta: "Apellido", tipo: "text", placeholder: "Tu apellido" },
-    { nombre: "email", etiqueta: "Email", tipo: "email", placeholder: "tu@email.com" },
-    { nombre: "username", etiqueta: "Nombre de usuario", tipo: "text", placeholder: "Nombre de usuario", autoComplete: "username" },
-    { nombre: "password", etiqueta: "Contraseña", tipo: "password", placeholder: "Contraseña", autoComplete: "new-password" },
-    { nombre: "repeatPassword", etiqueta: "Repetir Contraseña", tipo: "password", placeholder: "Repite tu contraseña", autoComplete: "new-password" },
+    { nombre: "nombre", etiqueta: "Nombre", tipo: "text", placeholder: "Tu nombre", required: true },
+    { nombre: "apellido", etiqueta: "Apellido", tipo: "text", placeholder: "Tu apellido", required: true },
+    { nombre: "email", etiqueta: "Email", tipo: "email", placeholder: "tu@email.com", required: true },
+    { 
+      nombre: "username", 
+      etiqueta: "Nombre de usuario", 
+      tipo: "text", 
+      placeholder: "Nombre de usuario", 
+      autoComplete: "username",
+      minLength: 1,
+      maxLength: 30,
+      required: true
+      // minLength: 3,
+    },
+    { 
+      nombre: "password", 
+      etiqueta: "Contraseña", 
+      tipo: "password", 
+      placeholder: "Contraseña", 
+      autoComplete: "new-password",
+      minLength: 1,
+      required: true
+      // minLength: 6,
+    },
+    { 
+      nombre: "repeatPassword", 
+      etiqueta: "Repetir Contraseña", 
+      tipo: "password", 
+      placeholder: "Repite tu contraseña", 
+      autoComplete: "new-password",
+      minLength: 1,
+      required: true
+      // minLength: 6,
+    },
+    { 
+      nombre: "dni", 
+      etiqueta: "DNI (1–10 dígitos)", 
+      tipo: "text", 
+      placeholder: "DNI", 
+      inputMode: "numeric", 
+      maxLength: 10,
+      required: true
+      // pattern: "\\d{7,8}", 
+      // maxLength: 8,
+    },
   ];
 
   const handleRegister = async (valores) => {
@@ -32,41 +92,43 @@ function Register() {
     setMensajeExito('');
     setCargando(true);
 
-    if (valores.password !== valores.repeatPassword) {
-      setErrores({ repeatPassword: "Las contraseñas no coinciden" });
+    // Validación previa
+    const dni = onlyDigits(valores.dni);
+    const errs = {};
+    
+    if (!valores.nombre?.trim()) errs.nombre = "Requerido";
+    if (!valores.apellido?.trim()) errs.apellido = "Requerido";
+    if (!valores.email?.trim()) errs.email = "Requerido";
+    if (!valores.username || valores.username.length < 1) errs.username = "Requerido";
+    // if (!valores.username || valores.username.length < 3) errs.username = "Mínimo 3 caracteres";
+    if (!valores.password || valores.password.length < 1) errs.password = "Requerido";
+    // if (!valores.password || valores.password.length < 6) errs.password = "Mínimo 6 caracteres";
+    if (valores.password !== valores.repeatPassword) errs.repeatPassword = "Las contraseñas no coinciden";
+    if (dni.length < 1 || dni.length > 10) errs.dni = "DNI inválido: 1 a 10 dígitos";
+    // if (dni.length < 7 || dni.length > 8) errs.dni = "DNI inválido: 7 u 8 dígitos";
+
+    if (Object.keys(errs).length) {
+      setErrores(errs);
       setCargando(false);
       return;
     }
 
     try {
-      const url = window.location.hostname === "localhost"
-        ? `${BACKEND_URL}/api/users_b/register`
-        : "/api/users_b/register";
-      const response = await fetch(url, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          nombre: valores.nombre,
-          apellido: valores.apellido,
-          email: valores.email, 
-          password: valores.password,
-          username: valores.username,
-        }),
+      await backendClient.post('users_b/register', {
+        nombre: valores.nombre,
+        apellido: valores.apellido,
+        email: valores.email,
+        password: valores.password,
+        username: valores.username,
+        dni,
       });
-      if (response.ok) {
-        const data = await response.json();
-        setMensajeExito('¡Usuario registrado exitosamente!');
-        loginWithToken(data.accessToken);
-        setTimeout(() => {
-          navigate('/');
-        }, 1500);
-      } else {
-        const errorData = await response.json();
-        setErrores({ general: errorData.detail || 'Error al registrar usuario' });
-      }
+
+      setMensajeExito('¡Usuario registrado! Revisa tu email para habilitar la cuenta.');
+      setTimeout(() => navigate('/login'), 1500);
     } catch (error) {
-      setErrores({ general: 'Error de conexión con el servidor' });
-      toast(<MiToast mensaje="Error del servidor" color="var(--color-red-400)"/>);
+      const mappedErrors = await normalizeApiError(error);
+      setErrores(mappedErrors);
+      errorToast(mappedErrors.general || 'Error al registrar usuario');
     } finally {
       setCargando(false);
     }
@@ -74,9 +136,7 @@ function Register() {
 
   return (
     <div className='mt-[3rem]'>
-      {mensajeExito && (
-        <MessageAlert tipo='success' mensaje={mensajeExito} />
-      )}
+      {mensajeExito && <MessageAlert tipo='success' mensaje={mensajeExito} />}
       <AuthForm
         titulo="Crear Usuario"
         campos={campos}

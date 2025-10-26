@@ -3,7 +3,7 @@ import Button from "../Button/Button";
 
 // reutilizable para login, registro, etc.
 // - titulo: texto arriba del formulario
-// - campos: lista de campos (nombre, etiqueta, tipo, placeholder)
+// - campos: lista de campos (nombre, etiqueta, tipo, placeholder, inputMode, pattern, maxLength, autoComplete)
 // - onSubmit: función al enviar el formulario
 // - textoBoton: texto del botón
 // - cargando: si está true, desactiva el botón y muestra "Cargando..."
@@ -19,7 +19,6 @@ function AuthForm({
   errores = {},
   children,
 }) {
-
   const [valores, setValores] = useState(
     campos.reduce((acc, campo) => ({ ...acc, [campo.nombre]: "" }), {})
   );
@@ -30,7 +29,7 @@ function AuthForm({
 
   const handleSubmit = (e) => {
     e.preventDefault();
-    onSubmit(valores); 
+    onSubmit(valores);
   };
 
   return (
@@ -56,10 +55,18 @@ function AuthForm({
             className="w-full px-[1rem] pt-[1.5rem] pb-[0.75rem] rounded-2xl bg-gray-700 text-white focus:outline-none text-base peer placeholder-transparent"
             autoComplete={campo.autoComplete || "off"}
             disabled={cargando}
+            // 👇 props extra útiles para el DNI
+            inputMode={campo.inputMode}
+            pattern={campo.pattern}
+            maxLength={campo.maxLength}
           />
           <label
             htmlFor={campo.nombre}
-            className={`absolute left-[0.75rem] pointer-events-none transition-all duration-200 bg-transparent px-[0.25rem] ${valores[campo.nombre] ? "top-[0.5rem] text-xs text-gray-400" : "top-1/2 -translate-y-1/2 text-base text-gray-400"} peer-focus:top-[0.5rem] peer-focus:text-xs peer-focus:text-gray-400 peer-focus:translate-y-0`}
+            className={`absolute left-[0.75rem] pointer-events-none transition-all duration-200 bg-transparent px-[0.25rem] ${
+              valores[campo.nombre]
+                ? "top-[0.5rem] text-xs text-gray-400"
+                : "top-1/2 -translate-y-1/2 text-base text-gray-400"
+            } peer-focus:top-[0.5rem] peer-focus:text-xs peer-focus:text-gray-400 peer-focus:translate-y-0`}
           >
             {campo.etiqueta}
           </label>

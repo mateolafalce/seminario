@@ -7,7 +7,7 @@ networks:
 services:
   backend:
     build:
-      context: ./backend/FastAPI
+      context: ./backend
       dockerfile: Dockerfile.prod
     env_file:
       - ./.env                 
