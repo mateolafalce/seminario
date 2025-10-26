@@ -26,7 +26,7 @@ from routers.Security.auth import ACCESS_COOKIE, CSRF_COOKIE
 def _bool_env(key: str, default=False):
     return os.getenv(key, str(default)).lower() == "true"
 
-ENABLE_MATCHEO_DEBUG = os.getenv("ENABLE_MATCHEO_DEBUG", "false").lower() == "true"
+
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -84,12 +84,6 @@ app.include_router(reservas_resultados.router, prefix="/api")
 app.include_router(categorias.router, prefix="/api")
 app.include_router(algoritmo.router, prefix="/api")
 
-# 📴 Debug deshabilitado por defecto
-if ENABLE_MATCHEO_DEBUG:
-    from routers import matcheo_debug as matcheo_debug_router
-    app.include_router(matcheo_debug_router.router, prefix="/api")
-else:
-    print("⏭️ /api/matcheo-debug deshabilitado")
 
 # Static
 app.mount("/images", StaticFiles(directory="static/images"), name="images")

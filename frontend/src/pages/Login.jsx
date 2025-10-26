@@ -53,7 +53,7 @@ function Login() {
         <p className="mt-4 text-center text-white">
           ¿No tienes cuenta?{" "}
           <Link to="/register" className="text-[#E5FF00] hover:underline">
-            Regístrate
+            Regístratea
           </Link>
         </p>
       </AuthForm>
