@@ -1,11 +1,12 @@
 import React, { useState, useEffect, useContext } from "react";
-import backendClient from "../../../services/backendClient";
+import { createApi } from "../../../utils/api";
 import { AuthContext } from "../../../context/AuthContext";
 import ListarCanchas from "./ListarCanchas";
 import EditarCanchaModal from "./EditarCanchaModal";
 import Modal from "../../common/Modal/Modal";
 import MiToast from "../../common/Toast/MiToast";
 import { toast } from "react-toastify";
+import MessageConfirm from "../../common/Confirm/MessageConfirm";
 
 function VerCanchasInline({ refresh }) {
   const { handleUnauthorized } = useContext(AuthContext);
@@ -18,16 +19,21 @@ function VerCanchasInline({ refresh }) {
   const [canchaEditar, setCanchaEditar] = useState(null);
   const [editLoading, setEditLoading] = useState(false);
   const [editErrores, setEditErrores] = useState({});
+  const [confirmData, setConfirmData] = useState({open: false, cancha:null});
+
+  const apiFetch = createApi(handleUnauthorized);
 
   const fetchCanchas = async () => {
     setLoading(true);
     setError(null);
     try {
-      const response = await backendClient.get('canchas/listar');
-      if (response) {
-        setCanchas(response);
+      const response = await apiFetch('/api/canchas/listar');
+      if (response.ok) {
+        const data = await response.json();
+        setCanchas(data);
       } else {
-        setError('Error al obtener canchas');
+        const err = await response.json();
+        setError(err.detail || 'Error al obtener canchas');
       }
     } catch (e) {
       setError(e.message || 'Error de conexión');
@@ -41,35 +47,55 @@ function VerCanchasInline({ refresh }) {
     // eslint-disable-next-line
   }, [refresh, canchasKey]);
 
-  // Handler para eliminar cancha
+  // solo abre el modal
   const handleEliminar = async (cancha) => {
-    if (!window.confirm(`¿Eliminar la cancha "${cancha.nombre}"?`)) return;
+    setConfirmData({open: true, cancha: cancha});
+  };
+
+
+  // cierra el modal
+  const cancelarEliminacion = () => {
+    setConfirmData({open: false, cancha: null});
+  }
+
+  // lógica para borrar la cancha
+  const ejecuarEliminación = async() => {
+    const cancha = confirmData.cancha;
+    if (!cancha) return;
+
+    setConfirmData ({open: false, cancha: null});
+
     try {
-      const response = await backendClient.delete(`canchas/eliminar/${cancha.id}`);
-      if (response) {
-        setCanchasKey(k => k + 1); // Refresca la lista
+      const response = await apiFetch(`/api/canchas/eliminar/${cancha.id}`,{
+        method: 'DELETE',
+      });
+
+      const d = await (async (r) => {try {return await r.json();} catch {return {}; } })(response);
+
+      if (response.ok){
+        toast(
+          <MiToast
+            mensaje={d.msg || "Cancha eliminada exitosamente"}
+            tipo="success"
+          />
+        );
+        setCanchasKey(k => k + 1);
       } else {
         toast(
-          <MiToast 
-            mensaje={"No se pudo eliminar la cancha"} 
-            tipo="error" 
+          <MiToast
+          mensaje={e.message || "Error de conexión"}
+          tipo="error"
           />
         );
       }
-    } catch (e) {
+    }catch (e){
       toast(
-        <MiToast 
-          mensaje={e.message || "Error de conexión"} 
-          tipo="error" 
+        <MiToast
+        mensaje={e.message || "Error de conexión"}
+        tipo = "error"
         />
       );
     }
-  };
-
-  // Handler para abrir modal de editar
-  const handleEditar = (cancha) => {
-    setCanchaEditar(cancha);
-    setEditErrores({});
   };
 
   // Handler para submit de edición
@@ -81,14 +107,16 @@ function VerCanchasInline({ refresh }) {
     }
     setEditLoading(true);
     try {
-      const response = await backendClient.put(`canchas/modificar/${canchaEditar.id}`, {
-        nombre: valores.nombre.trim(),
+      const response = await apiFetch(`/api/canchas/modificar/${canchaEditar.id}`, {
+        method: 'PUT',
+        body: JSON.stringify({ nombre: valores.nombre.trim() }),
       });
-      if (response) {
+      if (response.ok) {
         setCanchaEditar(null);
         setCanchasKey(k => k + 1);
       } else {
-        setEditErrores({ general: "No se pudo modificar la cancha" });
+        const err = await response.json();
+        setEditErrores({ general: err.detail || "No se pudo modificar la cancha" });
       }
     } catch (e) {
       setEditErrores({ general: e.message || "Error de conexión" });
@@ -118,6 +146,15 @@ function VerCanchasInline({ refresh }) {
           />
         )}
       </Modal>
+
+      {confirmData.open && (
+        <MessageConfirm
+        mensaje = {`¿Seguro que deseas eliminar la cancha "${confirmData.cancha?.nombre}"? Se borraran todas sus reservas y datos asociados.`}
+        onClose={cancelarEliminacion}
+        onConfirm={ejecuarEliminación}
+        onCancel={cancelarEliminacion}
+        />
+      )}
     </div>
   );
 }
