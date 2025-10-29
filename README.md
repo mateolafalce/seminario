@@ -281,11 +281,11 @@ Una vez hecho esto, los cambios hechos se revertiran.
   * [x] Implemnetar el frontend
   * [x] Arreglar cualquier conflicto
 * Seguridad
-  * [ ] Asegurarse de la autenticacion en cada endpoint
+  * [x] Asegurarse de la autenticacion en cada endpoint
   * [ ] Asegurarnos que las contraseñas cumplan cierto criterio de longitud y caracteres
 * Breaking Changes
-  * [ ] Eliminar la carpeta FastAPI y usar solo la carpeta /backend, para el backend
-  * [ ] Utilizar docker para dar de alta la app mas facil y rapido
+  * [x] Eliminar la carpeta FastAPI y usar solo la carpeta /backend, para el backend
+  * [x] Utilizar docker para dar de alta la app mas facil y rapido
 
 ## Diagrama de clases
 
