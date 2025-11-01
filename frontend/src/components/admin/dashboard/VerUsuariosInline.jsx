@@ -52,7 +52,7 @@ function VerUsuariosInline() {
   };
 
   return (
-    <div>
+    <section className="w-full px-6 space-y-4">
       <BarraBusqueda
         onBuscar={buscar}
         onLimpiar={limpiar}
@@ -61,32 +61,36 @@ function VerUsuariosInline() {
         loading={loadingBusqueda}
       />
       
-      <ListaUsuarios
-        key={usuariosKey}
-        usuarios={usuariosParaMostrar}
-        loading={estasCargando}
-        error={errorActual}
-        onEditar={modales.abrirEditar}
-        onEliminar={modales.abrirEliminar}
-        modoBusqueda={modoBusqueda}
-      />
-      
-      {!modoBusqueda && totalPages > 1 && (
-        <Paginacion
-          currentPage={currentPage}
-          totalPages={totalPages}
-          onPageChange={handlePageChange}
-          loading={loading}
+      <div className="w-full space-y-4">
+        <ListaUsuarios
+          key={usuariosKey}
+          usuarios={usuariosParaMostrar}
+          loading={estasCargando}
+          error={errorActual}
+          onEditar={modales.abrirEditar}
+          onEliminar={modales.abrirEliminar}
+          modoBusqueda={modoBusqueda}
         />
-      )}
+        
+        {!modoBusqueda && totalPages > 1 && (
+          <Paginacion
+            currentPage={currentPage}
+            totalPages={totalPages}
+            onPageChange={handlePageChange}
+            loading={loading}
+          />
+        )}
 
-      <ModalesUsuario
-        modales={modales}
-        onEditar={handleEditar}
-        onEliminar={handleEliminar}
-        onUsuarioCreado={handleUsuarioCreado} // Pasar el handler al modal
-      />
-    </div>
+        <div className="w-full rounded-xl p-4">
+          <ModalesUsuario
+            modales={modales}
+            onEditar={handleEditar}
+            onEliminar={handleEliminar}
+            onUsuarioCreado={handleUsuarioCreado} // Pasar el handler al modal
+          />
+        </div>
+      </div>
+    </section>
   );
 }
 

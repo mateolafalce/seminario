@@ -67,9 +67,9 @@ export default function PanelControl() {
 
   return (
     <div className="bg-gray-900 min-h-screen">
-      <div className="grid grid-cols-1 lg:grid-cols-[220px_1fr] gap-4 sm:gap-6 lg:gap-8 max-w-7xl mx-auto px-2 sm:px-4 lg:px-6 py-6 sm:py-8">
+      <div className="grid grid-cols-[220px_1fr] gap-0 min-h-screen">
         {/* Sidebar */}
-        <aside className="bg-gray-800 border border-gray-700 rounded-2xl p-4 h-fit flex flex-col gap-4 shadow-md sticky top-4">
+        <aside className="bg-gray-800 p-6 sticky top-0 h-screen">
           <div className="hidden lg:block">
             <h1 className="text-lg font-bold text-white mb-1">Panel Admin</h1>
             <p className="text-gray-400 text-xs mb-4">Gestión del sistema</p>
@@ -123,7 +123,7 @@ export default function PanelControl() {
         </aside>
 
         {/* Main */}
-        <main className="bg-gray-800 border border-gray-700 rounded-2xl p-4 sm:p-6 overflow-y-auto" style={{ maxHeight: '85vh' }}>
+        <main className="p-6 overflow-y-auto">
           <Outlet />
         </main>
       </div>
