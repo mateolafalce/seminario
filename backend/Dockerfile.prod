@@ -7,7 +7,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt \
-    && pip install --no-cache-dir gunicorn uvicorn
+    && pip install --no-cache-dir uvicorn
 
 COPY . .
 EXPOSE 8000
