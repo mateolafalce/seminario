@@ -76,4 +76,6 @@ $$
 
 Y finalmente hacemos lo mismo con $\alpha = 1 - \beta$.
 
-Este algoritmo esta inspirado en [k-nearest neighbors algorithm](https://en.wikipedia.org/wiki/K-nearest_neighbors_algorithm) y en [backpropagation](https://en.wikipedia.org/wiki/Backpropagation).
+Este algoritmo esta inspirado en [k-nearest neighbors algorithm](https://en.wikipedia.org/wiki/K-nearest_neighbors_algorithm) hace uso de [backpropagation](https://en.wikipedia.org/wiki/Backpropagation).
+
+![padel](imagenes/matcheo.png)
