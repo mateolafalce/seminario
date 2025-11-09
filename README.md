@@ -194,6 +194,9 @@ Una vez hecho esto, los cambios hechos se revertiran.
 
 </details>
 
+<details>
+<summary>RF que enviamos a la catedra (clic para expandir)</summary>
+ 
 # RF que enviamos a la catedra
 
 * RF
@@ -207,7 +210,11 @@ Una vez hecho esto, los cambios hechos se revertiran.
   * [x] El sistema deberá permitir registrar el resultado de un partido. 
   * [x] El sistema deberá permitir visualizar los turnos en formato calendario con vistas semanales, permitiendo acceder posteriormente al detalle de un día específico
 
+</details>
 
+<details>
+<summary>Roadmap (clic para expandir)</summary>
+ 
 # Roadmap
 
 * Logueo de usuarios y admin
@@ -286,7 +293,12 @@ Una vez hecho esto, los cambios hechos se revertiran.
 * Breaking Changes
   * [x] Eliminar la carpeta FastAPI y usar solo la carpeta /backend, para el backend
   * [x] Utilizar docker para dar de alta la app mas facil y rapido
+        
+</details>
 
+<details>
+<summary>Diagrama de clases (clic para expandir)</summary>
+ 
 ## Diagrama de clases
 
 <div align="center">
@@ -296,3 +308,5 @@ Una vez hecho esto, los cambios hechos se revertiran.
 </div>
 
 Cualquier modificacion que quieran hacerle al diagrama de clases podran hacerlo modificando el archivo .eap presente en el drive compartido entre nosotros.
+
+</details>
