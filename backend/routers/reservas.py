@@ -15,7 +15,7 @@ from db.schemas.reserva import reserva_schema_db
 from routers.Security.auth import current_user, verify_csrf, require_perms  
 from services.authz import user_has_any_role
 from services.matcheo import a_notificar, optimize_weights
-from services.email import notificar_posible_matcheo
+from services.email import notificar_posible_matcheo, notificar_recordatorio, notificar_confirmacion_reserva
 
 from pymongo.errors import DuplicateKeyError
 from collections import OrderedDict
@@ -67,13 +67,14 @@ def get_estado_ids_activos():
     return est_res["_id"], est_conf["_id"]
 
 def tiene_conflicto_slot(user_oid, fecha, horario_id):
-    est_res = db_client.estadoreserva.find_one({"nombre": "Reservada"})
-    if not est_res:
-        raise ValueError("Falta estado 'Reservada' en estadoreserva")
+    est_res  = db_client.estadoreserva.find_one({"nombre": "Reservada"})
+    est_conf = db_client.estadoreserva.find_one({"nombre": "Confirmada"})
+    if not est_res or not est_conf:
+        raise ValueError("Faltan estados en estadoreserva")
     return db_client.reservas.find_one({
         "fecha": fecha,
         "hora_inicio": horario_id,
-        "estado": est_res["_id"],
+        "estado": {"$in": [est_res["_id"], est_conf["_id"]]},
         "usuarios.id": user_oid
     }) is not None
 
@@ -119,6 +120,14 @@ def enviar_notificaciones_slot(reserva_doc, origen_user_id, hora_str, cancha_nom
 
     origen_oid = ObjectId(origen_user_id)
     candidatos = a_notificar(origen_user_id)
+    
+    # CAP de seguridad por si a_notificar cambia o falla
+    limite = int(os.getenv("USUARIOS_A_RECOMENDAR", "10") or "10")
+    candidatos = candidatos[:limite]
+    
+    # Log de candidatos seleccionados
+    print(f"[notif] top+random={candidatos} limite={limite}")
+    print(f"[notif] reserva={reserva_id} origen={origen_user_id} candidatos={len(candidatos)} lista={candidatos}")
 
     ya_notificados = get_notified_users(reserva_id)
     notificados = []
@@ -165,6 +174,7 @@ def enviar_notificaciones_slot(reserva_doc, origen_user_id, hora_str, cancha_nom
 
     if notificados:
         log_notifications(reserva_id, origen_oid, notificados, status="sent")
+        print(f"[notif] reserva={reserva_id} notificados_ok={len(notificados)}")
 
 # ==========================
 # Construcción de reserva
@@ -357,9 +367,28 @@ async def reservar(reserva: Reserva, user: dict = Depends(current_user)):
                 # Notifs
                 hora_inicio_str = reserva.horario.split('-')[0]
                 enviar_notificaciones_slot(nueva_reserva, user["id"], hora_inicio_str, reserva.cancha)
+                
+                # Programar recordatorio 1h antes
+                try:
+                    from services.scheduler import programar_recordatorio_nueva_reserva
+                    hora_inicio_str = reserva.horario.split('-')[0]
+                    programar_recordatorio_nueva_reserva(str(nueva_reserva["_id"]), reserva.fecha, hora_inicio_str)
+                except Exception as e:
+                    print(f"Error programando recordatorio: {e}")
+                
                 return nueva_reserva
 
         resultado = await asyncio.to_thread(operaciones_sincronas)
+        
+        # --- CONFIRMACIÓN AL QUE RESERVA ---
+        try:
+            mi_mail = _persona_email_por_user_id(user["id"])
+            if mi_mail:
+                # Enviar confirmación inmediata
+                notificar_confirmacion_reserva(mi_mail, reserva.fecha, reserva.horario.split('-')[0], reserva.cancha)
+        except Exception as e:
+            print(f"Error enviando confirmación: {e}")
+        
         return {"msg": "Reserva guardada", "reserva": reserva_schema_db(resultado)}
 
     except ValueError as e:
@@ -713,10 +742,10 @@ async def detalle_reserva(cancha: str, horario: str, fecha: str, usuario_id: str
         raise HTTPException(status_code=500, detail=f"Error al obtener detalles: {str(e)}")
 
 @router.post("/confirmar/{reserva_id}", dependencies=[Depends(verify_csrf)])
-async def confirmar_asistencia(reserva_id: str, user: dict = Depends(current_user)):
+async def confirmar_reserva(reserva_id: str, current_user: dict = Depends(current_user)):
     """Confirma la asistencia del usuario a una reserva y cambia a Confirmada si hay >=2 confirmaciones."""
     try:
-        user_id = ObjectId(user["id"])
+        user_id = ObjectId(current_user["id"])
         reserva_id_obj = ObjectId(reserva_id)
 
         estado_confirmada = db_client.estadoreserva.find_one({"nombre": "Confirmada"})
@@ -730,14 +759,34 @@ async def confirmar_asistencia(reserva_id: str, user: dict = Depends(current_use
         if resultado.modified_count == 0:
             raise HTTPException(status_code=404, detail="Reserva no encontrada o usuario no está en la reserva")
 
-        reserva = await asyncio.to_thread(lambda: db_client.reservas.find_one({"_id": reserva_id_obj}))
-        usuarios_confirmados = sum(1 for u in reserva.get("usuarios", []) if u.get("confirmado", False))
+        reserva_doc = await asyncio.to_thread(lambda: db_client.reservas.find_one({"_id": reserva_id_obj}))
+        usuarios_confirmados = sum(1 for u in reserva_doc.get("usuarios", []) if u.get("confirmado", False))
 
         if usuarios_confirmados >= 2:
             await asyncio.to_thread(lambda: db_client.reservas.update_one(
                 {"_id": reserva_id_obj},
                 {"$set": {"estado": estado_confirmada["_id"]}}
             ))
+            
+            # --- NOTIFICACIONES / EMAILS ---
+            try:
+                # obtener strings correctos para email
+                h_doc = db_client.horarios.find_one({"_id": reserva_doc["hora_inicio"]}, {"hora": 1})
+                c_doc = db_client.canchas.find_one({"_id": reserva_doc["cancha"]}, {"nombre": 1})
+                hora_str = (h_doc or {}).get("hora", "").split("-")[0]
+                cancha_nombre = (c_doc or {}).get("nombre", "")
+
+                # Si NO querés volver a notificar a tops/randoms en confirmar, dejá esto apagado:
+                # enviar_notificaciones_slot(reserva_doc, current_user["id"], hora_str, cancha_nombre)
+
+                # confirmación al que confirmó
+                mi_mail = _persona_email_por_user_id(current_user["id"])
+                if mi_mail and hora_str and cancha_nombre:
+                    # Enviar confirmación inmediata
+                    notificar_confirmacion_reserva(mi_mail, reserva_doc["fecha"], hora_str, cancha_nombre)
+            except Exception as e:
+                print(f"Error enviando notificaciones: {e}")
+            
             return {"msg": "Asistencia confirmada. La reserva ha sido confirmada con éxito."}
         else:
             return {"msg": "Asistencia registrada. Se necesita al menos una confirmación más para confirmar la reserva."}

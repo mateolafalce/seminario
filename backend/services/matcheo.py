@@ -18,33 +18,57 @@ load_dotenv()
 # ==========================
 
 def get_recommendation_split() -> Tuple[int, int]:
-    """3/5 recomendados + 2/5 aleatorios (por env USUARIOS_A_RECOMENDAR)"""
-    usuarios_a_recomendar = int(os.getenv("USUARIOS_A_RECOMENDAR", 10))
-    top = int((usuarios_a_recomendar * 3) // 5)
-    rnd = usuarios_a_recomendar - top
+    """
+    TOP y RANDOM vienen del .env. Si no están, por defecto:
+      - TOP = USUARIOS_A_RECOMENDAR
+      - RANDOM = 0
+    Siempre aseguramos TOP + RANDOM = USUARIOS_A_RECOMENDAR
+    """
+    total = int(os.getenv("USUARIOS_A_RECOMENDAR", "10") or "10")
+
+    # Defaults explícitos (sin 3/5)
+    top = int(os.getenv("USUARIOS_TOP", str(total)) or str(total))
+    # clamp
+    if top < 0:
+        top = 0
+    if top > total:
+        top = total
+
+    rnd = int(os.getenv("USUARIOS_RANDOM", str(total - top)) or str(total - top))
+    if rnd < 0:
+        rnd = 0
+
+    # forzar suma exacta
+    if top + rnd != total:
+        rnd = total - top
+
     return top, rnd
 
 # ==========================
 # Recomendación (lista de candidatos a notificar)
 # ==========================
 
-def a_notificar(usuario_id: str) -> List[str]:
-    """Devuelve user_ids: primero mejores matches, luego aleatorios (dedupe)."""
-    top, rnd = get_recommendation_split()
-    usuarios: List[str] = []
+def a_notificar(origen_user_id: str) -> List[str]:
+    """Devuelve user_ids: primero mejores matches, luego aleatorios (dedupe y cap total)."""
+    total = max(0, int(os.getenv("USUARIOS_A_RECOMENDAR", "10") or "10"))
+    top   = max(0, int(os.getenv("USUARIOS_TOP", "0") or "0"))
+    rnd   = max(0, int(os.getenv("USUARIOS_RANDOM", str(total - top)) or "0"))
+
+    # Si top+rnd supera total, recortamos random
+    if top + rnd > total:
+        rnd = max(0, total - top)
 
     # top por pesos
-    mejores = get_top_matches_from_db(usuario_id, top_x=top)
-    usuarios.extend([u for (u, _) in mejores])
-
+    mejores = get_top_matches_from_db(origen_user_id, top_x=top) if top else []
+    tops_sel = [u for (u, _) in mejores]
+    
     # aleatorios, excluyendo el user y los ya agregados
-    excluidos = [usuario_id] + usuarios
-    aleatorios = get_random_users(exclude_user_ids=excluidos, count=rnd)
-    usuarios.extend(aleatorios)
+    exclude = set(tops_sel) | {origen_user_id}
+    rnd_sel = get_random_users(exclude_user_ids=list(exclude), count=rnd) if rnd else []
 
-    # dedupe preservando orden
-    seen = set()
-    return [u for u in usuarios if not (u in seen or seen.add(u))]
+    candidatos = tops_sel + rnd_sel
+    # ÚLTIMA BARRERA: respeta 'total' pase lo que pase
+    return list(dict.fromkeys(candidatos))[:total]
 
 # ==========================
 # Métricas de juego (historial)
@@ -518,6 +542,8 @@ def cleanup_disabled_relations():
 
 def get_random_users(exclude_user_ids: List[str] = None, count: int = 5) -> List[str]:
     """Usuarios habilitados aleatorios excluyendo lista dada."""
+    if count <= 0:
+        return []
     if exclude_user_ids is None:
         exclude_user_ids = []
     exclude_oids = [ObjectId(x) for x in exclude_user_ids if ObjectId.is_valid(x)]

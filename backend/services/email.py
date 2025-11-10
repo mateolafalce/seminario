@@ -90,3 +90,15 @@ def notificar_cancelacion_reserva(to: str, day: str, hora: str, cancha: str, nom
     <p>Podés ver el detalle y cancelar tu reserva si lo deseás en <a href="{url}">este enlace</a>.</p>
     """
     return enviar_email(to, subject, html)
+
+def notificar_confirmacion_reserva(to_email: str, fecha: str, hora_inicio: str, cancha_nombre: str):
+    """Envía confirmación inmediata al crear/confirmar una reserva."""
+    subject = f"Reserva creada para {fecha} {hora_inicio}"
+    body = (
+        f"¡Listo! Tu reserva fue creada.\n\n"
+        f"- Fecha: {fecha}\n"
+        f"- Hora: {hora_inicio}\n"
+        f"- Cancha: {cancha_nombre}\n\n"
+        f"Te enviaremos un recordatorio antes del comienzo. ¡Éxitos!"
+    )
+    enviar_email(to_email, subject, body)

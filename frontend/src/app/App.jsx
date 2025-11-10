@@ -21,7 +21,7 @@ import { ToastContainer } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 
 import AuthProvider, { AuthContext } from '../features/auth/context/AuthContext';
-import AdminRoute from '../features/admin/components/AdminRoute';
+
 
 // Permisos (modelo nuevo basado en roles/permissions)
 import {
