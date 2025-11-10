@@ -1,10 +1,10 @@
 import React, { useState, useEffect } from 'react';
-import Modal from "../../../components/common/Modal/Modal";
-import Button from "../../../components/common/Button/Button";
+import Modal from "../../../shared/components/ui/Modal/Modal";
+import Button from "../../../shared/components/ui/Button/Button";
 import { IoMdAlert } from "react-icons/io";
 import { BiSolidError } from "react-icons/bi";
 import { GrStatusGood } from "react-icons/gr";
-import useCategorias from '../../../hooks/useCategorias';
+import useCategorias from '../../../shared/hooks/useCategorias';
 import UsuarioForm from "../components/UsuarioForm.jsx";
 
 const ModalesUsuario = ({ modales, onEditar, onEliminar }) => {

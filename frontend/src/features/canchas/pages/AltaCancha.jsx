@@ -1,10 +1,10 @@
 import React, { useState, useContext } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { AuthContext } from '../../../context/AuthContext'
-import AuthForm from '../../../components/common/AuthForm/AuthForm'
-import backendClient from '../../../services/backendClient'
+import { AuthContext } from '../../auth/context/AuthContext'
+import AuthForm from '../../auth/components/AuthForm'
+import backendClient from '../../../shared/services/backendClient'
 import ListarCanchas from './ListarCanchas'
-import { canManageCanchas } from '../../../utils/permissions'
+import { canManageCanchas } from '../../../shared/utils/permissions'
 
 function AltaCancha({ refresh }) {
   const [errores, setErrores] = useState({})

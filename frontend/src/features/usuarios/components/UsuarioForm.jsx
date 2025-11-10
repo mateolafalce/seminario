@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import useCategorias from "../../../hooks/useCategorias";
+import useCategorias from "../../../shared/hooks/useCategorias";
 
 export default function UsuarioForm({
   initialValues = { nombre:"", apellido:"", email:"", categoria:"", habilitado:false },

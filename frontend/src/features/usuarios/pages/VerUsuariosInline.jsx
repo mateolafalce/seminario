@@ -1,11 +1,11 @@
 import { useState } from "react";
-import { useUsuarios } from "../../../hooks/useUsuarios";
-import { useBusquedaUsuarios } from "../../../hooks/useBusquedaUsuarios";
-import { useModales } from "../../../hooks/useModales";
-import BarraBusqueda from "../../../components/common/SearchBar/BarraBusqueda.jsx";
+import { useUsuarios } from "../hooks/useUsuarios";
+import { useBusquedaUsuarios } from "../hooks/useBusquedaUsuarios";
+import { useModales } from "../../../shared/hooks/useModales";
+import BarraBusqueda from "../../../shared/components/ui/SearchBar/BarraBusqueda";
 import ListaUsuarios from "./ListaUsuarios";
 import ModalesUsuario from "./ModalesUsuario";
-import Paginacion from "../../../components/common/Paginacion.jsx";
+import Paginacion from "../../../shared/components/ui/Paginacion";
 
 
 function VerUsuariosInline() {

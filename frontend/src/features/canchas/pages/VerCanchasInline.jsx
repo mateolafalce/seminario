@@ -1,12 +1,12 @@
 import { useState, useEffect, useContext } from "react";
-import backendClient from "../../../services/backendClient";
-import { AuthContext } from "../../../context/AuthContext";
+import backendClient from "../../../shared/services/backendClient";
+import { AuthContext } from "../../auth/context/AuthContext";
 import ListarCanchas from "./ListarCanchas";
 import CanchaForm from "../components/CanchaForm.jsx";
-import Modal from "../../../components/common/Modal/Modal";
-import MiToast from "../../../components/common/Toast/MiToast";
+import Modal from "../../../shared/components/ui/Modal/Modal";
+import MiToast from "../../../shared/components/ui/Toast/MiToast";
 import { toast } from "react-toastify";
-import MessageConfirm from "../../../components/common/Confirm/MessageConfirm"; // <-- tomado de B
+import MessageConfirm from "../../../shared/components/ui/Confirm/MessageConfirm"; // <-- tomado de B
 
 function VerCanchasInline({ refresh }) {
   const { handleUnauthorized } = useContext(AuthContext);

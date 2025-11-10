@@ -1,4 +1,4 @@
-import Button from '../../../components/common/Button/Button'
+import Button from '../../../shared/components/ui/Button/Button'
 
 const ListarCanchas = ({ canchas, loading, error, onEliminar, onEditar }) => {
   if (loading) {
