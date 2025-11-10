@@ -1,10 +1,11 @@
 import React, { useState, useEffect } from 'react';
-import Modal from '../../common/Modal/Modal';
-import Button from '../../common/Button/Button';
+import Modal from "../../../components/common/Modal/Modal";
+import Button from "../../../components/common/Button/Button";
 import { IoMdAlert } from "react-icons/io";
 import { BiSolidError } from "react-icons/bi";
 import { GrStatusGood } from "react-icons/gr";
 import useCategorias from '../../../hooks/useCategorias';
+import UsuarioForm from "../components/UsuarioForm.jsx";
 
 const ModalesUsuario = ({ modales, onEditar, onEliminar }) => {
   const [usuarioEditar, setUsuarioEditar] = useState(null);
@@ -72,56 +73,20 @@ const ModalesUsuario = ({ modales, onEditar, onEliminar }) => {
         </div>
 
         <div className="px-6 py-6">
-          <form onSubmit={handleEditar} className="space-y-4">
-            <div className="grid grid-cols-1 gap-4">
-              {['nombre', 'apellido'].map((field) => (
-                <input
-                  key={field}
-                  type="text"
-                  value={usuarioEditar?.[field] || ''}
-                  onChange={e => setUsuarioEditar({ ...usuarioEditar, [field]: e.target.value })}
-                  className="w-full px-4 py-3 rounded-lg border border-gray-600 bg-gray-900 text-white focus:outline-none focus:ring-2 focus:ring-[#E5FF00]"
-                  placeholder={field.charAt(0).toUpperCase() + field.slice(1)}
-                  required
-                />
-              ))}
-
-              <input
-                type="email"
-                value={usuarioEditar?.email || ''}
-                onChange={e => setUsuarioEditar({ ...usuarioEditar, email: e.target.value })}
-                className="w-full px-4 py-3 rounded-lg border border-gray-600 bg-gray-900 text-white focus:outline-none focus:ring-2 focus:ring-[#E5FF00]"
-                placeholder="Email"
-                required
-              />
-
-              <select
-                value={usuarioEditar?.categoria || ''}
-                onChange={e => setUsuarioEditar({ ...usuarioEditar, categoria: e.target.value })}
-                className="w-full px-4 py-3 rounded-lg border border-gray-600 bg-gray-900 text-white focus:outline-none focus:ring-2 focus:ring-[#E5FF00]"
-              >
-                <option value="">{loadingCategorias ? 'Cargando…' : 'Sin categoría'}</option>
-                {categoriasNombres.map(cat => (
-                  <option key={cat} value={cat}>{cat}</option>
-                ))}
-              </select>
-            </div>
-
-            <div className="flex items-center gap-3 py-2">
-              <input
-                type="checkbox"
-                checked={usuarioEditar?.habilitado || false}
-                onChange={e => setUsuarioEditar({ ...usuarioEditar, habilitado: e.target.checked })}
-                className="accent-[#E5FF00] w-5 h-5"
-              />
-              <label className="text-white">Usuario habilitado</label>
-            </div>
-
-            <div className="flex gap-3 pt-4">
-              <Button type="submit" texto="Guardar Cambios" variant="default" className="flex-1" />
-              <Button type="button" texto="Cancelar" onClick={modales.cerrarEditar} variant="cancelar" className="flex-1" />
-            </div>
-          </form>
+          <UsuarioForm
+            initialValues={usuarioEditar || { nombre:"", apellido:"", email:"", categoria:"", habilitado:false }}
+            onSubmit={async (vals) => {
+              const resultado = await onEditar(vals);
+              if (resultado.success) {
+                modales.cerrarEditar();
+                mostrarMensaje('success', '¡Éxito!', 'Usuario actualizado correctamente');
+              } else {
+                mostrarMensaje('error', 'Error', `Error al modificar: ${resultado.error}`);
+              }
+            }}
+            onCancel={modales.cerrarEditar}
+            submitText="Guardar Cambios"
+          />
         </div>
       </Modal>
 

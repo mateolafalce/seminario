@@ -4,6 +4,8 @@ from bson import ObjectId
 from pymongo import ASCENDING
 from datetime import datetime
 import pytz
+import secrets
+import asyncio
 
 from db.client import db_client
 from services.persona import (
@@ -15,6 +17,7 @@ from utils.security import (
     generate_salt, hash_password_with_salt,
     verify_password_with_salt, is_bcrypt_hash
 )
+from services.email_service import send_verification_email
 
 # opcional: solo por compat (si quedara algún usuario viejo en bcrypt)
 try:
@@ -91,9 +94,9 @@ def register_new_user(payload) -> Tuple[ObjectId, ObjectId]:
     1) crea/actualiza PERSONA (dni único) con nombre/apellido/email
     2) crea USER (username/password) apuntando a persona
     3) asigna rol 'usuario'
+    4) 👉 ENVÍA EMAIL DE VERIFICACIÓN 👈
     Retorna: (user_id, persona_id)
     """
-    from db.models.user import RegisterUser  # hint, no hard requirement
     # Persona
     persona_id = create_persona_for_user(
         nombre=payload.nombre,
@@ -101,6 +104,10 @@ def register_new_user(payload) -> Tuple[ObjectId, ObjectId]:
         email=payload.email,
         dni=payload.dni,
     )
+    
+    # 👇 GENERAR TOKEN DE VERIFICACIÓN
+    verification_token = secrets.token_urlsafe(32)
+    
     # User
     user_id = create_user_account(
         username=payload.username,
@@ -109,8 +116,39 @@ def register_new_user(payload) -> Tuple[ObjectId, ObjectId]:
         habilitado=False,
         categoria=None,
     )
+    
+    # 👇 GUARDAR EL TOKEN EN LA DB
+    db_client.users.update_one(
+        {"_id": user_id},
+        {"$set": {"habilitacion_token": verification_token}}
+    )
+    
     # Rol por defecto
     assign_role(str(user_id), "usuario")
+    
+    # 👇 ENVIAR EMAIL (asíncrono, no bloquea el registro si falla)
+    try:
+        # Ejecutar la función async en el event loop actual
+        loop = asyncio.get_event_loop()
+        if loop.is_running():
+            # Si ya hay un loop corriendo, usar create_task
+            asyncio.create_task(send_verification_email(
+                email=payload.email,
+                nombre=payload.nombre,
+                token=verification_token
+            ))
+        else:
+            # Si no hay loop, usar run_until_complete
+            loop.run_until_complete(send_verification_email(
+                email=payload.email,
+                nombre=payload.nombre,
+                token=verification_token
+            ))
+        print(f"✅ [REGISTRO] Email de verificación enviado a {payload.email}")
+    except Exception as e:
+        print(f"⚠️ [REGISTRO] No se pudo enviar email a {payload.email}: {e}")
+        # NO fallar el registro si el email falla
+    
     return user_id, persona_id
 
 

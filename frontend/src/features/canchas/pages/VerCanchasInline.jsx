@@ -1,12 +1,12 @@
-import React, { useState, useEffect, useContext } from "react";
+import { useState, useEffect, useContext } from "react";
 import backendClient from "../../../services/backendClient";
 import { AuthContext } from "../../../context/AuthContext";
 import ListarCanchas from "./ListarCanchas";
-import EditarCanchaModal from "./EditarCanchaModal";
-import Modal from "../../common/Modal/Modal";
-import MiToast from "../../common/Toast/MiToast";
+import CanchaForm from "../components/CanchaForm.jsx";
+import Modal from "../../../components/common/Modal/Modal";
+import MiToast from "../../../components/common/Toast/MiToast";
 import { toast } from "react-toastify";
-import MessageConfirm from "../../common/Confirm/MessageConfirm"; // <-- tomado de B
+import MessageConfirm from "../../../components/common/Confirm/MessageConfirm"; // <-- tomado de B
 
 function VerCanchasInline({ refresh }) {
   const { handleUnauthorized } = useContext(AuthContext);
@@ -113,15 +113,19 @@ function VerCanchasInline({ refresh }) {
         onEditar={handleEditar}
       />
 
+      {/* Modal editar */}
       <Modal isOpen={!!canchaEditar} onClose={() => setCanchaEditar(null)}>
         {canchaEditar && (
-          <EditarCanchaModal
-            cancha={canchaEditar}
-            onClose={() => setCanchaEditar(null)}
-            onSubmit={handleSubmitEditar}
-            loading={editLoading}
-            errores={editErrores}
-          />
+          <div className="p-4">
+            <h2 className="text-white text-lg font-semibold mb-3">Editar Cancha</h2>
+            <CanchaForm
+              initialValues={{ nombre: canchaEditar.nombre }}
+              onSubmit={handleSubmitEditar}
+              submitText="Guardar Cambios"
+              loading={editLoading}
+              erroresExternos={editErrores}
+            />
+          </div>
         )}
       </Modal>
 

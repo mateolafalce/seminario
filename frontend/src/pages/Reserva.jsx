@@ -1,5 +1,4 @@
-// src/pages/Reserva.jsx
-import React, { useContext, useEffect } from 'react';
+import { useContext, useEffect } from 'react';
 import { AuthContext } from '../context/AuthContext';
 import { useLocation, useNavigate } from 'react-router-dom';
 import ReservaTabla from '../components/usuarios/ReservaTabla';

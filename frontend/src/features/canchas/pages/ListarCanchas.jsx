@@ -1,5 +1,4 @@
-import React from 'react'
-import Button from '../../common/Button/Button'
+import Button from '../../../components/common/Button/Button'
 
 const ListarCanchas = ({ canchas, loading, error, onEliminar, onEditar }) => {
   if (loading) {

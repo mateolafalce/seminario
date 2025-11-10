@@ -1,7 +1,7 @@
 import React, { useState, useContext } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { AuthContext } from '../../../context/AuthContext'
-import AuthForm from '../../common/AuthForm/AuthForm'
+import AuthForm from '../../../components/common/AuthForm/AuthForm'
 import backendClient from '../../../services/backendClient'
 import ListarCanchas from './ListarCanchas'
 import { canManageCanchas } from '../../../utils/permissions'

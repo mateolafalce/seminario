@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException, status, Query, Response
+from fastapi import APIRouter, Depends, HTTPException, status, Query, Response, BackgroundTasks
 from fastapi.security import OAuth2PasswordRequestForm
 from passlib.context import CryptContext
 from typing import Dict, Any
@@ -31,6 +31,7 @@ from routers.Security.auth import (
 )
 from services.authz import assign_role, get_user_roles_and_perms, user_has_any_role
 from services.email import enviar_email_habilitacion
+from services.email_service import send_verification_email_bg
 import logging
 
 sec_log = logging.getLogger("security")
@@ -48,26 +49,57 @@ crypt = CryptContext(schemes=["bcrypt"])
 # ---------------------------
 
 @router.post("/register", status_code=status.HTTP_201_CREATED)
-async def register(payload: RegisterUser):
+async def register(payload: RegisterUser, background_tasks: BackgroundTasks):
     try:
         await asyncio.to_thread(register_new_user, payload)
+        # Buscar el usuario recién creado para obtener su token
+        user_db = await asyncio.to_thread(get_user_by_username, payload.username)
+        token = (user_db or {}).get("habilitacion_token")
+        if token:
+            # Enviar verificación en background
+            background_tasks.add_task(
+                send_verification_email_bg,
+                email=payload.email,
+                nombre=payload.nombre,
+                token=token,
+            )
+        else:
+            print("[WARN] Usuario creado pero sin habilitacion_token (no se envió verificación)")
         return {"ok": True, "message": "Usuario registrado. Revisa tu email para habilitar la cuenta."}
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
 
 @router.post("/login")
 async def login(response: Response, form: OAuth2PasswordRequestForm = Depends()):
-    user_db = await asyncio.to_thread(get_user_by_username, form.username)
-    if not user_db or not verify_password(user_db, form.password):
-        raise HTTPException(status_code=400, detail="Usuario o contraseña incorrectos")
+    u = (form.username or "").strip()
+    p = (form.password or "")
+    if not u and not p:
+        raise HTTPException(status_code=422, detail="Ingresá usuario y contraseña")
+    if not u:
+        raise HTTPException(status_code=422, detail="Ingresá el usuario")
+    if not p:
+        raise HTTPException(status_code=422, detail="Ingresá la contraseña")
+
+    user_db = await asyncio.to_thread(get_user_by_username, u)
+    if not user_db:
+        raise HTTPException(status_code=404, detail="El usuario no existe")
+    if not verify_password(user_db, p):
+        raise HTTPException(status_code=400, detail="Contraseña incorrecta")
+    if not bool(user_db.get("habilitado", False)):
+        raise HTTPException(status_code=403, detail="Tu cuenta no está habilitada. Revisá tu email de verificación.")
 
     await asyncio.to_thread(update_last_login, user_db["_id"])
 
-    r = get_user_roles_and_perms(user_db["_id"])  # {"roles":[...], "permissions":[...]}
+    # 🔑 Crear JWT con claim "id" (lo requiere current_user)
+    token = create_access_token(
+        sub=str(user_db["_id"]),
+        extra={"id": str(user_db["_id"]), "username": user_db["username"]}
+    )
 
-    access_token = create_access_token(sub=user_db["username"], extra={"id": str(user_db["_id"])})
-    set_auth_cookies(response, access_token)
+    # 🍪 Setear cookies HttpOnly (access) + CSRF (legible)
+    set_auth_cookies(response, token)
 
+    r = get_user_roles_and_perms(user_db["_id"])
     return {
         "ok": True,
         "user_id": str(user_db["_id"]),

@@ -102,7 +102,9 @@ const request = async (endpoint, options = {}) => {
     const res = await fetch(url, config);
     return await handleResponse(res);
   } catch (e) {
-    // Error de red / CORS / offline
+    // Si handleResponse ya armó un error HTTP con status/data, propagalo tal cual
+    if (e && (e.status || e.data)) throw e;
+    // Error real de red / CORS / offline
     const err = new Error('NETWORK_ERROR');
     err.cause = e;
     throw err;

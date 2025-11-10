@@ -132,8 +132,8 @@ export default function PanelControl() {
 }
 
 // Re-exports para que App.jsx pueda importar desde PanelControl.jsx
-export { default as TabUsuarios }   from '../components/admin/dashboard/VerUsuariosInline';
-export { default as TabCanchas }    from '../components/admin/dashboard/VerCanchasInline';
+export { default as TabUsuarios }   from '../features/usuarios/pages/VerUsuariosInline';
+export { default as TabCanchas }    from '../features/canchas/pages/VerCanchasInline';
 export { default as TabReservas }   from '../components/admin/dashboard/GestionReservas';
 export { default as TabHorarios }   from './TabHorarios';
 export { default as TabCategorias } from './TabCategorias';

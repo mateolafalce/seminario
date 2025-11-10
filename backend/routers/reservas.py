@@ -104,7 +104,9 @@ def match_preferencia(user_oid, fecha, horario_id, cancha_id):
 
 def enviar_notificaciones_slot(reserva_doc, origen_user_id, hora_str, cancha_nombre):
     """Notifica candidatos a matcheo por email (desde PERSONAS)."""
-    from services.notifs import should_notify_slot_by_logs, get_notified_users, log_notifications
+    from services.notifs import ensure_notif_indexes, should_notify_slot_by_logs, get_notified_users, log_notifications
+    # Asegura índices para dedupe/velocidad (idempotente)
+    ensure_notif_indexes()
 
     argentina_tz = pytz.timezone("America/Argentina/Buenos_Aires")
     if not should_notify_slot_by_logs(reserva_doc, argentina_tz):

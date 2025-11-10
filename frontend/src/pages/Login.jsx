@@ -25,14 +25,47 @@ function Login() {
     { nombre: "password", etiqueta: "Contraseña", tipo: "password", placeholder: "Ingresa tu contraseña", autoComplete: "current-password" },
   ];
 
+  // Mapea errores de la API a mensajes amigables
+  const normalizeApiError = async (error) => {
+    // Si viene envuelto como NETWORK_ERROR o sin status → problema real de red
+    if (!error || (!('status' in error) && error?.message === 'NETWORK_ERROR')) {
+      return { general: "No se pudo conectar con el servidor. Verificá tu conexión o intentá de nuevo." };
+    }
+    const status = error.status;
+    const data = error.data;
+    const detail = data?.detail ?? data;
+    if (status === 422) { // vacíos
+      if (typeof detail === "string") {
+        // Mostramos como general; opcional: repartir a campos si querés
+        return { general: detail };
+      }
+    }
+    if (status === 404) return { username: "El usuario no existe" };
+    if (status === 400) return { password: "Contraseña incorrecta" };
+    if (status === 403) return { general: typeof detail === "string" ? detail : "Tu cuenta no está habilitada" };
+    if (typeof detail === "string") return { general: detail };
+    return { general: "Ocurrió un error inesperado" };
+  };
+
   const handleLogin = async (valores) => {
     setCargando(true);
     setErrores({});
     try {
+      // Validación previa en el cliente para UX clara
+      const errs = {};
+      if (!valores.username?.trim()) errs.username = "Ingresá el usuario";
+      if (!valores.password?.trim()) errs.password = "Ingresá la contraseña";
+      if (Object.keys(errs).length) {
+        setErrores(errs);
+        setCargando(false);
+        return;
+      }
+
       await login(valores.username, valores.password);
       // la redirección la maneja el efecto por isAuthenticated
     } catch (error) {
-      setErrores({ general: error.message || 'Credenciales incorrectas' });
+      const mapped = await normalizeApiError(error);
+      setErrores(mapped);
     } finally {
       setCargando(false);
     }

@@ -1,14 +1,14 @@
 import React, { useState, useEffect, useContext, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import IconoAvatar from '../../assets/icons/iconoAvatar';
+import IconoAvatar from '../../../assets/icons/iconoAvatar';
 import { useNavigate } from 'react-router-dom';
-import { AuthContext } from '../../context/AuthContext';
-import Button from '../common/Button/Button';
-import MiToast from '../common/Toast/MiToast';
+import { AuthContext } from '../../../context/AuthContext';
+import Button from '../../../components/common/Button/Button';
+import MiToast from '../../../components/common/Toast/MiToast';
 import { toast } from 'react-toastify';
 
-import backendClient from '../../services/backendClient';
-import useCategorias from '../../hooks/useCategorias';
+import backendClient from '../../../services/backendClient';
+import useCategorias from '../../../hooks/useCategorias';
 
 function VerUsuarios({ show, onHide }) {
   const [users, setUsers] = useState([]);

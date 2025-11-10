@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import Button from '../../common/Button/Button';
+import Button from '../Button/Button';
 
 const BarraBusqueda = ({ onBuscar, onLimpiar, modoBusqueda, resultados, loading }) => {
   const [termino, setTermino] = useState('');
@@ -16,7 +16,7 @@ const BarraBusqueda = ({ onBuscar, onLimpiar, modoBusqueda, resultados, loading 
 
   return (
     <div className="space-y-6 mb-4">
-   
+      
       <form onSubmit={handleSubmit} className="flex flex-col sm:flex-row gap-2 sm:gap-4 w-full items-stretch sm:items-center">
         <input
           type="text"
