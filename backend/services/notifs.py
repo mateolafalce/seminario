@@ -4,11 +4,11 @@ from typing import Iterable, Set
 from bson import ObjectId
 import pytz
 from db.client import db_client
-from pymongo.errors import OperationFailure
+import logging
+log = logging.getLogger("notifs")
 
 # Config
-NOTIFY_ON_COUNTS = set(int(x) for x in os.getenv("NOTIFY_ON_COUNTS", "1,3,5").split(",") if x.strip())
-NOTIFY_COOLDOWN_MIN = int(os.getenv("NOTIFY_COOLDOWN_MIN", "120"))  # 2 horas por defecto
+NOTIFY_COOLDOWN_MIN = int(os.getenv("NOTIFY_COOLDOWN_MIN", "120") or "120")  # 2 horas por defecto
 
 def ensure_notif_indexes():
     """Índices para notif_logs (dedupe + consultas rápidas)"""
@@ -34,21 +34,37 @@ def last_sent_at(reserva_id: ObjectId):
     )
     return doc["created_at"] if doc else None
 
+def _counts_set():
+    raw = os.getenv("NOTIFY_ON_COUNTS", "")
+    if not raw.strip():
+        return set()
+    items = [x.strip() for x in raw.split(",") if x.strip()]
+    return {int(x) for x in items if x.isdigit()}
+
 def should_notify_slot_by_logs(reserva_doc, argentina_tz) -> bool:
     """Decide si se puede notificar este slot según cantidad de usuarios y cooldown global del slot."""
     # 1) Umbral por cantidad de usuarios
     cant = len(reserva_doc.get("usuarios", []))
-    if NOTIFY_ON_COUNTS and cant not in NOTIFY_ON_COUNTS:
+    allowed = _counts_set()
+    if allowed and cant not in allowed:
+        log.info("notif gate: count=%s not in %s → skip", cant, sorted(allowed))
         return False
 
     # 2) Cooldown por último envío del slot
     rid = reserva_doc.get("_id")
     if not rid:
+        log.info("notif gate: OK (no reserva id)")
         return True
     last = last_sent_at(rid)
-    if last and (datetime.now(argentina_tz) - last) < timedelta(minutes=NOTIFY_COOLDOWN_MIN):
-        return False
+    if last:
+        # compat: si el log viejo es naive, localizalo para comparar
+        if last.tzinfo is None:
+            last = argentina_tz.localize(last)
+        if (datetime.now(argentina_tz) - last) < timedelta(minutes=NOTIFY_COOLDOWN_MIN):
+            log.info("notif gate: cooldown active (%s min) → skip", NOTIFY_COOLDOWN_MIN)
+            return False
 
+    log.info("notif gate: OK (count=%s, cooldown ok)", cant)
     return True
 
 def log_notifications(reserva_id: ObjectId, origen: ObjectId, destinatarios: Iterable[ObjectId], status="sent"):

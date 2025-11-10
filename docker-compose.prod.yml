@@ -10,7 +10,7 @@ services:
       context: ./backend
       dockerfile: Dockerfile.prod
     env_file:
-      - ./.env                 
+      - ./backend/.env                 
     environment:
       TZ: America/Argentina/Buenos_Aires
       UVICORN_PORT: 8000

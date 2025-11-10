@@ -2,7 +2,7 @@ from __future__ import annotations
 import os
 import time
 import traceback
-from datetime import datetime
+from datetime import datetime, timedelta
 from typing import Optional, Callable, Dict, Any
 from threading import Lock
 from multiprocessing import Process, get_context
@@ -16,9 +16,13 @@ from apscheduler.events import (
 
 from db.client import db_client
 
+import pytz
+
 # === Importa tus jobs reales ===
 from routers.reservas import cerrar_reservas_vencidas
 from services.matcheo import calculate_and_store_relations, optimize_weights
+from services.email import notificar_recordatorio
+from bson import ObjectId
 
 # =========================
 # Config helpers
@@ -247,3 +251,81 @@ def shutdown_scheduler():
         _scheduler.shutdown(wait=False)
         _scheduler = None
         print("[scheduler] apagado")
+
+ARG_TZ = pytz.timezone(os.getenv("TIMEZONE", "America/Argentina/Buenos_Aires"))
+REMINDER_OFFSET_MIN = int(os.getenv("REMINDER_OFFSET_MIN", "60"))
+
+# --- Job simple para enviar recordatorio por reserva ---
+def recordatorio_job(reserva_id: str):
+    """Envía recordatorio a todos los usuarios de una reserva."""
+    print(f"[reminder] ejecutando reserva={reserva_id}")
+    try:
+        r = db_client.reservas.find_one(
+            {"_id": ObjectId(reserva_id)},
+            {"fecha": 1, "hora_inicio": 1, "cancha": 1, "usuarios.id": 1}
+        )
+        if not r:
+            print(f"[recordatorio] Reserva {reserva_id} no encontrada")
+            return
+
+        h = (db_client.horarios.find_one({"_id": r["hora_inicio"]}, {"hora": 1}) or {}).get("hora", "")
+        hora_inicio = h.split("-")[0] if h else ""
+        cancha_nombre = (db_client.canchas.find_one({"_id": r["cancha"]}, {"nombre": 1}) or {}).get("nombre", "")
+
+        # mandar a todos los que están en la reserva (recordatorio personal)
+        for u in r.get("usuarios", []):
+            user_doc = db_client.users.find_one({"_id": u["id"]}, {"persona": 1})
+            if not user_doc or not user_doc.get("persona"):
+                continue
+            p = db_client.personas.find_one({"_id": user_doc["persona"]}, {"email": 1})
+            if p and p.get("email"):
+                notificar_recordatorio(p["email"], r["fecha"], hora_inicio, cancha_nombre)
+                print(f"[recordatorio] Enviado a {p['email']} para reserva {reserva_id}")
+    except Exception as e:
+        print(f"[recordatorio] Error en job {reserva_id}: {e}")
+        traceback.print_exc()
+
+def programar_recordatorio_nueva_reserva(reserva_id: str, fecha: str, hora_inicio_str: str):
+    """
+    Programa un job único para enviar recordatorio a T - REMINDER_OFFSET_MIN.
+    fecha: 'DD-MM-YYYY'
+    hora_inicio_str: 'HH:MM'
+    """
+    dt_slot = ARG_TZ.localize(datetime.strptime(f"{fecha} {hora_inicio_str}", "%d-%m-%Y %H:%M"))
+    run_at = dt_slot - timedelta(minutes=REMINDER_OFFSET_MIN)
+
+    # Si ya pasó la hora (por ejemplo, reserva creada dentro del offset),
+    # movemos a 10s en el futuro o podés directamente no programar.
+    now = datetime.now(ARG_TZ)
+    if run_at < now:
+        run_at = now + timedelta(seconds=10)
+
+    if not _scheduler:
+        start_scheduler()  # por si acaso
+
+    print(f"[reminder] programado reserva={reserva_id} run_at={run_at.isoformat()}")
+    
+    _scheduler.add_job(
+        func=recordatorio_job,
+        trigger="date",
+        run_date=run_at,
+        id=f"reminder:{reserva_id}",
+        replace_existing=True,
+        kwargs={"reserva_id": reserva_id},
+        misfire_grace_time=int(os.getenv("SCH_MISFIRE_GRACE", "60")),
+    )
+    print(f"[scheduler] Recordatorio programado para {reserva_id} a las {run_at}")
+
+def cancelar_recordatorio_reserva(reserva_id: str):
+    """Cancela el recordatorio de una reserva."""
+    if _scheduler:
+        try:
+            _scheduler.remove_job(f"reminder:{reserva_id}")
+            print(f"[scheduler] Recordatorio cancelado para {reserva_id}")
+        except Exception as e:
+            print(f"[scheduler] Error cancelando recordatorio {reserva_id}: {e}")
+
+def cancelar_recordatorio_usuario(reserva_id: str, user_id: str):
+    """Placeholder para cancelar recordatorio por usuario (si lo implementás a futuro)."""
+    # Por ahora no hacemos nada especial; el recordatorio se cancela por reserva completa
+    pass

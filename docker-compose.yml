@@ -10,7 +10,7 @@ services:
     volumes:
       - ./backend:/app
     env_file:
-      - ./.env           
+      - ./backend/.env           
     networks:
       - seminario-network
 
