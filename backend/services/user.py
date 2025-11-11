@@ -221,10 +221,11 @@ def update_persona_by_user_id(user_id, data):
 
 def list_users_with_personas(page: int = 1, limit: int = 10) -> List[Dict[str, Any]]:
     """
-    Lista users con join a personas. Devuelve items con subobjeto 'persona'.
+    Lista users con join a personas y categorias. Devuelve 'categoria_nombre' además del id.
     """
     skip = max(page - 1, 0) * limit
     pipeline = [
+        # Join a personas
         {"$lookup": {
             "from": "personas",
             "localField": "persona",
@@ -232,6 +233,17 @@ def list_users_with_personas(page: int = 1, limit: int = 10) -> List[Dict[str, A
             "as": "persona"
         }},
         {"$unwind": "$persona"},
+
+        # Join a categorias (puede ser null)
+        {"$lookup": {
+            "from": "categorias",
+            "localField": "categoria",
+            "foreignField": "_id",
+            "as": "categoria_doc"
+        }},
+        {"$unwind": {"path": "$categoria_doc", "preserveNullAndEmptyArrays": True}},
+
+        # Proyección
         {"$project": {
             "_id": 1,
             "username": 1,
@@ -239,6 +251,8 @@ def list_users_with_personas(page: int = 1, limit: int = 10) -> List[Dict[str, A
             "habilitado": 1,
             "fecha_registro": 1,
             "ultima_conexion": 1,
+            "categoria": 1,                          # deja el ObjectId por si hace falta
+            "categoria_nombre": "$categoria_doc.nombre",
             "persona": {
                 "id": {"$toString": "$persona._id"},
                 "nombre": "$persona.nombre",

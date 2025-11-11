@@ -39,7 +39,7 @@ function SidebarLink({ to, icon, label }) {
 }
 
 export default function PanelControl() {
-  const { isAuthenticated, roles, permissions } = useContext(AuthContext);
+  const { loading, isAuthenticated, roles, permissions } = useContext(AuthContext);
   const me = useMemo(() => ({ roles, permissions }), [roles, permissions]);
   const navigate = useNavigate();
   const location = useLocation();
@@ -53,6 +53,15 @@ export default function PanelControl() {
     showEstadisticas: canViewStatistics(me),
     showAlgoritmo:    canUseAlgoritmo(me),
   }), [me]);
+
+  // Wait for auth to load before redirecting
+  if (loading) {
+    return (
+      <div className="bg-gray-900 min-h-screen flex items-center justify-center">
+        <div className="text-gray-400">Cargando...</div>
+      </div>
+    );
+  }
 
   if (!isAuthenticated || !canManageReservas(me)) return <Navigate to="/" replace />;
 

@@ -1,4 +1,3 @@
-import React from 'react'
 import Button from '../../../shared/components/ui/Button/Button'
 import IconoAvatar from '../../../assets/icons/iconoAvatar'
 

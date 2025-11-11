@@ -25,7 +25,15 @@ export default function TabAlgoritmo() {
       setErr(null);
       try {
         const res = await algoritmoApi.users(page, limit);
-        setUsers(res?.items || []);
+        const items = (res?.items || []).map(u => ({
+          ...u,
+          categoria: !u?.categoria
+            ? null
+            : (typeof u.categoria === 'object'
+                ? (u.categoria.nombre ?? `Nivel ${u.categoria.nivel ?? '-'}`)
+                : String(u.categoria)),
+        }));
+        setUsers(items);
         setTotal(res?.total || 0);
       } catch (e) {
         setErr('No se pudieron cargar los usuarios');
