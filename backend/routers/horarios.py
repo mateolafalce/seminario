@@ -48,19 +48,31 @@ async def eliminar_horario(horario_id: str):
         raise HTTPException(status_code=400, detail="ID inválido")
     oid = ObjectId(horario_id)
 
-    # No permitir borrar si está referenciado
-    en_reservas = db_client.reservas.count_documents({"hora_inicio": oid})
-    en_prefs = db_client.preferencias.count_documents({"horarios": oid})
-    if en_reservas or en_prefs:
-        raise HTTPException(
-            status_code=400,
-            detail=f"No se puede eliminar: usado en {en_reservas} reservas y {en_prefs} preferencias"
-        )
+    # 1. Eliminar todas las reservas que usan este horario
+    reservas_eliminadas = db_client.reservas.delete_many({"hora_inicio": oid})
+    
+    # 2. Eliminar el horario de todas las preferencias que lo referencien
+    # Primero, remover el horario del array
+    db_client.preferencias.update_many(
+        {"horarios": oid},
+        {"$pull": {"horarios": oid}}
+    )
+    
+    # 3. Eliminar preferencias que se quedaron sin horarios
+    preferencias_eliminadas = db_client.preferencias.delete_many(
+        {"horarios": {"$size": 0}}
+    )
 
+    # 4. Finalmente, eliminar el horario
     res = db_client.horarios.delete_one({"_id": oid})
     if res.deleted_count == 0:
         raise HTTPException(status_code=404, detail="Horario no encontrado")
-    return {"msg": "Horario eliminado"}
+    
+    return {
+        "msg": "Horario eliminado con borrado en cascada",
+        "reservas_eliminadas": reservas_eliminadas.deleted_count,
+        "preferencias_eliminadas": preferencias_eliminadas.deleted_count
+    }
 
 def ensure_horarios_indexes():
     from pymongo import ASCENDING
