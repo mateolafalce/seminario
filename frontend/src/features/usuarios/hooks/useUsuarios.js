@@ -8,6 +8,12 @@ const toAr = (d) => new Date(d.toLocaleString('en-US', { timeZone: 'America/Arge
 const formatAr = (d) => `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`;
 
 const normalizeUser = (u) => {
+  const p = u.persona || {};
+  const nombre   = p.nombre   ?? u.nombre   ?? '';
+  const apellido = p.apellido ?? u.apellido ?? '';
+  const email    = p.email    ?? u.email    ?? '';
+  const dni      = p.dni      ?? u.dni      ?? '';
+
   const fecha =
     u.fecha_registro && String(u.fecha_registro).trim()
       ? u.fecha_registro
@@ -20,6 +26,10 @@ const normalizeUser = (u) => {
 
   return {
     ...u,
+    nombre,
+    apellido,
+    email,
+    dni,
     fecha_registro: fecha,
     categoria,
     ultima_conexion: u.ultima_conexion || '',
@@ -37,10 +47,17 @@ export function useUsuarios() {
     setLoading(true);
     setError(null);
     try {
-      const data = await adminApi.users.list(page, 10); // 👈 cookies + CSRF ya vienen de backendClient
-      setUsers((data.users || []).map(normalizeUser));
-      setTotalPages(Math.ceil(data.total / data.limit));
-      setCurrentPage(data.page);
+      const data = await adminApi.users.list(page, 10);
+      const rows = (data.users || []).map(normalizeUser);
+
+      // fallback si el back no manda total/limit/page
+      const pageNum  = Number(data.page)  || page || 1;
+      const limitNum = Number(data.limit) || 10;
+      const totalNum = Number(data.total) || rows.length;
+
+      setUsers(rows);
+      setTotalPages(Math.max(1, Math.ceil(totalNum / limitNum)));
+      setCurrentPage(pageNum);
     } catch (e) {
       console.error("list users:", e);
       setError(e?.data?.detail || "Error al cargar usuarios");

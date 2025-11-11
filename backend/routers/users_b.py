@@ -144,7 +144,9 @@ async def get_all_users(page: int = 1, limit: int = 10):
             "username": r["username"],
             "roles": r.get("roles", []),
             "habilitado": bool(r.get("habilitado", False)),
-            "persona": r["persona"]
+            "persona": r["persona"],
+            "fecha_registro": r.get("fecha_registro"),
+            "ultima_conexion": r.get("ultima_conexion"),
         }
         for r in rows
     ]}
@@ -161,7 +163,9 @@ async def buscar_clientes(payload: AdminBuscarUsuariosRequest):
             "username": r["username"],
             "roles": r.get("roles", []),
             "habilitado": bool(r.get("habilitado", False)),
-            "persona": r["persona"]
+            "persona": r["persona"],
+            "fecha_registro": r.get("fecha_registro"),
+            "ultima_conexion": r.get("ultima_conexion"),
         } for r in rows
     ]}
 

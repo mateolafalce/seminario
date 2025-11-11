@@ -41,12 +41,26 @@ const ListaUsuarios = ({
   }
 
   return (
-    <div className="max-h-[54vh] pb-4 overflow-y-auto">
+    <div className="mt-4 space-y-3">
       <ul className="flex flex-col gap-3">
         {usuariosMostrados.map((user) => {
-          const categoria = user.categoria || 'Sin categoría'
-          const fechaRegistro = user.fecha_registro || '—'
-          const ultimaConexion = user.ultima_conexion || '—'
+          const p = user?.persona || {};
+          const nombre = [p?.nombre ?? user?.nombre, p?.apellido ?? user?.apellido]
+            .filter(Boolean)
+            .join(' ')
+            .trim() || '—';
+          const username = user?.username ? `@${user.username}` : '—';
+          const email = (p?.email ?? user?.email) || '—';
+          const dni   = (p?.dni   ?? user?.dni)   || '—';
+
+          // categoría: admití nombre directo o null
+          const categoria =
+            (typeof user?.categoria === 'string' && user.categoria.trim())
+              ? user.categoria
+              : (user?.categoria_nombre || 'Sin categoría');
+
+          const fechaRegistro = user?.fecha_registro || '—';
+          const ultimaConexion = user?.ultima_conexion || '—';
 
           return (
             <li key={user.id}>
@@ -66,7 +80,7 @@ const ListaUsuarios = ({
                 <div className="flex-1 min-w-0">
                   <div className="flex flex-wrap items-center gap-2">
                     <span className="text-base font-bold text-white truncate">
-                      {user.nombre} {user.apellido}
+                      {nombre}
                     </span>
 
                     <span
@@ -83,11 +97,11 @@ const ListaUsuarios = ({
                     </span>
                   </div>
 
-                  {/* username + email + categoría */}
+                  {/* username + email + DNI + categoría */}
                   <div className="flex flex-wrap items-center gap-3 mt-1 text-xs text-gray-400">
-                    <span>@{user.username}</span>
+                    <span>{username}</span>
 
-                    {user.email && (
+                    {email !== '—' && (
                       <span className="flex items-center gap-1">
                         <svg
                           className="w-3 h-3 text-gray-400"
@@ -102,7 +116,26 @@ const ListaUsuarios = ({
                             d="M3 8l7.89 4.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"
                           />
                         </svg>
-                        {user.email}
+                        {email}
+                      </span>
+                    )}
+
+                    {dni !== '—' && (
+                      <span className="flex items-center gap-1">
+                        <svg
+                          className="w-3 h-3 text-gray-400"
+                          fill="none"
+                          stroke="currentColor"
+                          strokeWidth="2"
+                          viewBox="0 0 24 24"
+                        >
+                          <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            d="M10 6H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V8a2 2 0 00-2-2h-5m-4 0V5a2 2 0 114 0v1m-4 0a2 2 0 104 0m-5 8a2 2 0 100-4 2 2 0 000 4zm0 0c1.306 0 2.417.835 2.83 2M9 14a3.001 3.001 0 00-2.83 2M15 11h3m-3 4h2"
+                          />
+                        </svg>
+                        DNI: {dni}
                       </span>
                     )}
 

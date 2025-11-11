@@ -16,13 +16,20 @@ const normCanchas = (data) =>
 const adminApi = {
   users: {
     list: (page = 1, limit = 10) =>
-      backendClient.get('admin/users', { page, limit }),
+      backendClient.get('users_b/admin/users', { page, limit }),
     search: (q) =>
-      backendClient.post('admin/users/buscar', { nombre: q }),
+      backendClient.post('users_b/buscar', { nombre: q }),
     update: (id, payload) =>
-      backendClient.put(`admin/users/${id}`, payload),
+      backendClient.post('users_b/modificar', {
+        identificador: id,
+        nombre: payload.nombre,
+        apellido: payload.apellido,
+        email: payload.email,
+        categoria: payload.categoria || null,
+        habilitado: !!payload.habilitado,
+      }),
     remove: (id) =>
-      backendClient.delete(`admin/users/${id}`),
+      backendClient.delete(`users_b/${id}`),
     create: (payload) =>
       backendClient.post('users_b/register', payload),
   },

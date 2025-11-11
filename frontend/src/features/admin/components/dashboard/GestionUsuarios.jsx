@@ -1,15 +1,14 @@
 import { useState } from "react";
-import { useUsuarios } from "../hooks/useUsuarios";
-import { useBusquedaUsuarios } from "../hooks/useBusquedaUsuarios";
-import { useModales } from "../../../shared/hooks/useModales";
-import BarraBusqueda from "../../../shared/components/ui/SearchBar/BarraBusqueda";
-import ListaUsuarios from "./ListaUsuarios";
-import ModalesUsuario from "./ModalesUsuario";
-import Paginacion from "../../../shared/components/ui/Paginacion";
+import { useUsuarios } from "../../../usuarios/hooks/useUsuarios";
+import { useBusquedaUsuarios } from "../../../usuarios/hooks/useBusquedaUsuarios";
+import { useModales } from "../../../../shared/hooks/useModales";
+import BarraBusqueda from "../../../../shared/components/ui/SearchBar/BarraBusqueda";
+import ListaUsuarios from "../../../usuarios/pages/ListaUsuarios";
+import ModalesUsuario from "../../../usuarios/pages/ModalesUsuario";
+import Paginacion from "../../../../shared/components/ui/Paginacion";
+import Button from "../../../../shared/components/ui/Button/Button";
 
-
-function VerUsuariosInline() {
-
+function GestionUsuarios() {
   const {
     users, loading, error, currentPage, totalPages,
     fetchUsers, handlePageChange, editarUsuario, eliminarUsuario
@@ -21,7 +20,6 @@ function VerUsuariosInline() {
   } = useBusquedaUsuarios();
 
   const modales = useModales();
-
   const [usuariosKey, setUsuariosKey] = useState(0);
 
   const usuariosParaMostrar = modoBusqueda ? resultados : users;
@@ -47,20 +45,39 @@ function VerUsuariosInline() {
   };
 
   const handleUsuarioCreado = () => {
-    setModalCrearAbierto(false);
-    setUsuariosKey(k => k + 1);
+    // cerrar modal de crear y refrescar vista actual
+    modales.cerrarCrear();
+    if (modoBusqueda && terminoBusqueda) {
+      buscar(terminoBusqueda);
+    } else {
+      fetchUsers(currentPage);
+      setUsuariosKey(k => k + 1);
+    }
   };
 
   return (
     <section className="w-full px-6 space-y-4">
-      <BarraBusqueda
-        onBuscar={buscar}
-        onLimpiar={limpiar}
-        modoBusqueda={modoBusqueda}
-        resultados={resultados}
-        loading={loadingBusqueda}
-      />
-      
+      {/* Header con búsqueda y "Nuevo usuario" */}
+      <div className="flex flex-col sm:flex-row gap-3 sm:items-center sm:justify-between">
+        <div className="flex-1 min-w-0">
+          <BarraBusqueda
+            onBuscar={buscar}
+            onLimpiar={limpiar}
+            modoBusqueda={modoBusqueda}
+            resultados={resultados}
+            loading={loadingBusqueda}
+          />
+        </div>
+        <div className="shrink-0 -mt-2 sm:mt-0">
+          <Button
+            texto="Nuevo usuario"
+            onClick={modales.abrirCrear}
+            variant="default"
+            size="md"
+          />
+        </div>
+      </div>
+
       <div className="w-full space-y-4">
         <ListaUsuarios
           key={usuariosKey}
@@ -71,7 +88,7 @@ function VerUsuariosInline() {
           onEliminar={modales.abrirEliminar}
           modoBusqueda={modoBusqueda}
         />
-        
+
         {!modoBusqueda && totalPages > 1 && (
           <Paginacion
             currentPage={currentPage}
@@ -81,12 +98,12 @@ function VerUsuariosInline() {
           />
         )}
 
-        <div className="w-full rounded-xl p-4">
+        <div className="w-full rounded-xl p-0">
           <ModalesUsuario
             modales={modales}
             onEditar={handleEditar}
             onEliminar={handleEliminar}
-            onUsuarioCreado={handleUsuarioCreado} // Pasar el handler al modal
+            onUsuarioCreado={handleUsuarioCreado}
           />
         </div>
       </div>
@@ -94,4 +111,4 @@ function VerUsuariosInline() {
   );
 }
 
-export default VerUsuariosInline;
+export default GestionUsuarios;

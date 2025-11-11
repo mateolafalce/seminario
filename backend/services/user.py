@@ -6,6 +6,7 @@ from datetime import datetime
 import pytz
 import secrets
 import asyncio
+import re
 
 from db.client import db_client
 from services.persona import (
@@ -94,7 +95,7 @@ def register_new_user(payload) -> Tuple[ObjectId, ObjectId]:
     1) crea/actualiza PERSONA (dni único) con nombre/apellido/email
     2) crea USER (username/password) apuntando a persona
     3) asigna rol 'usuario'
-    4) 👉 ENVÍA EMAIL DE VERIFICACIÓN 👈
+    4) ENVÍA EMAIL DE VERIFICACIÓN 
     Retorna: (user_id, persona_id)
     """
     # Persona
@@ -105,7 +106,7 @@ def register_new_user(payload) -> Tuple[ObjectId, ObjectId]:
         dni=payload.dni,
     )
     
-    # 👇 GENERAR TOKEN DE VERIFICACIÓN
+    #  GENERAR TOKEN DE VERIFICACIÓN
     verification_token = secrets.token_urlsafe(32)
     
     # User
@@ -117,7 +118,7 @@ def register_new_user(payload) -> Tuple[ObjectId, ObjectId]:
         categoria=None,
     )
     
-    # 👇 GUARDAR EL TOKEN EN LA DB
+    #  GUARDAR EL TOKEN EN LA DB
     db_client.users.update_one(
         {"_id": user_id},
         {"$set": {"habilitacion_token": verification_token}}
@@ -126,7 +127,7 @@ def register_new_user(payload) -> Tuple[ObjectId, ObjectId]:
     # Rol por defecto
     assign_role(str(user_id), "usuario")
     
-    # 👇 ENVIAR EMAIL (asíncrono, no bloquea el registro si falla)
+    #  ENVIAR EMAIL (asíncrono, no bloquea el registro si falla)
     try:
         # Ejecutar la función async en el event loop actual
         loop = asyncio.get_event_loop()
@@ -179,7 +180,7 @@ def delete_user_cascade(user_id: ObjectId | str) -> bool:
     # reseñas
     db_client.resenias.delete_many({"$or": [{"i": oid}, {"j": oid}]})
 
-    # reservas: si queda solo el user -> eliminar; si hay más -> hacer pull
+    
     reservas_usuario = list(db_client.reservas.find({"usuarios.id": oid}))
     for r in reservas_usuario:
         cant = len(r.get("usuarios", []))
@@ -232,7 +233,12 @@ def list_users_with_personas(page: int = 1, limit: int = 10) -> List[Dict[str, A
         }},
         {"$unwind": "$persona"},
         {"$project": {
-            "_id": 1, "username": 1, "roles": 1, "habilitado": 1,
+            "_id": 1,
+            "username": 1,
+            "roles": 1,
+            "habilitado": 1,
+            "fecha_registro": 1,
+            "ultima_conexion": 1,
             "persona": {
                 "id": {"$toString": "$persona._id"},
                 "nombre": "$persona.nombre",
@@ -249,18 +255,14 @@ def list_users_with_personas(page: int = 1, limit: int = 10) -> List[Dict[str, A
 
 def search_users_by_persona(term: str, limit: int = 50) -> List[Dict[str, Any]]:
     """
-    Busca por nombre/apellido/email en 'personas' y devuelve users joineados.
+    Busca por prefijo (empieza con) en username/nombre/apellido/dni.
     """
-    regex = {"$regex": term, "$options": "i"}
-    persona_ids = [p["_id"] for p in db_client.personas.find(
-        {"$or": [{"nombre": regex}, {"apellido": regex}, {"email": regex}]},
-        {"_id": 1}
-    )]
-    if not persona_ids:
+    term = (term or "").strip()
+    if not term:
         return []
 
+    safe = re.escape(term)  
     pipeline = [
-        {"$match": {"persona": {"$in": persona_ids}}},
         {"$lookup": {
             "from": "personas",
             "localField": "persona",
@@ -268,16 +270,32 @@ def search_users_by_persona(term: str, limit: int = 50) -> List[Dict[str, Any]]:
             "as": "persona"
         }},
         {"$unwind": "$persona"},
+
+        {"$addFields": {"dni_str": {"$toString": "$persona.dni"}}}, 
+
+        # SOLO "empieza con" (prefix) para username, nombre, apellido y dni
+        {"$match": {
+            "$or": [
+                {"username":        {"$regex": f"^{safe}", "$options": "i"}},
+                {"persona.nombre":  {"$regex": f"^{safe}", "$options": "i"}},
+                {"persona.apellido":{"$regex": f"^{safe}", "$options": "i"}},
+                {"dni_str":         {"$regex": f"^{safe}"}}
+            ]
+        }},
+
         {"$project": {
             "_id": 1, "username": 1, "roles": 1, "habilitado": 1,
+            "fecha_registro": 1, "ultima_conexion": 1,
             "persona": {
-                "id": {"$toString": "$persona._id"},
+                "_id": {"$toString": "$persona._id"},
                 "nombre": "$persona.nombre",
                 "apellido": "$persona.apellido",
                 "email": "$persona.email",
                 "dni": "$persona.dni"
             }
         }},
-        {"$limit": limit},
+        {"$limit": int(limit or 50)}
     ]
-    return list(db_client.users.aggregate(pipeline))
+
+    rows = list(db_client.users.aggregate(pipeline))
+    return rows

@@ -1,4 +1,4 @@
-import React, { useContext, useEffect, useState, useCallback } from "react";
+import { useContext, useEffect, useState, useCallback } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { AuthContext } from "../../../../features/auth/context/AuthContext";
 import Button from "../../ui/Button/Button";
@@ -74,7 +74,7 @@ function CustomNavbar() {
         <Button
           texto={loggingOut ? "Cerrando..." : "Cerrar Sesión"}
           onClick={handleLogout}
-          variant="session"
+          variant="primary"
           disabled={loggingOut}
           className={isMobile ? "mb-2" : ""}
         />
@@ -85,13 +85,13 @@ function CustomNavbar() {
         <Button
           texto="Iniciar Sesión"
           onClick={() => (isMobile ? handleNavigate("/login") : navigate("/login"))}
-          variant="session"
+          variant="primary"
           className={isMobile ? "mb-2" : ""}
         />
         <Button
           texto="Registrarse"
           onClick={() => (isMobile ? handleNavigate("/register") : navigate("/register"))}
-          variant="session"
+          variant="primary"
           className={isMobile ? "" : "ml-2"}
         />
       </>
