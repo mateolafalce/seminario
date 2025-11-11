@@ -22,17 +22,22 @@ export const useBusquedaUsuarios = () => {
     try {
       const data = await adminApi.users.search(term); // cookies + CSRF
       const list = data?.clientes || data?.users || data || [];
-      const usuariosAdaptados = list.map((c) => ({
-        id: c._id || c.id,
-        nombre: c.nombre,
-        apellido: c.apellido,
-        username: c.username,
-        email: c.email,
-        categoria: c.categoria,
-        habilitado: c.habilitado,
-        fecha_registro: c.fecha_registro,
-        ultima_conexion: c.ultima_conexion,
-      }));
+
+      const usuariosAdaptados = list.map((c) => {
+        const p = c.persona || {};
+        return {
+          id: c._id || c.id,
+          nombre:   p.nombre   ?? c.nombre   ?? '',
+          apellido: p.apellido ?? c.apellido ?? '',
+          username: c.username,
+          email:    p.email    ?? c.email    ?? '',
+          dni:      p.dni      ?? c.dni      ?? '',
+          categoria: c.categoria,
+          habilitado: c.habilitado,
+          fecha_registro: c.fecha_registro,
+          ultima_conexion: c.ultima_conexion,
+        };
+      });
       setResultados(usuariosAdaptados);
     } catch (e) {
       if (e.status === 401) logout();

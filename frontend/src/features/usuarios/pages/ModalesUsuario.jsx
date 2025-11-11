@@ -29,14 +29,20 @@ const ModalesUsuario = ({ modales, onEditar, onEliminar, onUsuarioCreado }) => {
 
   useEffect(() => {
     if (modales.usuarioSeleccionado && modales.modalEditar) {
-      const { id, nombre, apellido, email, categoria, habilitado } = modales.usuarioSeleccionado;
+      const sel = modales.usuarioSeleccionado;
+      const p = sel?.persona || {};
       setUsuarioEditar({
-        id,
-        nombre,
-        apellido,
-        email: email || '',
-        categoria: typeof categoria === 'string' && categoria.trim() ? categoria : '',
-        habilitado: !!habilitado
+        id: sel.id,
+        nombre: (p?.nombre ?? sel?.nombre) || '',
+        apellido: (p?.apellido ?? sel?.apellido) || '',
+        email: (p?.email ?? sel?.email) || '',
+        categoria:
+          (typeof sel?.categoria === 'string' && sel.categoria.trim())
+            ? sel.categoria
+            : '',
+        habilitado: !!sel?.habilitado,
+        dni: sel?.dni || '',
+        username: sel?.username || '',
       });
     }
   }, [modales.usuarioSeleccionado, modales.modalEditar]);
