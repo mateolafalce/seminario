@@ -546,7 +546,7 @@ async def cancelar_reserva(
     reserva_dt = argentina_tz.localize(datetime.strptime(f"{reserva['fecha']} {hora_inicio_str}", "%d-%m-%Y %H:%M"))
     ahora_dt = datetime.now(argentina_tz)
 
-    if (reserva_dt - ahora_dt) >= timedelta(hours=24):
+    if (reserva_dt - ahora_dt) >= timedelta(hours=1):
         if not es_admin:
             # Sacar al usuario
             await asyncio.to_thread(lambda: db_client.reservas.update_one(
@@ -617,7 +617,7 @@ async def cancelar_reserva(
     else:
         raise HTTPException(
             status_code=400,
-            detail="No se puede cancelar la reserva con menos de 24 horas de antelación."
+            detail="No se puede cancelar la reserva con menos de 1 hora de antelación."
         )
 
 @router.get("/cantidad")
