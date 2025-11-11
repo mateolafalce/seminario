@@ -64,6 +64,19 @@ const adminApi = {
     detalle: (cancha, horario, fecha, usuario_id) =>
       backendClient.get('reservas/detalle', { cancha, horario, fecha, usuario_id }),
     cancelar: (reservaId) => backendClient.delete(`reservas/cancelar/${reservaId}`),
+    
+    // Búsqueda admin con filtros y paginación
+    adminSearch: ({ fecha, cancha, usuario, page = 1, limit = 10 }) => {
+      const body = { page, limit };
+      if (fecha) body.fecha = fecha;
+      if (cancha && cancha.trim()) body.cancha = cancha.trim();
+      if (usuario && usuario.trim()) body.usuario = usuario.trim();
+      return backendClient.post('reservas/admin/buscar', body);
+    },
+
+    // 👇 ACTUALIZADO - Cancelar reserva (admin) - usa DELETE
+    cancelarReserva: (reservaId) =>
+      backendClient.delete(`reservas/admin/cancelar/${reservaId}`),
   },
 };
 

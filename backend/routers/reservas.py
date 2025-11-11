@@ -7,12 +7,14 @@ from typing import Optional, List, Dict
 import asyncio
 import os
 import pytz
+import re
+from pydantic import BaseModel
 
 from db.client import db_client
 from db.models.reserva import ReservaCreate as Reserva, ReservaUsuarioRef
 from db.schemas.reserva import reserva_schema_db
 
-from routers.Security.auth import current_user, verify_csrf, require_perms  
+from routers.Security.auth import current_user, verify_csrf, require_perms, require_roles
 from services.authz import user_has_any_role
 from services.matcheo import a_notificar, optimize_weights
 from services.email import notificar_posible_matcheo, notificar_recordatorio, notificar_confirmacion_reserva
@@ -30,29 +32,61 @@ router = APIRouter(
 # Helpers (PERSONAS first!)
 # ==========================
 
-def _persona_email_por_user_id(user_oid: ObjectId | str | None) -> Optional[str]:
-    """Devuelve email desde la colección personas para un user_id dado."""
-    if not user_oid:
-        return None
+def _rx_prefix(s: str):
+    """Helper para búsqueda por prefijo case-insensitive"""
+    return {"$regex": f"^{re.escape(s)}", "$options": "i"}
+
+def _persona_email_por_user_id(user_oid) -> Optional[str]:
+    """
+    Devuelve el email de la persona asociada al user_id.
+    Acepta str u ObjectId y nunca lanza excepción: devuelve None si no hay email.
+    """
     try:
-        oid = ObjectId(user_oid) if not isinstance(user_oid, ObjectId) else user_oid
+        uid = user_oid if isinstance(user_oid, ObjectId) else ObjectId(str(user_oid))
     except Exception:
         return None
-    u = db_client.users.find_one({"_id": oid}, {"persona": 1})
-    if not u or not u.get("persona"):
+
+    udoc = db_client.users.find_one({"_id": uid}, {"persona": 1})
+    if not udoc or not udoc.get("persona"):
         return None
-    p = db_client.personas.find_one({"_id": u["persona"]}, {"email": 1})
-    return (p or {}).get("email")
 
-def _persona_nombre_apellido_por_user_doc(user_doc: Dict | None) -> tuple[str, str]:
-    """Dado un doc de users, obtiene (nombre, apellido) desde su persona."""
-    if not user_doc or not user_doc.get("persona"):
-        return "", ""
-    p = db_client.personas.find_one({"_id": user_doc["persona"]}, {"nombre": 1, "apellido": 1})
-    return (p or {}).get("nombre", "") or "", (p or {}).get("apellido", "") or ""
+    pdoc = db_client.personas.find_one({"_id": udoc["persona"]}, {"email": 1})
+    email = (pdoc or {}).get("email")
+    return email.strip() if isinstance(email, str) else None
 
-def _ar_now():
-    return datetime.now(pytz.timezone("America/Argentina/Buenos_Aires"))
+def _enviar_cancel_mail(to: str, fecha, hora, cancha: str):
+    """
+    Wrapper defensivo para enviar email de cancelación.
+    Llama a la función con la firma correcta de 6 parámetros.
+    """
+    if not (isinstance(to, str) and "@" in to):
+        return
+    
+    try:
+        from services.email import notificar_cancelacion_reserva
+        # firma actual de email.py: (to, day, hora, cancha, nombre, apellido)
+        notificar_cancelacion_reserva(to, fecha, hora, cancha, "Administración", "")
+    except TypeError:
+        # fallback por si existiera una versión vieja (4 params)
+        try:
+            from services.email import notificar_cancelacion_reserva
+            notificar_cancelacion_reserva(to, fecha, hora, cancha)
+        except Exception as e:
+            print(f"[warn] cancel mail: no se pudo enviar → {e}")
+
+# ==========================
+# Pydantic Models
+# ==========================
+
+class AdminBuscarReservasRequest(BaseModel):
+    fecha: str | None = None        # "DD-MM-YYYY" (desde front se convierte)
+    cancha: str | None = None       # prefijo
+    usuario: str | None = None      # prefijo: username / nombre / apellido
+    page: int = 1
+    limit: int = 10
+
+class AdminCancelarReservaBody(BaseModel):
+    reserva_id: str
 
 # ==========================
 # Reglas/estados/validaciones
@@ -853,7 +887,7 @@ async def listar_reservas_por_fecha(
         # Ahora, con los persona_ids que hay en usuarios_info, traigo PERSONAS
         {"$lookup": {
             "from": "personas",
-            "localField": "usuarios_info.persona",  # <- esto puede ser un array; Mongo hace match "any in array"
+            "localField": "usuarios_info.persona",
             "foreignField": "_id",
             "as": "personas_info"
         }},
@@ -902,3 +936,182 @@ async def listar_reservas_por_fecha(
         })
 
     return salida
+
+# busqueda admin paginada + filtros
+@router.post(
+    "/admin/buscar",
+    dependencies=[Depends(verify_csrf), Depends(require_roles("admin"))]
+)
+async def admin_buscar_reservas(payload: AdminBuscarReservasRequest):
+    """
+    Búsqueda de reservas para admin con filtros y paginación.
+    Filtros:
+      - fecha: "DD-MM-YYYY" (exacta)
+      - cancha: prefijo del nombre de cancha
+      - usuario: prefijo en username / nombre / apellido
+    Paginación:
+      - page / limit
+    Sin filtros: devuelve las 10 más recientes (fecha desc, horario desc)
+    """
+    page = max(1, int(payload.page or 1))
+    limit = max(1, min(100, int(payload.limit or 10)))
+
+    match = {}
+    if payload.fecha:
+        match["fecha"] = payload.fecha
+
+    sin_filtros = not (payload.fecha or payload.cancha or payload.usuario)
+
+    pipe = [
+        {"$match": match},
+
+        # --- Usuarios y persona ---
+        {"$unwind": {"path": "$usuarios", "preserveNullAndEmptyArrays": True}},
+        {"$lookup": {
+            "from": "users",
+            "localField": "usuarios.id",
+            "foreignField": "_id",
+            "as": "u"
+        }},
+        {"$unwind": {"path": "$u", "preserveNullAndEmptyArrays": True}},
+        {"$lookup": {
+            "from": "personas",
+            "localField": "u.persona",
+            "foreignField": "_id",
+            "as": "p"
+        }},
+        {"$unwind": {"path": "$p", "preserveNullAndEmptyArrays": True}},
+        {"$set": {
+            "usuario_username": {"$ifNull": ["$u.username", ""]},
+            "persona_nombre":   {"$ifNull": ["$p.nombre", ""]},
+            "persona_apellido": {"$ifNull": ["$p.apellido", ""]},
+        }},
+
+        # --- Cancha: nombre legible ---
+        {"$lookup": {
+            "from": "canchas",
+            "localField": "cancha",
+            "foreignField": "_id",
+            "as": "c"
+        }},
+        {"$unwind": {"path": "$c", "preserveNullAndEmptyArrays": True}},
+
+        # --- Horario: nombre legible ---
+        {"$lookup": {
+            "from": "horarios",
+            "localField": "hora_inicio",
+            "foreignField": "_id",
+            "as": "h"
+        }},
+        {"$unwind": {"path": "$h", "preserveNullAndEmptyArrays": True}},
+        
+        # --- Estado: nombre legible ---
+        {"$lookup": {
+            "from": "estadoreserva",
+            "localField": "estado",
+            "foreignField": "_id",
+            "as": "estado_info"
+        }},
+        {"$unwind": {"path": "$estado_info", "preserveNullAndEmptyArrays": True}},
+        
+        {"$set": {
+            "cancha_nombre": {"$ifNull": ["$c.nombre", {"$toString": "$cancha"}]},
+            "horario": {"$ifNull": ["$h.hora", ""]},
+            "estado_nombre": {"$ifNull": ["$estado_info.nombre", "Pendiente"]},
+            # extraer hora de inicio "HH:MM" desde "HH:MM-HH:MM"
+            "hora_inicio": {"$arrayElemAt": [{"$split": [{"$ifNull": ["$h.hora", "00:00-00:00"]}, "-"]}, 0]}
+        }},
+    ]
+
+    # Filtro por usuario (prefijo) si vino término
+    if payload.usuario:
+        pipe.append({
+            "$match": {
+                "$or": [
+                    {"usuario_username": _rx_prefix(payload.usuario)},
+                    {"persona_nombre":   _rx_prefix(payload.usuario)},
+                    {"persona_apellido": _rx_prefix(payload.usuario)},
+                ]
+            }
+        })
+
+    # Filtro por cancha (prefijo) si vino término
+    if payload.cancha:
+        pipe.append({
+            "$match": {"cancha_nombre": _rx_prefix(payload.cancha)}
+        })
+
+    # Agrupamos nuevamente por reserva
+    pipe += [
+        {"$group": {
+            "_id": "$_id",
+            "cancha":  {"$first": "$cancha"},
+            "cancha_nombre": {"$first": "$cancha_nombre"},
+            "fecha":   {"$first": "$fecha"},
+            "horario": {"$first": "$horario"},
+            "hora_inicio": {"$first": "$hora_inicio"},
+            "estado_nombre": {"$first": "$estado_nombre"},
+            "usuarios": {"$addToSet": {
+                "id": "$usuarios.id",
+                "username": "$usuario_username",
+                "nombre": "$persona_nombre",
+                "apellido": "$persona_apellido",
+            }}
+        }},
+        {"$project": {
+            "cancha": 1, 
+            "cancha_nombre": 1, 
+            "fecha": 1, 
+            "horario": 1,
+            "hora_inicio": 1,
+            "estado_nombre": 1,
+            "usuarios": {
+                "$filter": {
+                    "input": "$usuarios",
+                    "as": "u",
+                    "cond": {"$and": [
+                        {"$ne": ["$$u", None]},
+                        {"$ne": ["$$u.id", None]}
+                    ]}
+                }
+            }
+        }},
+    ]
+
+    # Orden por defecto: si NO hay filtros => últimas 10 (desc); si hay filtros => asc
+    if sin_filtros:
+        pipe += [{"$sort": {"fecha": -1, "hora_inicio": -1, "cancha_nombre": 1}}]
+    else:
+        pipe += [{"$sort": {"fecha":  1, "hora_inicio":  1, "cancha_nombre": 1}}]
+
+    pipe += [
+        {"$facet": {
+            "items": [
+                {"$skip": (page - 1) * limit},
+                {"$limit": limit if not sin_filtros else 10}
+            ],
+            "count": [{"$count": "total"}]
+        }}
+    ]
+
+    def _op():
+        out = list(db_client.reservas.aggregate(pipe))
+        items = (out[0]["items"] if out else []) or []
+        total = (out[0]["count"][0]["total"] if out and out[0]["count"] else 0)
+        return items, total
+
+    items, total = await asyncio.to_thread(_op)
+
+    # normaliza ObjectId → str
+    def _to_str(x):
+        if isinstance(x, ObjectId): return str(x)
+        if isinstance(x, list): return [_to_str(i) for i in x]
+        if isinstance(x, dict): return {k: _to_str(v) for k, v in x.items()}
+        return x
+
+    return {
+        "reservas": [_to_str(i) for i in items],
+        "page": page,
+        "limit": limit,
+        "total": total
+    }
