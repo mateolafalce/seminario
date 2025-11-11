@@ -147,6 +147,8 @@ async def get_all_users(page: int = 1, limit: int = 10):
             "persona": r["persona"],
             "fecha_registro": r.get("fecha_registro"),
             "ultima_conexion": r.get("ultima_conexion"),
+            "categoria_id": str(r["categoria"]) if r.get("categoria") else None,
+            "categoria_nombre": r.get("categoria_nombre") or None,
         }
         for r in rows
     ]}

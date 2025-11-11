@@ -20,9 +20,11 @@ const normalizeUser = (u) => {
       : formatAr(toAr(oidToDate(u.id)));
 
   const categoria =
-    typeof u.categoria === 'string' && u.categoria.trim()
+    (typeof u.categoria === 'string' && u.categoria.trim())
       ? u.categoria
-      : 'Sin categoría';
+      : (u.categoria_nombre && String(u.categoria_nombre).trim()
+          ? String(u.categoria_nombre).trim()
+          : 'Sin categoría');
 
   return {
     ...u,

@@ -8,7 +8,8 @@ import asyncio
 import os
 import pytz
 import re
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
+from datetime import date
 
 from db.client import db_client
 from db.models.reserva import ReservaCreate as Reserva, ReservaUsuarioRef
@@ -57,22 +58,25 @@ def _persona_email_por_user_id(user_oid) -> Optional[str]:
 def _enviar_cancel_mail(to: str, fecha, hora, cancha: str):
     """
     Wrapper defensivo para enviar email de cancelación.
-    Llama a la función con la firma correcta de 6 parámetros.
+    Prioriza el template de admin sin links.
     """
     if not (isinstance(to, str) and "@" in to):
         return
     
     try:
+        # primero, template especial para admin
+        from services.email import notificar_cancelacion_por_admin
+        notificar_cancelacion_por_admin(to, fecha, hora, cancha)
+        return
+    except Exception:
+        pass
+    
+    try:
+        # fallback al viejo template general
         from services.email import notificar_cancelacion_reserva
-        # firma actual de email.py: (to, day, hora, cancha, nombre, apellido)
         notificar_cancelacion_reserva(to, fecha, hora, cancha, "Administración", "")
-    except TypeError:
-        # fallback por si existiera una versión vieja (4 params)
-        try:
-            from services.email import notificar_cancelacion_reserva
-            notificar_cancelacion_reserva(to, fecha, hora, cancha)
-        except Exception as e:
-            print(f"[warn] cancel mail: no se pudo enviar → {e}")
+    except Exception as e:
+        print(f"[warn] cancel mail: no se pudo enviar → {e}")
 
 # ==========================
 # Pydantic Models
@@ -87,6 +91,12 @@ class AdminBuscarReservasRequest(BaseModel):
 
 class AdminCancelarReservaBody(BaseModel):
     reserva_id: str
+
+class CrearReservaAdminRequest(BaseModel):
+    fecha: str = Field(..., description="Fecha en formato DD-MM-YYYY")
+    cancha_id: str = Field(..., description="ObjectId de la cancha")
+    horario_id: str = Field(..., description="ObjectId del horario")
+    usuarios: list[str] = Field(..., min_items=1, max_items=6, description="IDs de usuarios (1-6)")
 
 # ==========================
 # Reglas/estados/validaciones
@@ -1115,3 +1125,108 @@ async def admin_buscar_reservas(payload: AdminBuscarReservasRequest):
         "limit": limit,
         "total": total
     }
+
+@router.post("/admin/crear", dependencies=[Depends(verify_csrf), Depends(require_roles("admin"))])
+async def admin_crear_reserva(data: CrearReservaAdminRequest, user: dict = Depends(current_user)):
+    """
+    Crea una reserva en nombre de los usuarios seleccionados.
+    Estado inicial: Reservada. Agenda recordatorios y envía email 'creada por administración'.
+    """
+    def _op():
+        # ---- Validaciones/loads ----
+        # Validar formato de fecha: DD-MM-YYYY
+        fecha_guardar = data.fecha.strip()
+        try:
+            datetime.strptime(fecha_guardar, "%d-%m-%Y")
+        except ValueError:
+            raise ValueError("Formato de fecha inválido; usá DD-MM-YYYY")
+        
+        cancha = db_client.canchas.find_one({"_id": ObjectId(data.cancha_id)})
+        if not cancha:
+            raise ValueError("Cancha no encontrada")
+
+        horario = db_client.horarios.find_one({"_id": ObjectId(data.horario_id)})
+        if not horario:
+            raise ValueError("Horario no encontrado")
+
+        u_ids = [ObjectId(u) for u in data.usuarios]
+        usuarios = list(db_client.users.find({"_id": {"$in": u_ids}}))
+        if len(usuarios) != len(u_ids):
+            raise ValueError("Algún usuario no existe")
+
+        # Estado 'Reservada'
+        est_res = db_client.estadoreserva.find_one({"nombre": "Reservada"})
+        if not est_res:
+            raise ValueError("Estado 'Reservada' no configurado")
+
+        # Unicidad por (cancha, fecha, hora_inicio)
+        ya = db_client.reservas.find_one({
+            "cancha": cancha["_id"],
+            "fecha": fecha_guardar,
+            "hora_inicio": horario["_id"],
+        })
+        if ya:
+            raise ValueError("Ya existe una reserva para esa cancha, fecha y hora")
+
+        # Documento reserva
+        argentina_tz = pytz.timezone("America/Argentina/Buenos_Aires")
+        
+        # Para validaciones de tiempo y recordatorios
+        hora_inicio_str = horario.get("hora", "").split("-")[0].strip()
+        reserva_dt = argentina_tz.localize(
+            datetime.strptime(f"{fecha_guardar} {hora_inicio_str}", "%d-%m-%Y %H:%M")
+        )
+        
+        doc = OrderedDict([
+            ("fecha", fecha_guardar),  # DD-MM-YYYY como string
+            ("estado", est_res["_id"]),
+            ("cancha", cancha["_id"]),
+            ("hora_inicio", horario["_id"]),
+            ("fecha_creacion", datetime.now(argentina_tz)),
+            ("usuarios", [
+                OrderedDict([
+                    ("id", u["_id"]),
+                    ("confirmado", False),
+                    ("fecha_reserva", datetime.now(argentina_tz)),
+                ]) for u in usuarios
+            ]),
+            ("resultado", ""),
+        ])
+        rid = db_client.reservas.insert_one(doc).inserted_id
+
+        # emails destinatarios (join a personas)
+        persona_ids = [u.get("persona") for u in usuarios if u.get("persona")]
+        personas = list(db_client.personas.find(
+            {"_id": {"$in": persona_ids}},
+            {"email": 1, "nombre": 1, "apellido": 1}
+        ))
+
+        # Enviar emails (no bloquear si algo falla)
+        for p in personas:
+            try:
+                from services.email import notificar_alta_reserva_admin
+                notificar_alta_reserva_admin(
+                    to=p.get("email"),
+                    day=fecha_guardar,
+                    hora=hora_inicio_str,
+                    cancha=cancha.get("nombre", "")
+                )
+            except Exception as e:
+                print(f"[warn] admin alta mail → {p.get('email')}: {e}")
+
+        # Programar recordatorio normal (reutilizamos lo que ya tenés)
+        try:
+            from services.scheduler import programar_recordatorio_nueva_reserva
+            programar_recordatorio_nueva_reserva(str(rid), fecha_guardar, hora_inicio_str)
+        except Exception as e:
+            print(f"[scheduler] no se pudo programar recordatorio: {e}")
+
+        return rid
+
+    try:
+        rid = await asyncio.to_thread(_op)
+        return {"ok": True, "id": str(rid), "message": "Reserva creada y usuarios notificados"}
+    except ValueError as e:
+        raise HTTPException(400, str(e))
+    except Exception as e:
+        raise HTTPException(500, f"Error creando reserva: {e}")
