@@ -3,6 +3,7 @@ import backendClient from '../../../shared/services/backendClient';
 import { successToast, errorToast } from '../../../shared/utils/apiHelpers';
 import Button from '../../../shared/components/ui/Button/Button';
 import { AuthContext } from '../../auth/context/AuthContext';
+import MessageConfirm from "../../../shared/components/ui/Confirm/MessageConfirm";
 
 export default function TabHorarios() {
   const { hasRole } = useContext(AuthContext);
@@ -26,6 +27,12 @@ export default function TabHorarios() {
       setLoading(false);
     }
   }, []);
+
+  const [confirmData, setConfirmData] = useState({
+    open: false,
+    id: null,
+    mensaje: ""
+  });
 
   useEffect(() => { load(); }, [load]);
 
@@ -66,16 +73,34 @@ export default function TabHorarios() {
     }
   };
 
-  const deleteHorario = async (id) => {
-    if (!window.confirm('¿Eliminar este horario? Si está en uso, el backend lo bloqueará.')) return;
-    try {
-      await backendClient.delete(`horarios/eliminar/${id}`);
-      successToast('Horario eliminado');
-      load();
-    } catch (e) {
-      errorToast(e?.data?.detail || e?.message || 'No se pudo eliminar');
-    }
+
+const deleteHorario = (id, hora) => {
+  setConfirmData({
+    open: true,
+    id,
+    mensaje: `¿Eliminar el horario "${hora}"?`
+  });
+};
+
+
+const cancelarEliminacion = () => {
+    setConfirmData({ open: false, id: null, mensaje: "" });
   };
+
+const ejecutarEliminacion = async () => {
+  const id = confirmData.id;
+
+  cancelarEliminacion(); // cerrar modal antes del llamado
+
+  try {
+    await backendClient.delete(`horarios/eliminar/${id}`);
+    successToast("Horario eliminado");
+    load();
+  } catch (e) {
+    errorToast(e?.data?.detail || e?.message || "No se pudo eliminar");
+  }
+};
+
 
   const content = useMemo(() => {
     if (loading) return <div className="p-4 text-slate-300">Cargando…</div>;
@@ -102,7 +127,7 @@ export default function TabHorarios() {
                 {canAdmin && (
                   <div className="flex items-center gap-2">
                     <Button texto="Editar" variant="yellow" onClick={() => startEdit(r)} />
-                    <Button texto="Eliminar" variant="danger" onClick={() => deleteHorario(r.id)} />
+                    <Button texto="Eliminar" variant="danger" onClick={() => deleteHorario(r.id, r.hora)} />
                   </div>
                 )}
               </>
@@ -136,6 +161,14 @@ export default function TabHorarios() {
         <h3 className="text-white mb-2 font-medium">Listado</h3>
         {content}
       </div>
+      {confirmData.open && (
+        <MessageConfirm
+          mensaje={confirmData.mensaje}
+          onClose={cancelarEliminacion}
+          onConfirm={ejecutarEliminacion}
+          onCancel={cancelarEliminacion}
+        />
+      )}
     </div>
   );
 }
