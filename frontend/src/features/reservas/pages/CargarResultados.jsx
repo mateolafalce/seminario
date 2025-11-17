@@ -15,7 +15,7 @@ const generarFechas = () => {
   const options = { weekday: "long", day: "numeric", month: "long" };
   for (let i = 0; i < 7; i++) {
     const fecha = new Date(hoy);
-    fecha.setDate(hoy.getDate() + i);
+    fecha.setDate(hoy.getDate() - i);
     const display = new Intl.DateTimeFormat("es-ES", options).format(fecha);
     const value = `${String(fecha.getDate()).padStart(2, "0")}-${String(
       fecha.getMonth() + 1
