@@ -32,6 +32,7 @@ function Chip({ active, children, onClick }) {
       className={cx(
         "inline-flex items-center gap-2 rounded-full px-3 py-1.5 text-sm transition",
         "ring-1 focus:outline-none focus-visible:ring-2",
+        //"min-w-28 justify-center", //capaz queda feo
         active
           ? "!bg-[#eaff00] !text-[#0b1220] ring-[#eaff00]/60"
           : "bg-white/5 text-slate-200 ring-white/10 hover:bg-white/10"
