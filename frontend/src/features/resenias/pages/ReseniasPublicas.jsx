@@ -25,7 +25,7 @@ async function getJSON(url) {
 function StarRow({ value = 0, size = "text-xl" }) {
   const v = Math.max(0, Math.min(5, Math.round(Number(value))));
   return (
-    <div className={`flex items-center gap-1 ${size}`}>
+    <div className={`flex items-center gap-0 md:gap-1 ${size}`}>
       {Array.from({ length: 5 }).map((_, i) =>
         i < v ? (
           <AiFillStar key={i} className="text-yellow-400" />
@@ -80,7 +80,17 @@ function ReviewCard({
     <li className="relative mb-6 rounded-xl border border-white/10 bg-[#17171f] p-5 shadow-lg transition hover:shadow-2xl hover:border-blue-400/40">
       {timeline && (
         <>
-          <span className="absolute -left-6 top-6 h-3 w-3 rounded-full bg-blue-400 ring-4 ring-blue-400/20" />
+          <span className="
+            md:absolute 
+            md:-left-6 
+            md:top-6 
+            md:h-3 
+            md:w-3 
+            md:rounded-full 
+            md:bg-blue-400 
+            md:ring-4 
+            md:ring-blue-400/20
+          " />
         </>
       )}
 
@@ -195,7 +205,7 @@ export default function ReseniasPublicas() {
       </div>
 
       {loading ? (
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-10">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
           <div className="space-y-4">
             <SkeletonRow /><SkeletonRow /><SkeletonRow /><SkeletonRow />
           </div>
@@ -206,7 +216,7 @@ export default function ReseniasPublicas() {
       ) : errorMsg ? (
         <p className="text-center text-red-500 font-semibold">{errorMsg}</p>
       ) : (
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-10">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
           {/* Leaderboard Top Jugadores */}
           <section className="rounded-2xl border border-white/10 bg-white/5 backdrop-blur-md p-6 shadow-xl">
             <div className="flex items-center gap-3 mb-6">
@@ -297,7 +307,19 @@ export default function ReseniasPublicas() {
             {ultimasResenias.length === 0 ? (
               <p className="text-gray-400">Todavía no hay reseñas.</p>
             ) : (
-              <ul className="relative pl-6 before:content-[''] before:absolute before:left-3 before:top-0 before:bottom-0 before:w-px before:bg-gradient-to-b before:from-white/20 before:to-transparent">
+              <ul className="
+                pl-0 md:pl-6
+                relative 
+                md:before:content-[''] 
+                md:before:absolute 
+                md:before:left-3 
+                md:before:top-0 
+                md:before:bottom-0 
+                md:before:w-px 
+                md:before:bg-gradient-to-b 
+                md:before:from-white/20 
+                md:before:to-transparent
+              ">
                 {ultimasResenias.map((r, i) => (
                   <ReviewCard
                     key={r?._id || i}

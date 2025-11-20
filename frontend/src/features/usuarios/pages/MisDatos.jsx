@@ -422,7 +422,7 @@ function MisDatos() {
               title="Reseñas recibidas"
               subtitle="Lo que otros usuarios opinan sobre ti"
               right={
-                <div className="flex items-center gap-2">
+                <div className="flex flex-col md:flex-row items-center gap-2">
                   <label className="text-slate-400 text-xs">Por página</label>
                   <select
                     value={limit}
