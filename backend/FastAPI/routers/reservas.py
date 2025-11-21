@@ -464,7 +464,7 @@ async def get_mis_reservas(
         hora_inicio_str = r["horario"].split('-')[0]
         reserva_dt = argentina_tz.localize(datetime.strptime(f"{fecha_str} {hora_inicio_str}", "%d-%m-%Y %H:%M"))
 
-        if incluir_pasadas or (reserva_dt >= ahora):
+        if reserva_dt >= ahora :
             # Verificar si el usuario ya confirmó asistencia
             confirmado = False
             for usuario in r.get("usuarios", []):
@@ -875,39 +875,67 @@ async def detalle_reserva(cancha: str, horario: str, fecha: str, usuario_id: str
 async def confirmar_asistencia(reserva_id: str, user: dict = Depends(current_user)):
     """Confirma la asistencia del usuario a una reserva"""
     
-    try:
-        # Verificar que la reserva exista
+    try:    
+        if not ObjectId.is_valid(reserva_id):
+            raise HTTPException(status_code=400, detail="ID Inválido")
         user_id = ObjectId(user["id"])
         reserva_id_obj = ObjectId(reserva_id)
-        
-        # Obtener estado confirmado de la reserva
-        estado_confirmada = db_client.estadoreserva.find_one({"nombre": "Confirmada"})
-        if not estado_confirmada:
-            raise HTTPException(status_code=500, detail="Estado 'Confirmada' no encontrado en la base de datos")
-            
-        # Marcar al usuario como confirmado en la reserva
-        resultado = await asyncio.to_thread(
-            lambda: db_client.reservas.update_one(
-                {
-                    "_id": reserva_id_obj, 
-                    "usuarios.id": user_id
-                },
-                {
-                    "$set": {"usuarios.$.confirmado": True}
-                }
-            )
-        )
-        
-        if resultado.modified_count == 0:
-            raise HTTPException(status_code=404, detail="Reserva no encontrada o usuario no está en la reserva")
-        
-        # Contar confirmaciones
+
+        #primero traigo la reserva para validar que no esté cancelada ni vencida
         reserva = await asyncio.to_thread(
             lambda: db_client.reservas.find_one({"_id": reserva_id_obj})
         )
-        usuarios_confirmados = sum(1 for u in reserva.get("usuarios", []) if u.get("confirmado", False))
+        if not reserva:
+            raise HTTPException(status_code=404, detail="Reserva no encontrada")
         
-        # Si hay al menos 2 confirmaciones, actualizar estado de la reserva
+        # validación de error (estado y fecha)
+
+        # verifico que no esté cancelada
+        estado_cancelada = db_client.estadoreserva.find_one({"nombre":"Cancelada"})
+        if estado_cancelada and reserva["estado"] == estado_cancelada["_id"]:
+            raise HTTPException(status_code=400, detail="No se puede confirmar asistencia en una reserva cancelada")
+        
+        # verifico que no sea del pasado (por las moscas)
+        argentina_tz = pytz.timezone("America/Argentina/Buenos_Aires")
+        horario_doc = db_client.horarios.find_one({"_id": reserva["hora_inicio"]})
+        hora_inicio_str = horario_doc["hora"].split('-')[0]
+        fecha_dt = datetime.strptime(f"{reserva['fecha']} {hora_inicio_str}", "%d-%m-%Y %H:%M")
+        fecha_aware = argentina_tz.localize(fecha_dt)
+
+        if datetime.now(argentina_tz) > fecha_aware
+            raise HTTPException(status_code=400, detail="No se puede confirmar asistencia, el partido ya pasó")
+        
+
+        #actualización
+
+        #marcar al usuario como confirmado
+        resultado = await asyncio. to_thread(
+            lambda: db_client.reservas.update_one(
+                {
+                    "_id": reserva_id_obj,
+                    "usuario.id": user_id
+                },
+                {
+                    "$set": {"usuarios.$.confirmado":True}
+                }
+            )
+        )
+
+        if resultado.modified_count == 0:
+            raise HTTPException(status_code=400, detail="No estás incluido en esta reserva")
+        
+        #contar confimarciones totales
+
+        reserva_actualizada = await asyncio.to_thread(
+            lambda: db_client.reservas.find_one({"_id": reserva_id_obj})
+        )
+        usuarios_confirmados = sum(1 for u in reserva_actualizada.get("usuarios", []) if u.get("confimado", False))
+
+
+        # cambio de estado, si son 2 o más
+
+        estado_confirmada = db_client.estadoreserva.find_one({"nombre": "Confirmada"})
+
         if usuarios_confirmados >= 2:
             await asyncio.to_thread(
                 lambda: db_client.reservas.update_one(
@@ -915,16 +943,21 @@ async def confirmar_asistencia(reserva_id: str, user: dict = Depends(current_use
                     {"$set": {"estado": estado_confirmada["_id"]}}
                 )
             )
-            return {"msg": "Asistencia confirmada. La reserva ha sido confirmada con éxito."}
+            return {
+                "msg": "Asistencia confirmada. ¡Reserva confirmada!",
+                "estado_actual": "confirmada"
+            }
         else:
-            return {"msg": "Asistencia registrada. Se necesita al menos una confirmación más para confirmar la reserva."}
-            
+            # estado reservada (pendiente)
+            return {
+                "msg": f"Asistencia registrada. Faltan {2 - usuarios_confirmados} confirmación(es) más para asegurar la cancha.",
+                "estado_actual": "Reservada"
+            }
+    except HTTPException as e:
+        raise e
     except Exception as e:
         print(f"Error al confirmar asistencia: {str(e)}")
-        import traceback
-        traceback.print_exc()
-        raise HTTPException(status_code=500, detail=f"Error al confirmar asistencia: {str(e)}")
-
+        raise HTTPException(status_code=500, detail="Error interno al confirmar asistencia")
 def es_empleado(user_id: str) -> bool:
     try:
         return db_client.empleados.find_one({"user": ObjectId(user_id)}) is not None
