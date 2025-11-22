@@ -290,6 +290,11 @@ async def reservar(reserva: Reserva, user: dict = Depends(current_user)):
                 raise ValueError("Cancha inválida")
             cancha_id = cancha_doc["_id"]
 
+            # 🔴 NUEVO: validar que ese horario esté habilitado para esa cancha
+            horarios_cancha = cancha_doc.get("horarios") or []
+            if not isinstance(horarios_cancha, list) or horario_id not in horarios_cancha:
+                raise ValueError("Ese horario no está habilitado para esta cancha")
+
             # --- Estados ---
             estado_reservada = db_client.estadoreserva.find_one({"nombre": "Reservada"})
             if not estado_reservada:
@@ -1141,13 +1146,21 @@ async def admin_crear_reserva(data: CrearReservaAdminRequest, user: dict = Depen
         except ValueError:
             raise ValueError("Formato de fecha inválido; usá DD-MM-YYYY")
         
-        cancha = db_client.canchas.find_one({"_id": ObjectId(data.cancha_id)})
+        cancha_id = ObjectId(data.cancha_id)
+        horario_id = ObjectId(data.horario_id)
+
+        cancha = db_client.canchas.find_one({"_id": cancha_id})
         if not cancha:
             raise ValueError("Cancha no encontrada")
 
-        horario = db_client.horarios.find_one({"_id": ObjectId(data.horario_id)})
+        horario = db_client.horarios.find_one({"_id": horario_id})
         if not horario:
             raise ValueError("Horario no encontrado")
+
+        # Validar que el horario esté habilitado para la cancha
+        horarios_cancha = cancha.get("horarios") or []
+        if not isinstance(horarios_cancha, list) or horario_id not in horarios_cancha:
+            raise ValueError("Ese horario no está habilitado para esta cancha")
 
         u_ids = [ObjectId(u) for u in data.usuarios]
         usuarios = list(db_client.users.find({"_id": {"$in": u_ids}}))

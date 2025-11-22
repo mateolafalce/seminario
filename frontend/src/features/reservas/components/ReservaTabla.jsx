@@ -32,8 +32,12 @@ export default function ReservaTabla() {
   const [mensaje, setMensaje] = useState("");
   const [reservaPendiente, setReservaPendiente] = useState(null);
 
-  const [canchas, setCanchas] = useState([]);
-  const [horarios, setHorarios] = useState([]); // ✅ ahora desde backend
+  const [canchas, setCanchas] = useState([]);           // nombres
+  const [canchasRaw, setCanchasRaw] = useState([]);     // docs completos {id, nombre, horarios}
+  const [horarios, setHorarios] = useState([]);         // strings "HH:MM-HH:MM"
+  const [horariosById, setHorariosById] = useState({}); // { [idHorario]: "HH:MM-HH:MM" }
+  const [horariosPorCancha, setHorariosPorCancha] = useState({}); // { [nombreCancha]: string[] }
+
   const [cantidades, setCantidades] = useState({});
   const [selectedDate, setSelectedDate] = useState(FECHAS[0].value);
   const [selected, setSelected] = useState(null);
@@ -41,6 +45,8 @@ export default function ReservaTabla() {
   const [modalOpen, setModalOpen] = useState(false);
   const [detalleReserva, setDetalleReserva] = useState(null);
   const [loadingDetalle, setLoadingDetalle] = useState(false);
+  const [canchaDetalle, setCanchaDetalle] = useState(null);
+  const [showCanchaDetalle, setShowCanchaDetalle] = useState(false);
 
   // Cargar HORARIOS desde backend 1 sola vez
   useEffect(() => {
@@ -48,10 +54,27 @@ export default function ReservaTabla() {
     (async () => {
       try {
         const data = await backendClient.get('horarios/listar');
-        const arr = Array.isArray(data) ? data.map(h => (h?.hora ?? h)).filter(Boolean) : [];
-        if (alive) setHorarios(arr);
+        const arr = Array.isArray(data) ? data : [];
+        if (!alive) return;
+
+        const byId = {};
+        const horas = [];
+
+        arr.forEach((h) => {
+          const id = h.id || h._id || h.hora;
+          const hora = h.hora ?? (typeof h === 'string' ? h : '');
+          if (!hora || !id) return;
+          byId[id] = hora;
+          if (!horas.includes(hora)) horas.push(hora);
+        });
+
+        setHorarios(horas);
+        setHorariosById(byId);
       } catch {
-        if (alive) setHorarios([]);
+        if (alive) {
+          setHorarios([]);
+          setHorariosById({});
+        }
       }
     })();
     return () => { alive = false; };
@@ -64,13 +87,27 @@ export default function ReservaTabla() {
       try {
         const data = await backendClient.get('canchas/listar');
         if (!alive) return;
-        setCanchas(Array.isArray(data) ? data.map(c => c.nombre) : []);
+        const arr = Array.isArray(data) ? data : [];
+        setCanchasRaw(arr);
+        setCanchas(arr.map(c => c.nombre));
       } catch (e) {
         toast(<MiToast mensaje={e.message || 'Error al cargar canchas'} color="var(--color-red-400)" />);
       }
     })();
     return () => { alive = false; };
   }, []);
+
+  // Construir mapa horariosPorCancha cuando tenemos canchasRaw + horariosById
+  useEffect(() => {
+    const map = {};
+    canchasRaw.forEach((c) => {
+      const ids = Array.isArray(c.horarios) ? c.horarios : [];
+      map[c.nombre] = ids
+        .map((id) => horariosById[id])
+        .filter(Boolean);
+    });
+    setHorariosPorCancha(map);
+  }, [canchasRaw, horariosById]);
 
   // Cargar conteos por fecha
   useEffect(() => {
@@ -165,6 +202,17 @@ export default function ReservaTabla() {
     setMensaje("");
   };
 
+  const handleViewCancha = (cancha) => {
+    const nombre =
+      typeof cancha === 'string' ? cancha : cancha?.nombre || '';
+
+    setCanchaDetalle({
+      nombre,
+    });
+
+    setShowCanchaDetalle(true);
+  };
+
   return (
     <div className="min-h-[80vh] w-full pt-10 pb-16">
       <div className="mx-auto max-w-5xl px-4">
@@ -182,16 +230,20 @@ export default function ReservaTabla() {
         </div>
 
         {/* Carousel */}
-        <CourtCarousel
-          canchas={canchas}
-          horarios={horarios}  // ✅ ahora vienen del backend
-          cantidades={cantidades}
-          isAuthenticated={isAuthenticated}
-          selected={selected}
-          onOpenDetail={abrirDetalle}
-          isPastSlot={isPastSlot}
-          capacity={MAX_CAPACITY}
-        />
+        {canchas.length > 0 && (
+          <CourtCarousel
+            canchas={canchas}
+            horarios={horarios}
+            horariosByCancha={horariosPorCancha}
+            cantidades={cantidades}
+            isAuthenticated={!!user}
+            selected={selected}
+            onOpenDetail={abrirDetalle}
+            onViewCancha={handleViewCancha}
+            isPastSlot={isPastSlot}
+            capacity={MAX_CAPACITY}
+          />
+        )}
 
         {/* MODAL Detalle */}
         {modalOpen && (
@@ -269,6 +321,27 @@ export default function ReservaTabla() {
                   </div>
                 </div>
               )}
+            </div>
+          </div>
+        )}
+        {showCanchaDetalle && canchaDetalle && (
+          <div className="fixed inset-0 z-40 flex items-center justify-center bg-black/60">
+            <div className="relative w-full max-w-lg rounded-2xl bg-slate-900 border border-white/10 p-6 shadow-xl">
+              <button
+                onClick={() => setShowCanchaDetalle(false)}
+                className="absolute right-3 top-3 rounded-full px-2 py-1 text-xs text-slate-300 hover:bg-white/10"
+              >
+                ✕
+              </button>
+              <h2 className="text-xl font-semibold text-amber-400 mb-2">
+                {canchaDetalle.nombre || 'Cancha'}
+              </h2>
+              <p className="text-sm text-slate-300">
+                Acá podrías mostrar descripción, reglas, fotos y más info de la
+                cancha.  
+                Por ahora sólo mostramos el nombre sin tocar nada
+                de la lógica de reservas ni del matcheo.
+              </p>
             </div>
           </div>
         )}

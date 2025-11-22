@@ -8,6 +8,7 @@ from routers.Security.auth import verify_csrf, require_perms  # <- cambia si que
 
 router = APIRouter(prefix="/canchas", tags=["Canchas"])
 
+
 @router.post(
     "/crear",
     dependencies=[Depends(verify_csrf), Depends(require_perms("canchas.gestionar"))]
@@ -17,17 +18,56 @@ async def crear_cancha(cancha: CanchaCreate):
     if not nombre:
         raise HTTPException(status_code=400, detail="El nombre es obligatorio")
 
-    exists = await asyncio.to_thread(lambda: db_client.canchas.find_one({"nombre": nombre}))
+    # Nombre único
+    exists = await asyncio.to_thread(
+        lambda: db_client.canchas.find_one({"nombre": nombre})
+    )
     if exists:
         raise HTTPException(status_code=400, detail="Ya existe una cancha con ese nombre")
 
-    result = await asyncio.to_thread(lambda: db_client.canchas.insert_one({"nombre": nombre}))
+    # Opcional: horarios habilitados para esta cancha
+    horarios_oids = []
+    if cancha.horarios is not None:
+        raw_ids = [h for h in cancha.horarios if h]
+        if raw_ids:
+            # Quitar duplicados manteniendo orden
+            raw_ids = list(dict.fromkeys(raw_ids))
+            try:
+                horarios_oids = [ObjectId(h) for h in raw_ids]
+            except Exception:
+                raise HTTPException(
+                    status_code=400,
+                    detail="Algún horario enviado es inválido"
+                )
+            # Verificar que todos existan en la colección horarios
+            count = await asyncio.to_thread(
+                lambda: db_client.horarios.count_documents({"_id": {"$in": horarios_oids}})
+            )
+            if count != len(horarios_oids):
+                raise HTTPException(
+                    status_code=400,
+                    detail="Algún horario enviado no existe"
+                )
+
+    doc = {
+        "nombre": nombre,
+        # Siempre guardamos lista (vacía o con ObjectId)
+        "horarios": horarios_oids,
+    }
+
+    result = await asyncio.to_thread(
+        lambda: db_client.canchas.insert_one(doc)
+    )
     return {"msg": "Cancha creada con éxito", "id": str(result.inserted_id)}
+
 
 @router.get("/listar")
 async def listar_canchas():
-    rows = await asyncio.to_thread(lambda: list(db_client.canchas.find({}, sort=[("nombre", 1)])))
+    rows = await asyncio.to_thread(
+        lambda: list(db_client.canchas.find({}, sort=[("nombre", 1)]))
+    )
     return canchas_schema(rows)
+
 
 @router.delete(
     "/eliminar/{cancha_id}",
@@ -88,6 +128,7 @@ async def eliminar_cancha(cancha_id: str):
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error al eliminar cancha: {str(e)}")
 
+
 @router.put(
     "/modificar/{cancha_id}",
     dependencies=[Depends(verify_csrf), Depends(require_perms("canchas.gestionar"))]
@@ -108,8 +149,36 @@ async def modificar_cancha(cancha_id: str, data: CanchaUpdate = Body(...)):
     if exists:
         raise HTTPException(status_code=400, detail="Ya existe una cancha con ese nombre")
 
+    update_fields = {"nombre": nombre}
+
+    # Si viene 'horarios' en el body, reemplazamos la lista
+    if data.horarios is not None:
+        raw_ids = [h for h in data.horarios if h]
+        horarios_oids = []
+
+        if raw_ids:
+            raw_ids = list(dict.fromkeys(raw_ids))
+            try:
+                horarios_oids = [ObjectId(h) for h in raw_ids]
+            except Exception:
+                raise HTTPException(
+                    status_code=400,
+                    detail="Algún horario enviado es inválido"
+                )
+            count = await asyncio.to_thread(
+                lambda: db_client.horarios.count_documents({"_id": {"$in": horarios_oids}})
+            )
+            if count != len(horarios_oids):
+                raise HTTPException(
+                    status_code=400,
+                    detail="Algún horario enviado no existe"
+                )
+
+        # Si la lista es vacía => dejamos la cancha sin horarios (no se podrá reservar)
+        update_fields["horarios"] = horarios_oids
+
     result = await asyncio.to_thread(
-        lambda: db_client.canchas.update_one({"_id": cancha_oid}, {"$set": {"nombre": nombre}})
+        lambda: db_client.canchas.update_one({"_id": cancha_oid}, {"$set": update_fields})
     )
     if result.matched_count == 0:
         raise HTTPException(status_code=404, detail="Cancha no encontrada")
