@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import algoritmoApi from '../../../shared/services/algoritmoApi';
 
 export default function TabAlgoritmo() {

@@ -1,4 +1,3 @@
-import React from "react";
 import IconoAvatar from "../../../assets/icons/iconoAvatar";
 
 function Card({ onClick }) {

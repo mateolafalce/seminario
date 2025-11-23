@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useContext, useMemo } from 'react';
+import { useState, useEffect, useContext, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import IconoAvatar from '../../../assets/icons/iconoAvatar';
 import { useNavigate } from 'react-router-dom';

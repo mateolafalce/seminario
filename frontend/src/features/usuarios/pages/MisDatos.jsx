@@ -1,4 +1,4 @@
-import React, { useEffect, useState, memo } from "react";
+import { useEffect, useState, memo } from "react";
 import { toast } from "react-toastify";
 import backendClient from "../../../shared/services/backendClient";
 import Modal from "../../../shared/components/ui/Modal/Modal";

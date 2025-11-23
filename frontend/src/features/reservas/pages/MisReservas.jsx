@@ -1,5 +1,4 @@
-// src/pages/MisReservas.jsx
-import React, { useState, useEffect, useContext, useMemo, useCallback } from 'react';
+import { useState, useEffect, useContext, useMemo, useCallback } from 'react';
 import { AuthContext } from '../../auth/context/AuthContext';
 import Button from '../../../shared/components/ui/Button/Button';
 import Modal from '../../../shared/components/ui/Modal/Modal';

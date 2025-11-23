@@ -16,6 +16,7 @@ import MisDatos from '../features/usuarios/pages/MisDatos';
 import CargarResultados from '../features/reservas/pages/CargarResultados';
 import ReseniasPublicas from '../features/resenias/pages/ReseniasPublicas';
 import TabAlgoritmo from '../features/admin/pages/TabAlgoritmo';
+import DetalleCancha from '../features/canchas/pages/DetalleCancha';
 
 import { ToastContainer } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
@@ -153,6 +154,15 @@ function AppWithTimeout() {
         <Route path="/mis-datos" element={<MisDatos />} />
         <Route path="/cargar-resultados" element={<CargarResultados />} />
         <Route path="/resenias" element={<ReseniasPublicas />} />
+
+        <Route
+          path="/canchas/:id"
+          element={
+            <PermissionRoute check={() => true}>
+              <DetalleCancha />
+            </PermissionRoute>
+          }
+        />
 
         {/* Compat: vieja ruta -> nueva */}
         <Route path="/admin/dashboard" element={<Navigate to="/panel-control" replace />} />
