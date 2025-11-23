@@ -1,8 +1,34 @@
-import { useEffect, useState } from "react";
+import { useContext, useEffect, useState } from "react";
 import { useLocation, useNavigate, useParams } from "react-router-dom";
 import backendClient from "../../../shared/services/backendClient";
 import Button from "../../../shared/components/ui/Button/Button";
 import homeHeroPadel from "../../../assets/images/homeHeroPadel.jpg";
+import MessageConfirm from "../../../shared/components/ui/Confirm/MessageConfirm";
+import MiToast from "../../../shared/components/ui/Toast/MiToast";
+import { toast } from "react-toastify";
+import { AuthContext } from "../../auth/context/AuthContext";
+
+// ===== helpers de fechas (mismo criterio que en Reserva) =====
+const generarFechas = () => {
+  const r = [];
+  const hoy = new Date();
+  const opt = { weekday: "long", day: "numeric", month: "long" };
+
+  for (let i = 0; i < 7; i++) {
+    const f = new Date(hoy);
+    f.setDate(hoy.getDate() + i);
+    r.push({
+      display: new Intl.DateTimeFormat("es-ES", opt)
+        .format(f)
+        .replace(/^\w/, (c) => c.toUpperCase()),
+      value: `${String(f.getDate()).padStart(2, "0")}-${String(
+        f.getMonth() + 1
+      ).padStart(2, "0")}-${f.getFullYear()}`,
+    });
+  }
+  return r;
+};
+const FECHAS = generarFechas();
 
 function SectionTitle({ children }) {
   return (
@@ -12,10 +38,25 @@ function SectionTitle({ children }) {
   );
 }
 
+// slot pasado? (igual lógica que en reserva)
+function esHorarioPasado(fechaStr, horarioStr) {
+  try {
+    const [dd, mm, yyyy] = fechaStr.split("-").map(Number);
+    const [horaInicio] = horarioStr.split("-");
+    const [hh, min] = horaInicio.split(":").map(Number);
+    const slotDate = new Date(yyyy, mm - 1, dd, hh, min || 0);
+    const ahora = new Date();
+    return slotDate <= ahora;
+  } catch {
+    return false;
+  }
+}
+
 export default function DetalleCancha() {
   const { id } = useParams();
   const location = useLocation();
   const navigate = useNavigate();
+  const { user } = useContext(AuthContext);
 
   // Si venimos desde /reserva mando el objeto cancha por state
   const canchaFromState = location.state?.cancha || null;
@@ -26,6 +67,18 @@ export default function DetalleCancha() {
   const [loadingHorarios, setLoadingHorarios] = useState(true);
   const [error, setError] = useState("");
 
+  // reservas / ocupación
+  const [selectedDate, setSelectedDate] = useState(FECHAS[0].value);
+  const [ocupacion, setOcupacion] = useState({}); // key = "cancha|horario" → cantidad
+  const [loadingOcupacion, setLoadingOcupacion] = useState(false);
+
+  const [reservaPendiente, setReservaPendiente] = useState(null);
+  const [mensajeConfirm, setMensajeConfirm] = useState("");
+
+  // =========================
+  // Carga de datos
+  // =========================
+
   // Cargar info de la cancha si entramos directo por URL o recargamos la página
   useEffect(() => {
     if (canchaFromState || !id) return;
@@ -34,7 +87,6 @@ export default function DetalleCancha() {
     (async () => {
       try {
         setLoading(true);
-        // reutilizo el listar que ya usás en /reserva para no tocar el backend
         const data = await backendClient.get("canchas/listar");
         const arr = Array.isArray(data) ? data : [];
         const found =
@@ -87,15 +139,111 @@ export default function DetalleCancha() {
     };
   }, []);
 
+  // Cargar ocupación por horario para la fecha seleccionada
+  useEffect(() => {
+    if (!cancha) return;
+    let alive = true;
+
+    (async () => {
+      try {
+        setLoadingOcupacion(true);
+        const data = await backendClient.get(
+          `reservas/cantidad?fecha=${selectedDate}`
+        );
+        const map = {};
+        (Array.isArray(data) ? data : []).forEach((item) => {
+          if (!item) return;
+          const key = `${item.cancha}__${item.horario}`;
+          map[key] = item.cantidad ?? 0;
+        });
+        if (alive) setOcupacion(map);
+      } catch (e) {
+        if (alive) console.error("Error cargando ocupación:", e);
+      } finally {
+        if (alive) setLoadingOcupacion(false);
+      }
+    })();
+
+    return () => {
+      alive = false;
+    };
+  }, [selectedDate, cancha]);
+
+  // =========================
+  // Handlers
+  // =========================
+
   const handleBack = () => {
     if (window.history.length > 1) navigate(-1);
     else navigate("/reserva", { replace: true });
   };
 
   const handleIrAReservar = () => {
-    // de momento solo te llevo al flujo normal de reservas
     navigate("/reserva");
   };
+
+  // click en un horario dentro del detalle
+  const handleClickHorario = (hora) => {
+    if (!user) {
+      toast(
+        <MiToast
+          mensaje="Iniciá sesión para reservar."
+          color="var(--color-red-400)"
+        />
+      );
+      return;
+    }
+    if (!cancha) return;
+
+    setReservaPendiente({
+      cancha: cancha.nombre,
+      horario: hora,
+    });
+    setMensajeConfirm(
+      `¿Confirmás reservar "${cancha.nombre}" a las ${hora} para el ${selectedDate}?`
+    );
+  };
+
+  const handleConfirmReserva = async () => {
+    if (!reservaPendiente) return;
+    try {
+      const resp = await backendClient.post("reservas/reservar", {
+        cancha: reservaPendiente.cancha,
+        horario: reservaPendiente.horario,
+        fecha: selectedDate,
+      });
+
+      toast(
+        <MiToast
+          mensaje={`Reserva exitosa: ${resp?.msg || "OK"}`}
+          color="var(--color-green-400)"
+        />
+      );
+    } catch (e) {
+      const msg =
+        e?.response?.data?.detail ||
+        e?.message ||
+        "Error al intentar reservar.";
+      toast(
+        <MiToast
+          mensaje={msg}
+          color="var(--color-red-400)"
+        />
+      );
+    } finally {
+      setReservaPendiente(null);
+      setMensajeConfirm("");
+    }
+  };
+
+  const handleCancelReserva = () => {
+    setReservaPendiente(null);
+    setMensajeConfirm("");
+  };
+
+  // =========================
+  // Render
+  // =========================
 
   if (loading || !cancha) {
     return (
@@ -159,7 +307,7 @@ export default function DetalleCancha() {
 
           <div className="flex flex-col sm:flex-row gap-3">
             <Button
-              texto="Reservar en esta cancha"
+              texto="Ir a pantalla de reservas"
               onClick={handleIrAReservar}
               variant="crear"
               size="pill"
@@ -177,11 +325,29 @@ export default function DetalleCancha() {
             </p>
           </div>
 
-          {/* Columna derecha: horarios habilitados */}
+          {/* Columna derecha: horarios habilitados con ocupación */}
           <div>
-            <SectionTitle>Horarios habilitados</SectionTitle>
+            <SectionTitle>Horarios disponibles</SectionTitle>
 
-            {loadingHorarios && (
+            {/* selector de fecha para la reserva */}
+            <div className="mb-3 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+              <span className="text-xs text-gray-400">
+                Elegí una fecha y luego un horario para reservar:
+              </span>
+              <select
+                value={selectedDate}
+                onChange={(e) => setSelectedDate(e.target.value)}
+                className="w-full sm:w-auto bg-slate-900 border border-slate-700 text-xs text-gray-100 rounded-lg px-2 py-1 focus:outline-none focus:border-amber-400 focus:ring-1 focus:ring-amber-400/70"
+              >
+                {FECHAS.map((f) => (
+                  <option key={f.value} value={f.value}>
+                    {f.display}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            {(loadingHorarios || loadingOcupacion) && (
               <p className="text-sm text-gray-400 mb-2">
                 Cargando horarios disponibles…
               </p>
@@ -192,26 +358,51 @@ export default function DetalleCancha() {
                 Esta cancha todavía no tiene horarios habilitados.
               </p>
             ) : (
-              <div className="flex flex-wrap gap-2">
-                {horariosHabilitados.map((h) => (
-                  <span
-                    key={h}
-                    className="px-3 py-1 rounded-full bg-slate-800 text-xs md:text-sm text-gray-100 border border-slate-700"
-                  >
-                    {h}
-                  </span>
-                ))}
+              <div className="flex flex-wrap gap-3">
+                {horariosHabilitados.map((h) => {
+                  const key = `${cancha.nombre}__${h}`;
+                  const cantidad = ocupacion[key] ?? 0;
+                  const past = esHorarioPasado(selectedDate, h);
+                  const labelBottom = past ? "Pasado" : `${cantidad}/6`;
+
+                  return (
+                    <button
+                      key={h}
+                      type="button"
+                      disabled={past}
+                      onClick={() => !past && handleClickHorario(h)}
+                      className={`flex flex-col items-center justify-center px-4 py-1.5 rounded-full border text-xs min-w-[110px] transition-colors ${
+                        past
+                          ? "border-slate-700 bg-slate-800/70 text-gray-500 cursor-not-allowed"
+                          : "border-slate-600 bg-slate-800/80 text-gray-100 hover:border-amber-400 hover:bg-amber-400/15 cursor-pointer"
+                      }`}
+                    >
+                      <span className="text-sm font-medium">{h}</span>
+                      <span className="text-[11px] mt-0.5 text-gray-400">
+                        {labelBottom}
+                      </span>
+                    </button>
+                  );
+                })}
               </div>
             )}
 
             <p className="text-[11px] text-gray-500 mt-3">
-              Los horarios que ves acá son los que el administrador habilitó
-              para esta cancha. La disponibilidad real (canchas ya reservadas)
-              la ves en la pantalla de reservas.
+              Estos horarios y cupos son los mismos que ves en la pantalla de
+              reservas. Los que figuran como <strong>Pasado</strong> no se
+              pueden reservar.
             </p>
           </div>
         </div>
       </div>
+
+      {/* Modal de confirmación de reserva (mismo que usás en reservas) */}
+      <MessageConfirm
+        mensaje={mensajeConfirm}
+        onClose={handleCancelReserva}
+        onConfirm={handleConfirmReserva}
+        onCancel={handleCancelReserva}
+      />
     </div>
   );
 }
