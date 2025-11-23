@@ -32,7 +32,7 @@ export default function ReservaTabla() {
   const [mensaje, setMensaje] = useState("");
   const [reservaPendiente, setReservaPendiente] = useState(null);
 
-  const [canchas, setCanchas] = useState([]);           // nombres
+  const [canchas, setCanchas] = useState([]);           // AHORA: objetos completos
   const [canchasRaw, setCanchasRaw] = useState([]);     // docs completos {id, nombre, horarios}
   const [horarios, setHorarios] = useState([]);         // strings "HH:MM-HH:MM"
   const [horariosById, setHorariosById] = useState({}); // { [idHorario]: "HH:MM-HH:MM" }
@@ -89,7 +89,8 @@ export default function ReservaTabla() {
         if (!alive) return;
         const arr = Array.isArray(data) ? data : [];
         setCanchasRaw(arr);
-        setCanchas(arr.map(c => c.nombre));
+        // 🔴 CAMBIO: en vez de solo nombres, pasamos los objetos completos al carrusel
+        setCanchas(arr);
       } catch (e) {
         toast(<MiToast mensaje={e.message || 'Error al cargar canchas'} color="var(--color-red-400)" />);
       }
@@ -232,7 +233,9 @@ export default function ReservaTabla() {
         {/* Carousel */}
         {canchas.length > 0 && (
           <CourtCarousel
-            canchas={canchas}
+            // Si ya cargamos canchas completas, las mandamos al carrusel.
+            // Si por algún motivo falla, caemos al array de nombres.
+            canchas={canchasRaw.length ? canchasRaw : canchas}
             horarios={horarios}
             horariosByCancha={horariosPorCancha}
             cantidades={cantidades}

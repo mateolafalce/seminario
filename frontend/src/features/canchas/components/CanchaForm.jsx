@@ -1,8 +1,13 @@
 import { useState } from "react";
 import Button from "../../../shared/components/ui/Button/Button";
 
-// default estable
-const defaultValues = { nombre: "", horarios: [] };
+// default estable, misma referencia en todos los renders
+const defaultValues = {
+  nombre: "",
+  descripcion: "",
+  imagen_url: "",
+  habilitada: true,
+};
 
 export default function CanchaForm({
   initialValues = defaultValues,
@@ -10,53 +15,33 @@ export default function CanchaForm({
   submitText = "Guardar",
   loading = false,
   erroresExternos = {},
-  // lista de horarios disponibles [{ id, hora }]
-  horariosOptions = [],
 }) {
+  // 👇 usamos inicializador de useState y NO hay useEffect
   const [v, setV] = useState(() => ({
     ...defaultValues,
     ...initialValues,
-    horarios: Array.isArray(initialValues.horarios)
-      ? initialValues.horarios.map(String)
-      : [],
   }));
-
-  const toggleHorario = (rawId) => {
-    const id = String(rawId);
-    setV((prev) => {
-      const current = Array.isArray(prev.horarios)
-        ? prev.horarios.map(String)
-        : [];
-      if (current.includes(id)) {
-        return { ...prev, horarios: current.filter((hid) => hid !== id) };
-      }
-      return { ...prev, horarios: [...current, id] };
-    });
-  };
+  const [errs, setErrs] = useState({});
 
   async function handleSubmit(e) {
     e.preventDefault();
     const nombre = (v.nombre || "").trim();
+
     if (!nombre) {
-      return setV((prev) => ({
-        ...prev,
-        _localErrorNombre: "El nombre es obligatorio",
-      }));
+      return setErrs({ nombre: "El nombre es obligatorio" });
     }
 
-    const horarios = Array.isArray(v.horarios)
-      ? v.horarios.map(String)
-      : [];
+    setErrs({});
 
-    await onSubmit?.({ nombre, horarios });
+    const payload = {
+      nombre,
+      descripcion: (v.descripcion || "").trim(),
+      imagen_url: (v.imagen_url || "").trim(),
+      habilitada: !!v.habilitada,
+    };
+
+    await onSubmit?.(payload);
   }
-
-  const horariosSeleccionados = Array.isArray(v.horarios)
-    ? v.horarios.map(String)
-    : [];
-
-  const errorNombre =
-    v._localErrorNombre || erroresExternos.nombre || null;
 
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
@@ -67,62 +52,79 @@ export default function CanchaForm({
           type="text"
           value={v.nombre}
           onChange={(e) =>
-            setV((prev) => ({
-              ...prev,
-              nombre: e.target.value,
-              _localErrorNombre: null,
-            }))
+            setV((prev) => ({ ...prev, nombre: e.target.value }))
           }
-          className="w-full px-3 py-2 rounded-lg border border-gray-600 bg-gray-900 text-white focus:outline-none"
+          className="w-full px-3 py-2 rounded-lg border border-gray-600 bg-gray-900 text-white focus:outline-none focus:ring-2 focus:ring-emerald-500/70"
           placeholder="Ej: Cancha 1"
           required
         />
-        {errorNombre && (
-          <p className="text-red-400 text-sm mt-1">{errorNombre}</p>
+        {(errs.nombre || erroresExternos.nombre) && (
+          <p className="text-red-400 text-sm mt-1">
+            {errs.nombre || erroresExternos.nombre}
+          </p>
         )}
       </div>
 
-      {/* Horarios por cancha (si hay opciones) */}
-      {Array.isArray(horariosOptions) && horariosOptions.length > 0 && (
-        <div>
-          <label className="block text-sm text-gray-300 mb-1">
-            Horarios habilitados para esta cancha
-          </label>
-          <div className="max-h-48 overflow-y-auto border border-gray-700 rounded-lg p-2 bg-gray-900/60">
-            <div className="flex flex-wrap gap-2">
-              {horariosOptions.map((h) => {
-                const id = String(h.id || h._id || h.hora);
-                const label = h.hora || String(h);
-                const checked = horariosSeleccionados.includes(id);
+      {/* Descripción */}
+      <div>
+        <label className="block text-sm text-gray-300 mb-1">
+          Descripción (opcional)
+        </label>
+        <textarea
+          value={v.descripcion}
+          onChange={(e) =>
+            setV((prev) => ({ ...prev, descripcion: e.target.value }))
+          }
+          rows={3}
+          className="w-full px-3 py-2 rounded-lg border border-gray-600 bg-gray-900 text-white focus:outline-none focus:ring-2 focus:ring-emerald-500/70 resize-none"
+          placeholder="Ej: Cancha techada, superficie sintética, ideal para partidos nocturnos..."
+        />
+      </div>
 
-                return (
-                  <label
-                    key={id}
-                    className={`flex items-center gap-1 text-xs text-gray-200 px-2 py-1 rounded-md border cursor-pointer ${
-                      checked
-                        ? "bg-lime-500/20 border-lime-400"
-                        : "bg-gray-900/70 border-gray-700 hover:bg-gray-800"
-                    }`}
-                  >
-                    <input
-                      type="checkbox"
-                      className="accent-lime-400"
-                      checked={checked}
-                      onChange={() => toggleHorario(id)}
-                    />
-                    <span>{label}</span>
-                  </label>
-                );
-              })}
-            </div>
-          </div>
-          {erroresExternos.horarios && (
-            <p className="text-red-400 text-sm mt-1">
-              {erroresExternos.horarios}
-            </p>
-          )}
-        </div>
-      )}
+      {/* URL Imagen */}
+      <div>
+        <label className="block text-sm text-gray-300 mb-1">
+          URL de imagen (opcional)
+        </label>
+        <input
+          type="url"
+          value={v.imagen_url}
+          onChange={(e) =>
+            setV((prev) => ({ ...prev, imagen_url: e.target.value }))
+          }
+          className="w-full px-3 py-2 rounded-lg border border-gray-600 bg-gray-900 text-white focus:outline-none focus:ring-2 focus:ring-emerald-500/70"
+          placeholder="https://ejemplo.com/imagen-cancha.jpg"
+        />
+        {v.imagen_url && (
+          <p className="text-xs text-gray-400 mt-1">
+            Más adelante podés cambiar esto por un uploader de imágenes.
+          </p>
+        )}
+      </div>
+
+      {/* Habilitada */}
+      <div className="flex items-center gap-2">
+        <button
+          type="button"
+          onClick={() =>
+            setV((prev) => ({ ...prev, habilitada: !prev.habilitada }))
+          }
+          className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
+            v.habilitada ? "bg-emerald-500" : "bg-gray-600"
+          }`}
+        >
+          <span
+            className={`inline-block h-5 w-5 transform rounded-full bg-white transition-transform ${
+              v.habilitada ? "translate-x-5" : "translate-x-1"
+            }`}
+          />
+        </button>
+        <span className="text-sm text-gray-200">
+          {v.habilitada
+            ? "Cancha habilitada para reservas"
+            : "Cancha deshabilitada"}
+        </span>
+      </div>
 
       {erroresExternos.general && (
         <p className="text-red-400 text-sm">{erroresExternos.general}</p>

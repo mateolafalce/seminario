@@ -1,242 +1,175 @@
-import React, { useState, useEffect } from "react";
-import { toast } from "react-toastify";
 
-// CORRECCIÓN: 4 niveles arriba para llegar a 'src/shared'
+import { useState } from "react";
 import backendClient from "../../../../shared/services/backendClient";
-
-// CORRECCIÓN: 3 niveles arriba para llegar a 'src/features/canchas'
-import ListarCanchas from "../../../canchas/pages/ListarCanchas";
-import CanchaForm from "../../../canchas/components/CanchaForm";
-
-// CORRECCIÓN: 4 niveles arriba para llegar a 'src/shared'
 import Modal from "../../../../shared/components/ui/Modal/Modal";
-import MiToast from "../../../../shared/components/ui/Toast/MiToast";
-import MessageConfirm from "../../../../shared/components/ui/Confirm/MessageConfirm";
 import Button from "../../../../shared/components/ui/Button/Button";
+import CanchaForm from "../../../canchas/components/CanchaForm";
+import ListarCanchas from "../../../canchas/pages/ListarCanchas";
 
 export default function GestionCanchas() {
-  // === ESTADOS GENERALES ===
-  const [canchas, setCanchas] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
-  const [refreshKey, setRefreshKey] = useState(0);
-
-  // 🆕 Horarios disponibles globales (para armar la lista por cancha)
-  const [horariosDisponibles, setHorariosDisponibles] = useState([]);
-
-  // === ESTADOS MODALES ===
-  const [showCreateModal, setShowCreateModal] = useState(false);
+  const [modalAbierto, setModalAbierto] = useState(false);
   const [canchaEditar, setCanchaEditar] = useState(null);
-  const [confirmDelete, setConfirmDelete] = useState({ open: false, cancha: null });
+  const [mensajeError, setMensajeError] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [reloadKey, setReloadKey] = useState(0);
 
-  // === ESTADOS DE CARGA EN FORMULARIOS ===
-  const [creating, setCreating] = useState(false);
-  const [editing, setEditing] = useState(false);
-  const [formErrors, setFormErrors] = useState({});
+  const abrirModalCrear = () => {
+    setCanchaEditar(null);
+    setMensajeError("");
+    setModalAbierto(true);
+  };
 
-  // 1. CARGAR CANCHAS
-  const fetchCanchas = async () => {
-    setLoading(true);
-    setError(null);
+  const abrirModalEditar = (cancha) => {
+    setCanchaEditar(cancha);
+    setMensajeError("");
+    setModalAbierto(true);
+  };
+
+  const cerrarModal = () => {
+    setCanchaEditar(null);
+    setMensajeError("");
+    setModalAbierto(false);
+  };
+
+  const handleCreate = async (valores) => {
     try {
-      const response = await backendClient.get("canchas/listar");
-      if (response) {
-        setCanchas(response);
-      } else {
-        setError("Error al obtener canchas");
-      }
+      setLoading(true);
+      setMensajeError("");
+
+      const payload = {
+        nombre: valores.nombre.trim(),
+        descripcion: (valores.descripcion || "").trim(),
+        imagen_url: (valores.imagen_url || "").trim(),
+        habilitada: valores.habilitada ?? true,
+      };
+
+      await backendClient.post("canchas/crear", payload);
+
+      setReloadKey((k) => k + 1);
+      setModalAbierto(false);
     } catch (e) {
-      setError(e.message || "Error de conexión");
+      const msg =
+        e?.response?.data?.detail || "Error al crear la cancha. Intentalo de nuevo.";
+      setMensajeError(msg);
     } finally {
       setLoading(false);
     }
   };
 
-  // 1.b CARGAR HORARIOS DISPONIBLES (una vez)
-  const fetchHorarios = async () => {
-    try {
-      const data = await backendClient.get("horarios/listar");
-      // esperamos [{id, hora}, ...]
-      setHorariosDisponibles(Array.isArray(data) ? data : []);
-    } catch (e) {
-      console.error("Error al cargar horarios", e);
-      setHorariosDisponibles([]);
-    }
-  };
-
-  useEffect(() => {
-    fetchCanchas();
-  }, [refreshKey]);
-
-  useEffect(() => {
-    fetchHorarios();
-  }, []);
-
-  // 2. CREAR CANCHA
-  const handleCreate = async (valores) => {
-    setFormErrors({});
-    const nombre = valores.nombre?.trim();
-    if (!nombre) {
-      setFormErrors({ nombre: "El nombre es obligatorio" });
-      return;
-    }
-
-    const horarios = Array.isArray(valores.horarios) ? valores.horarios : [];
-
-    setCreating(true);
-    try {
-      const response = await backendClient.post("canchas/crear", {
-        nombre,
-        horarios,
-      });
-      if (response) {
-        toast(<MiToast mensaje="Cancha creada exitosamente" tipo="success" />);
-        setShowCreateModal(false);
-        setRefreshKey((k) => k + 1);
-      }
-    } catch (e) {
-      const msg = e.response?.data?.detail || e.message || "Error al crear";
-      setFormErrors({ general: msg });
-      toast(<MiToast mensaje={msg} tipo="error" />);
-    } finally {
-      setCreating(false);
-    }
-  };
-
-  // 3. EDITAR CANCHA
-  const handleEditarClick = (cancha) => {
-    setCanchaEditar(cancha);
-    setFormErrors({});
-  };
-
   const handleSubmitEditar = async (valores) => {
-    setFormErrors({});
-    const nombre = valores.nombre?.trim();
-    if (!nombre) {
-      setFormErrors({ nombre: "El nombre es obligatorio" });
+    if (!canchaEditar?.id) return;
+
+    try {
+      setLoading(true);
+      setMensajeError("");
+
+      const payload = {
+        nombre: valores.nombre.trim(),
+        descripcion: (valores.descripcion || "").trim(),
+        imagen_url: (valores.imagen_url || "").trim(),
+        habilitada: valores.habilitada ?? true,
+      };
+
+      await backendClient.put(`canchas/modificar/${canchaEditar.id}`, payload);
+
+      setReloadKey((k) => k + 1);
+      setModalAbierto(false);
+      setCanchaEditar(null);
+    } catch (e) {
+      const msg =
+        e?.response?.data?.detail ||
+        "Error al actualizar la cancha. Intentalo de nuevo.";
+      setMensajeError(msg);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleEliminarCancha = async (cancha) => {
+    if (
+      !window.confirm(
+        `¿Seguro que querés eliminar la cancha "${cancha.nombre}"? Esta acción no se puede deshacer.`
+      )
+    ) {
       return;
     }
 
-    const horarios = Array.isArray(valores.horarios) ? valores.horarios : [];
-
-    setEditing(true);
     try {
-      const response = await backendClient.put(`canchas/modificar/${canchaEditar.id}`, {
-        nombre,
-        horarios,
-      });
-      if (response) {
-        toast(<MiToast mensaje="Cancha modificada correctamente" tipo="success" />);
-        setCanchaEditar(null);
-        setRefreshKey((k) => k + 1);
-      }
+      setLoading(true);
+      setMensajeError("");
+      await backendClient.delete(`canchas/eliminar/${cancha.id}`);
+      setReloadKey((k) => k + 1);
     } catch (e) {
-      const msg = e.response?.data?.detail || e.message || "Error al modificar";
-      setFormErrors({ general: msg });
-      toast(<MiToast mensaje={msg} tipo="error" />);
+      const msg =
+        e?.response?.data?.detail ||
+        "Error al eliminar la cancha. Verificá que no tenga reservas asociadas.";
+      setMensajeError(msg);
     } finally {
-      setEditing(false);
+      setLoading(false);
     }
   };
 
-  // 4. ELIMINAR CANCHA
-  const handleEliminarClick = (cancha) => {
-    setConfirmDelete({ open: true, cancha });
-  };
-
-  const ejecutarEliminacion = async () => {
-    const { cancha } = confirmDelete;
-    if (!cancha) return;
-    setConfirmDelete({ open: false, cancha: null });
-
-    try {
-      const response = await backendClient.delete(`canchas/eliminar/${cancha.id}`);
-      if (response) {
-        toast(<MiToast mensaje="Cancha eliminada exitosamente" tipo="success" />);
-        setRefreshKey((k) => k + 1);
+  // 👇 calculamos initialValues una sola vez por render (pero lo importante es la key)
+  const initialFormValues = canchaEditar
+    ? {
+        nombre: canchaEditar.nombre ?? "",
+        descripcion: canchaEditar.descripcion ?? "",
+        imagen_url: canchaEditar.imagen_url ?? "",
+        habilitada:
+          typeof canchaEditar.habilitada === "boolean"
+            ? canchaEditar.habilitada
+            : true,
       }
-    } catch (e) {
-      const msg = e.response?.data?.detail || "No se pudo eliminar la cancha";
-      toast(<MiToast mensaje={msg} tipo="error" />);
-    }
-  };
+    : undefined;
 
   return (
-    <div className="space-y-6 relative">
-      {/* HEADER CON BOTÓN DE CREAR */}
-      <div className="flex justify-between items-center bg-gray-800 p-4 rounded-lg border-l-4 border-[#E5FF00] shadow-md">
+    <div className="space-y-4">
+      <div className="flex items-center justify-between gap-4 flex-wrap">
         <div>
-          <h2 className="text-white font-bold text-xl">Gestión de Canchas</h2>
-          <p className="text-gray-400 text-sm">Administra las canchas del sistema</p>
+          <h2 className="text-lg font-semibold text-white">Gestión de canchas</h2>
+          <p className="text-sm text-gray-400">
+            Creá, editá y administrá las canchas disponibles para reservas.
+          </p>
         </div>
+
         <Button
-          texto="+ Nueva cancha"
-          onClick={() => setShowCreateModal(true)}
           variant="crear"
           size="pill"
-        />
+          onClick={abrirModalCrear}
+          disabled={loading}
+        >
+          Crear cancha
+        </Button>
       </div>
 
-      {/* LISTADO */}
-      <div className="bg-gray-800 rounded-lg p-4 shadow-lg">
-        <ListarCanchas
-          canchas={canchas}
-          loading={loading}
-          error={error}
-          onEliminar={handleEliminarClick}
-          onEditar={handleEditarClick}
-        />
-      </div>
+      <ListarCanchas
+        reloadKey={reloadKey}
+        onSeleccionar={abrirModalEditar}
+        onEliminar={handleEliminarCancha}
+      />
 
-      {/* MODAL CREAR */}
-      {showCreateModal && (
-        <Modal isOpen={showCreateModal} onClose={() => setShowCreateModal(false)}>
-          <div className="p-4">
-            <h2 className="text-white text-lg font-bold mb-4 border-b border-gray-700 pb-2">
-              Nueva Cancha
-            </h2>
-            <CanchaForm
-              onSubmit={handleCreate}
-              submitText="Crear Cancha"
-              loading={creating}
-              erroresExternos={formErrors}
-              horariosOptions={horariosDisponibles}
-            />
-          </div>
-        </Modal>
-      )}
+      <Modal isOpen={modalAbierto} onClose={cerrarModal}>
+        <div className="p-4 sm:p-6 space-y-4">
+          <h3 className="text-lg font-semibold text-white">
+            {canchaEditar ? "Editar cancha" : "Crear cancha"}
+          </h3>
 
-      {/* MODAL EDITAR */}
-      {canchaEditar && (
-        <Modal isOpen={!!canchaEditar} onClose={() => setCanchaEditar(null)}>
-          <div className="p-4">
-            <h2 className="text-white text-lg font-bold mb-4 border-b border-gray-700 pb-2">
-              Editar Cancha
-            </h2>
-            <CanchaForm
-              initialValues={{
-                nombre: canchaEditar.nombre,
-                horarios: canchaEditar.horarios || [],
-              }}
-              onSubmit={handleSubmitEditar}
-              submitText="Guardar Cambios"
-              loading={editing}
-              erroresExternos={formErrors}
-              horariosOptions={horariosDisponibles}
-            />
-          </div>
-        </Modal>
-      )}
+          {mensajeError && (
+            <p className="text-sm text-red-400 bg-red-950/40 border border-red-500/40 rounded-md px-3 py-2">
+              {mensajeError}
+            </p>
+          )}
 
-      {/* CONFIRMACIÓN ELIMINAR */}
-      {confirmDelete.open && (
-        <MessageConfirm
-          mensaje={`¿Seguro que deseas eliminar la cancha "${confirmDelete.cancha?.nombre}"? Se borrarán todas sus reservas y datos asociados.`}
-          onClose={() => setConfirmDelete({ open: false, cancha: null })}
-          onConfirm={ejecutarEliminacion}
-          onCancel={() => setConfirmDelete({ open: false, cancha: null })}
-        />
-      )}
+          <CanchaForm
+            // 👇 esto hace que el form se "resetee" sólo cuando cambiás de cancha / modo
+            key={canchaEditar ? canchaEditar.id : "new"}
+            initialValues={initialFormValues}
+            onSubmit={canchaEditar ? handleSubmitEditar : handleCreate}
+            submitText={canchaEditar ? "Guardar cambios" : "Crear cancha"}
+            loading={loading}
+          />
+        </div>
+      </Modal>
     </div>
   );
 }

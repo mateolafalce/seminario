@@ -1,11 +1,13 @@
-import { useEffect, useMemo, useState } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
-import homeHeroPadel from '../../../assets/images/homeHeroPadel.jpg';
+// src/features/reservas/components/CourtCarousel.jsx
+import { useEffect, useMemo, useState } from "react";
+import { motion, AnimatePresence } from "framer-motion";
+import homeHeroPadel from "../../../assets/images/homeHeroPadel.jpg";
 
 /** Carousel de canchas con horarios
  * Props:
  * - canchas: (string | { nombre: string; descripcion?: string; imagen_url?: string })[]
- * - horarios: string[]              ← array de "HH:mm-HH:mm"
+ * - horarios: string[]              ← array de "HH:MM-HH:MM"
+ * - horariosByCancha?: { [nombreCancha: string]: string[] }  ← opcional
  * - cantidades: Record<string,number>  ← clave `${cancha}-${hora}` -> reservados
  * - isAuthenticated: boolean
  * - selected?: { cancha: string, hora: string } | null
@@ -17,6 +19,7 @@ import homeHeroPadel from '../../../assets/images/homeHeroPadel.jpg';
 export default function CourtCarousel({
   canchas = [],
   horarios = [],
+  horariosByCancha = {},
   cantidades = {},
   isAuthenticated = false,
   selected = null,
@@ -26,11 +29,11 @@ export default function CourtCarousel({
   capacity = 6,
 }) {
   const GOLD = {
-    ring: 'focus:ring-amber-400/70 focus-visible:ring-2 focus-visible:ring-amber-400/70',
-    card: 'bg-white/5 backdrop-blur-sm border border-white/10',
-    chip: 'bg-white/5 hover:bg-white/10 border border-white/10',
-    shadow: 'shadow-[0_10px_25px_-10px_rgba(0,0,0,0.6)]',
-    accent: 'text-amber-400',
+    ring: "focus:ring-amber-400/70 focus-visible:ring-2 focus-visible:ring-amber-400/70",
+    card: "bg-white/5 backdrop-blur-sm border border-white/10",
+    chip: "bg-white/5 hover:bg-white/10 border border-white/10",
+    shadow: "shadow-[0_10px_25px_-10px_rgba(0,0,0,0.6)]",
+    accent: "text-amber-400",
   };
 
   // --- Carousel state ---
@@ -43,11 +46,11 @@ export default function CourtCarousel({
 
   useEffect(() => {
     const handler = (e) => {
-      if (e.key === 'ArrowRight') setPage(([p]) => [p + 1, 1]);
-      if (e.key === 'ArrowLeft') setPage(([p]) => [p - 1, -1]);
+      if (e.key === "ArrowRight") setPage(([p]) => [p + 1, 1]);
+      if (e.key === "ArrowLeft") setPage(([p]) => [p - 1, -1]);
     };
-    window.addEventListener('keydown', handler);
-    return () => window.removeEventListener('keydown', handler);
+    window.addEventListener("keydown", handler);
+    return () => window.removeEventListener("keydown", handler);
   }, []);
 
   const paginate = (dir) => setPage(([p]) => [p + dir, dir]);
@@ -64,21 +67,36 @@ export default function CourtCarousel({
   const canchaRaw = canchas[index];
 
   const canchaNombre =
-    typeof canchaRaw === 'string'
+    typeof canchaRaw === "string"
       ? canchaRaw
-      : canchaRaw?.nombre || '';
+      : canchaRaw?.nombre || "";
 
+  // la seguimos calculando por si algún día la queremos usar en otro lado,
+  // pero ya no la mostramos en el UI
   const canchaDescripcion =
-    canchaRaw && typeof canchaRaw === 'object'
-      ? canchaRaw.descripcion || canchaRaw.description || ''
-      : '';
+    canchaRaw && typeof canchaRaw === "object"
+      ? canchaRaw.descripcion || canchaRaw.description || ""
+      : "";
 
   const canchaImagen =
-    canchaRaw && typeof canchaRaw === 'object'
-      ? canchaRaw.imagen_url || canchaRaw.imagenUrl || ''
-      : '';
+    canchaRaw && typeof canchaRaw === "object"
+      ? canchaRaw.imagen_url || canchaRaw.imagenUrl || homeHeroPadel
+      : homeHeroPadel;
 
-  const canchaKey = canchaNombre || String(canchaRaw || '');
+  const canchaKey = canchaNombre || String(canchaRaw || "");
+
+  // 🔸 Horarios visibles para ESTA cancha:
+  const horariosVisibles = useMemo(() => {
+    if (
+      horariosByCancha &&
+      canchaNombre &&
+      Array.isArray(horariosByCancha[canchaNombre]) &&
+      horariosByCancha[canchaNombre].length > 0
+    ) {
+      return horariosByCancha[canchaNombre];
+    }
+    return horarios;
+  }, [horariosByCancha, canchaNombre, horarios]);
 
   const disponibilidad = (cancha, hora) => {
     const key = `${cancha}-${hora}`;
@@ -90,13 +108,13 @@ export default function CourtCarousel({
 
   const ocupacionPct = useMemo(() => {
     if (!canchaKey) return 0;
-    const ocupados = horarios.reduce(
+    const ocupados = horariosVisibles.reduce(
       (acc, h) => acc + (cantidades[`${canchaKey}-${h}`] || 0),
       0
     );
-    const total = horarios.length * capacity;
+    const total = horariosVisibles.length * capacity;
     return total ? Math.round((ocupados / total) * 100) : 0;
-  }, [cantidades, canchaKey, horarios, capacity]);
+  }, [cantidades, canchaKey, horariosVisibles, capacity]);
 
   return (
     <div className="relative mt-8">
@@ -120,14 +138,14 @@ export default function CourtCarousel({
       <div className="overflow-hidden">
         <AnimatePresence custom={direction} mode="popLayout">
           <motion.div
-            key={`${index}-${canchaKey || 'empty'}`}
+            key={`${index}-${canchaKey || "empty"}`}
             custom={direction}
             variants={variants}
             initial="enter"
             animate="center"
             exit="exit"
             transition={{
-              type: 'spring',
+              type: "spring",
               stiffness: 300,
               damping: 30,
               opacity: { duration: 0.2 },
@@ -148,12 +166,14 @@ export default function CourtCarousel({
                 </p>
               </div>
             ) : (
-              <div className={`rounded-2xl p-0 overflow-hidden ${GOLD.card} ${GOLD.shadow}`}>
+              <div
+                className={`rounded-2xl p-0 overflow-hidden ${GOLD.card} ${GOLD.shadow}`}
+              >
                 {/* Imagen */}
                 <div className="relative w-full h-40 md:h-52 bg-slate-900/50">
                   <img
-                    src={canchaImagen || homeHeroPadel}
-                    alt={canchaNombre || 'Cancha'}
+                    src={canchaImagen}
+                    alt={canchaNombre || "Cancha"}
                     className="w-full h-full object-cover object-center"
                   />
                   <div className="absolute inset-0 bg-gradient-to-t from-slate-950/80 via-slate-950/10 to-transparent" />
@@ -162,15 +182,11 @@ export default function CourtCarousel({
                       <h3
                         className={`text-xl font-semibold tracking-tight text-white drop-shadow ${GOLD.accent}`}
                       >
-                        {canchaNombre || 'Cancha'}
+                        {canchaNombre || "Cancha"}
                       </h3>
-                      {canchaDescripcion && (
-                        <p className="text-xs text-slate-200 line-clamp-2 max-w-md">
-                          {canchaDescripcion}
-                        </p>
-                      )}
+                      {/* 🔸 Descripción eliminada del UI */}
                       <p className="text-[11px] text-slate-300 mt-0.5">
-                        {horarios.length} horarios disponibles
+                        {horariosVisibles.length} horarios disponibles
                       </p>
                     </div>
                     <div className="flex items-center gap-3">
@@ -206,11 +222,9 @@ export default function CourtCarousel({
                   {/* Horarios */}
                   <div className="mt-5">
                     <div className="flex flex-wrap gap-2">
-                      {horarios.map((hora) => {
-                        const { cantidad, lleno, restantes } = disponibilidad(
-                          canchaKey,
-                          hora
-                        );
+                      {horariosVisibles.map((hora) => {
+                        const { cantidad, lleno, restantes } =
+                          disponibilidad(canchaKey, hora);
                         const selectedHere =
                           selected?.cancha === canchaKey &&
                           selected?.hora === hora;
@@ -219,22 +233,22 @@ export default function CourtCarousel({
                           !lleno && !pasado && restantes <= 2;
 
                         const base =
-                          'px-3 py-1.5 rounded-full text-[13px] font-medium transition-all border ' +
-                          'inline-flex flex-col items-center justify-center min-w-[4.8rem]';
+                          "px-3 py-1.5 rounded-full text-[13px] font-medium transition-all border " +
+                          "inline-flex flex-col items-center justify-center min-w-[4.8rem]";
                         const stateCls = lleno
-                          ? 'cursor-not-allowed bg-white/5 text-rose-300 border-rose-500/40'
+                          ? "cursor-not-allowed bg-white/5 text-rose-300 border-rose-500/40"
                           : pasado
-                          ? 'cursor-not-allowed bg-white/5 text-neutral-400 border-neutral-500/40'
+                          ? "cursor-not-allowed bg-white/5 text-neutral-400 border-neutral-500/40"
                           : selectedHere
-                          ? 'bg-amber-400 text-[#0B1220] border-amber-400 shadow'
+                          ? "bg-amber-400 text-[#0B1220] border-amber-400 shadow"
                           : almostFull
-                          ? 'bg-amber-400/10 text-amber-200 border-amber-400/60 hover:bg-amber-400/20'
+                          ? "bg-amber-400/10 text-amber-200 border-amber-400/60 hover:bg-amber-400/20"
                           : `${GOLD.chip} text-slate-100 hover:bg-white/10`;
 
                         const subtitle = lleno
-                          ? 'Lleno'
+                          ? "Lleno"
                           : pasado
-                          ? 'Pasado'
+                          ? "Pasado"
                           : `${cantidad}/${capacity}`;
 
                         return (
@@ -247,7 +261,7 @@ export default function CourtCarousel({
                             }
                             title={
                               lleno
-                                ? 'No hay cupos'
+                                ? "No hay cupos"
                                 : `Quedan ${restantes} cupos`
                             }
                             aria-label={`Horario ${hora} ${subtitle}`}
@@ -279,8 +293,8 @@ export default function CourtCarousel({
                           }
                           className={`w-2.5 h-2.5 rounded-full transition-all ${
                             i === index
-                              ? 'bg-amber-400 scale-100'
-                              : 'bg-white/20 scale-90 hover:bg-white/30'
+                              ? "bg-amber-400 scale-100"
+                              : "bg-white/20 scale-90 hover:bg-white/30"
                           }`}
                           aria-label={`Ir a cancha ${i + 1}`}
                         />
