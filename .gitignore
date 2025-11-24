@@ -9,3 +9,6 @@ __pycache__/
 *.local
 .env
 /backend/.env
+
+# Archivos subidos por usuarios
+/backend/static/images/
