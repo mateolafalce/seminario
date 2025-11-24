@@ -9,7 +9,7 @@ class CanchaCreate(BaseModel):
     - descripcion: opcional
     - imagen_url: opcional
     - habilitada: opcional (default True)
-    - horarios: lista opcional de IDs de horarios (str)
+    - horarios: lista de IDs de horarios (str). A nivel de negocio debe tener al menos uno.
     """
     nombre: str = Field(..., min_length=1, max_length=100)
     descripcion: Optional[str] = Field(

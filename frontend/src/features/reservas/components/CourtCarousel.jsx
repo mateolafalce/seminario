@@ -2,6 +2,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import homeHeroPadel from "../../../assets/images/homeHeroPadel.jpg";
+import { getFileUrl } from "../../../app/config";
 
 /** Carousel de canchas con horarios
  * Props:
@@ -80,7 +81,9 @@ export default function CourtCarousel({
 
   const canchaImagen =
     canchaRaw && typeof canchaRaw === "object"
-      ? canchaRaw.imagen_url || canchaRaw.imagenUrl || homeHeroPadel
+      ? getFileUrl(
+          canchaRaw.imagen_url || canchaRaw.imagenUrl || ""
+        ) || homeHeroPadel
       : homeHeroPadel;
 
   const canchaKey = canchaNombre || String(canchaRaw || "");

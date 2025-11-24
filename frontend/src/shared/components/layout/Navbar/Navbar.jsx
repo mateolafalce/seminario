@@ -125,8 +125,7 @@ function CustomNavbar() {
     { label: "Preferencias", path: "/preferencias", desktop: false, show: () => isAuthenticated },
     { label: "Datos", path: "/mis-datos", desktop: false, show: () => isAuthenticated },
     { label: "Resultados", path: "/cargar-resultados", desktop: false, show: () => isAuthenticated && (canManageReservas(me) || permissions.includes('reservas.resultado.cargar')) },
-    
-    { label: "Panel", path: "/admin/dashboard", desktop: true, show: () => isAuthenticated && canManageUsers(me) },
+    { label: "Panel", path: "/admin/dashboard", desktop: false, show: () => isAuthenticated && canManageUsers(me) },
   ];
 
   // Links visibles según permisos
@@ -234,6 +233,25 @@ function CustomNavbar() {
                       >
                         Preferencias
                       </button>
+
+                      <button
+                        type="button"
+                        onClick={() => { navigate("/resenias"); setShowUserMenu(false); }}
+                        className="block w-full px-4 py-2 text-left text-sm text-slate-100 hover:bg-white/5"
+                      >
+                        Reseñas
+                      </button>
+
+                      {canManageUsers(me) && (
+                        <button
+                          type="button"
+                          onClick={() => { navigate("/panel-control"); setShowUserMenu(false); }}
+                          className="block w-full px-4 py-2 text-left text-sm text-slate-100 hover:bg-white/5"
+                        >
+                          Panel de control
+                        </button>
+                      )}
+
                       <div className="my-1 h-px bg-white/10" />
                       <button
                         type="button"

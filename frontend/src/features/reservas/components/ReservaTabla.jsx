@@ -7,6 +7,7 @@ import CourtCarousel from "./CourtCarousel";
 import MessageConfirm from "../../../shared/components/ui/Confirm/MessageConfirm";
 import backendClient from "../../../shared/services/backendClient";
 import homeHeroPadel from "../../../assets/images/homeHeroPadel.jpg";
+import { getFileUrl } from "../../../app/config";
 
 // ===== Helpers =====
 const MAX_CAPACITY = 6;
@@ -486,7 +487,11 @@ export default function ReservaTabla() {
               {/* Imagen header */}
               <div className="relative h-40 w-full md:h-56 overflow-hidden">
                 <img
-                  src={canchaDetalle.imagen_url || homeHeroPadel}
+                  src={
+                    canchaDetalle.imagen_url
+                      ? getFileUrl(canchaDetalle.imagen_url)
+                      : homeHeroPadel
+                  }
                   alt={canchaDetalle.nombre || "Cancha"}
                   className="h-full w-full object-cover"
                   onError={(e) => {

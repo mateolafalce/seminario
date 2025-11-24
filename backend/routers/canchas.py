@@ -1,4 +1,8 @@
-from fastapi import APIRouter, HTTPException, Depends, Query, status
+import os
+import time
+from pathlib import Path
+
+from fastapi import APIRouter, HTTPException, Depends, Query, status, UploadFile, File
 from typing import List, Optional
 from bson import ObjectId
 
@@ -12,6 +16,8 @@ router = APIRouter(
     tags=["canchas"],
     responses={404: {"message": "No encontrado"}},
 )
+
+IMAGES_DIR = Path("static/images")
 
 
 def horarios_y_cancha_son_validos(nombre: str, horarios: Optional[List[str]]) -> List[ObjectId]:
@@ -97,7 +103,14 @@ async def crear_cancha(cancha: CanchaCreate):
                 detail="El nombre de la cancha es obligatorio",
             )
 
-        # Horarios
+        # Horarios obligatorios
+        if not cancha.horarios:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Debés seleccionar al menos un horario para la cancha",
+            )
+
+        # Horarios (validación + conversión a ObjectId)
         horarios_oids = horarios_y_cancha_son_validos(nombre, cancha.horarios)
 
         # Normalizamos descripción / imagen / habilitada
@@ -238,3 +251,41 @@ async def eliminar_cancha(cancha_id: str):
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Error al eliminar la cancha",
         )
+
+
+@router.post(
+    "/subir-imagen",
+    dependencies=[Depends(verify_csrf), Depends(require_perms("canchas.editar"))],
+)
+async def subir_imagen_cancha(archivo: UploadFile = File(...)):
+    """
+    Sube una imagen de cancha al filesystem (static/images) y devuelve la URL relativa,
+    por ejemplo: { "url": "/images/cancha_123456789.jpg" }
+    """
+    if not archivo:
+        raise HTTPException(status_code=400, detail="No se recibió ningún archivo")
+
+    if not archivo.content_type or not archivo.content_type.startswith("image/"):
+        raise HTTPException(status_code=400, detail="El archivo debe ser una imagen")
+
+    IMAGES_DIR.mkdir(parents=True, exist_ok=True)
+
+    # extensión segura
+    original_name = archivo.filename or ""
+    ext = os.path.splitext(original_name)[1].lower()
+    if ext not in [".jpg", ".jpeg", ".png", ".webp", ".gif"]:
+        ext = ".jpg"
+
+    filename = f"cancha_{int(time.time() * 1000)}{ext}"
+    path = IMAGES_DIR / filename
+
+    try:
+        contenido = await archivo.read()
+        with path.open("wb") as f:
+            f.write(contenido)
+    except Exception as e:
+        print(f"[canchas.subir-imagen] Error guardando imagen: {e}")
+        raise HTTPException(status_code=500, detail="No se pudo guardar la imagen")
+
+    # OJO: main.py ya hace app.mount("/images", StaticFiles(directory="static/images"), ...)
+    return {"url": f"/images/{filename}"}

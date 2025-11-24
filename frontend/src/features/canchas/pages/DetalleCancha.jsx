@@ -7,6 +7,7 @@ import MessageConfirm from "../../../shared/components/ui/Confirm/MessageConfirm
 import MiToast from "../../../shared/components/ui/Toast/MiToast";
 import { toast } from "react-toastify";
 import { AuthContext } from "../../auth/context/AuthContext";
+import { getFileUrl } from "../../../app/config";
 
 // ===== helpers de fechas (mismo criterio que en Reserva) =====
 const generarFechas = () => {
@@ -260,7 +261,9 @@ export default function DetalleCancha() {
     );
   }
 
-  const imageSrc = cancha.imagen_url || homeHeroPadel;
+  const imageSrc = cancha.imagen_url
+    ? getFileUrl(cancha.imagen_url)
+    : homeHeroPadel;
   const descripcion =
     cancha.descripcion && cancha.descripcion.trim().length
       ? cancha.descripcion

@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import backendClient from "../../../../shared/services/backendClient";
 import Modal from "../../../../shared/components/ui/Modal/Modal";
@@ -41,6 +40,7 @@ export default function GestionCanchas() {
         descripcion: (valores.descripcion || "").trim(),
         imagen_url: (valores.imagen_url || "").trim(),
         habilitada: valores.habilitada ?? true,
+        horarios: Array.isArray(valores.horarios) ? valores.horarios : [],
       };
 
       await backendClient.post("canchas/crear", payload);
@@ -68,6 +68,7 @@ export default function GestionCanchas() {
         descripcion: (valores.descripcion || "").trim(),
         imagen_url: (valores.imagen_url || "").trim(),
         habilitada: valores.habilitada ?? true,
+        horarios: Array.isArray(valores.horarios) ? valores.horarios : [],
       };
 
       await backendClient.put(`canchas/modificar/${canchaEditar.id}`, payload);
@@ -119,6 +120,9 @@ export default function GestionCanchas() {
           typeof canchaEditar.habilitada === "boolean"
             ? canchaEditar.habilitada
             : true,
+        horarios: Array.isArray(canchaEditar.horarios)
+          ? canchaEditar.horarios
+          : [],
       }
     : undefined;
 
