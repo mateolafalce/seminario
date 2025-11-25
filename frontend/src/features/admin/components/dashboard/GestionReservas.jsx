@@ -1,47 +1,20 @@
 import { useEffect, useMemo, useState } from 'react';
+import { useNavigate } from 'react-router-dom'; // Importar useNavigate
 import adminApi from '../../../../shared/services/adminApi';
 import backendClient from '../../../../shared/services/backendClient';
 import Paginacion from '../../../../shared/components/ui/Paginacion';
 import { toast } from 'react-toastify';
 import MiToast from '../../../../shared/components/ui/Toast/MiToast';
 import Button from '../../../../shared/components/ui/Button/Button';
-import { listarCanchas, listarHorarios, buscarUsuariosAdmin } from '../../../../shared/services/adminApi';
+import { FiSearch, FiRefreshCw, FiPlus, FiEye, FiSlash, FiX } from "react-icons/fi";
+import { MdAccessTime, MdCalendarToday } from "react-icons/md";
 
-// Convierte Date -> 'YYYY-MM-DD' (para <input type="date">)
-const dateToYMD = (d) => (d instanceof Date ? d.toISOString().slice(0, 10) : "");
-
-// Convierte 'YYYY-MM-DD' del input -> Date
-const inputToDate = (val) => {
-  if (!val || !/^\d{4}-\d{2}-\d{2}$/.test(val)) return null;
-  const [y, m, d] = val.split("-");
-  return new Date(Number(y), Number(m) - 1, Number(d));
-};
-
-// Date -> 'DD-MM-YYYY' (para el backend)
-const dateToDMY = (d) => {
-  if (!(d instanceof Date)) return "";
-  const dd = String(d.getDate()).padStart(2, "0");
-  const mm = String(d.getMonth() + 1).padStart(2, "0");
-  const yyyy = d.getFullYear();
-  return `${dd}-${mm}-${yyyy}`;
-};
-
-// Hoy en 'YYYY-MM-DD' para min del input
-const todayYMD = () => {
-  const t = new Date();
-  const mm = String(t.getMonth() + 1).padStart(2, "0");
-  const dd = String(t.getDate()).padStart(2, "0");
-  return `${t.getFullYear()}-${mm}-${dd}`;
-};
-
-// YYYY-MM-DD -> DD-MM-YYYY (para filtro de búsqueda)
+// Utiles de fecha
 const isoToDMY = (iso) => {
   if (!iso || !/^\d{4}-\d{2}-\d{2}$/.test(iso)) return '';
   const [y, m, d] = iso.split('-');
   return `${d}-${m}-${y}`;
 };
-
-// Normaliza entrada a YYYY-MM-DD (para filtro de búsqueda)
 const ensureYMD = (raw) => {
   if (!raw) return '';
   if (/^\d{4}-\d{2}-\d{2}$/.test(raw)) return raw;
@@ -57,36 +30,18 @@ const ensureYMD = (raw) => {
 };
 
 export default function GestionReservas() {
-  // filtros - fecha empieza vacía para mostrar últimas 10
+  const navigate = useNavigate(); // Hook para navegar
   const [fechaISO, setFechaISO] = useState('');
   const [cancha, setCancha] = useState('');
   const [usuario, setUsuario] = useState('');
 
-  // datos
   const [rows, setRows] = useState([]);
   const [page, setPage] = useState(1);
   const limit = 10;
   const [total, setTotal] = useState(0);
   const totalPages = useMemo(() => Math.max(1, Math.ceil(total / limit)), [total]);
 
-  // modal detalle
   const [detalle, setDetalle] = useState(null);
-
-  // Estado para crear reserva
-  const [openCrear, setOpenCrear] = useState(false);
-  const [form, setForm] = useState({
-    fecha: null,          // Date object, not string
-    cancha_id: '',
-    horario_id: '',
-    usuarios: []
-  });
-  const [canchas, setCanchas] = useState([]);
-  const [horarios, setHorarios] = useState([]);
-  
-  // User search state
-  const [userQuery, setUserQuery] = useState('');
-  const [userSugs, setUserSugs] = useState([]);
-  const [selectedUsers, setSelectedUsers] = useState([]);
 
   const fetchData = async (goToPage = page) => {
     try {
@@ -106,20 +61,10 @@ export default function GestionReservas() {
     }
   };
 
-  // primera carga
-  useEffect(() => { fetchData(1); /* eslint-disable-next-line */ }, []);
+  useEffect(() => { fetchData(1); }, []);
 
-  const onBuscar = async (e) => {
-    e?.preventDefault();
-    await fetchData(1);
-  };
-
-  const onLimpiar = async () => {
-    setFechaISO('');
-    setCancha('');
-    setUsuario('');
-    await fetchData(1);
-  };
+  const onBuscar = async (e) => { e?.preventDefault(); await fetchData(1); };
+  const onLimpiar = async () => { setFechaISO(''); setCancha(''); setUsuario(''); await fetchData(1); };
 
   const abrirDetalle = async (r) => {
     try {
@@ -138,406 +83,167 @@ export default function GestionReservas() {
     if (!window.confirm('¿Cancelar esta reserva? Se notificará a los usuarios.')) return;
     try {
       await adminApi.reservas.cancelarReserva(r._id || r.id);
-      toast(<MiToast mensaje="Reserva cancelada y usuarios notificados" color="#10b981" />);
-      await fetchData(page); // 👈 refrescar grilla
+      toast(<MiToast mensaje="Reserva cancelada" color="#10b981" />);
+      await fetchData(page);
       setDetalle(null);
     } catch (e) {
       toast(<MiToast mensaje={e.message || 'No se pudo cancelar'} color="#ef4444" />);
     }
   };
 
-  // Cargar canchas y horarios al abrir el modal
-  useEffect(() => {
-    if (!openCrear) return;
-    (async () => {
-      try {
-        const [cs, hs] = await Promise.all([listarCanchas(), listarHorarios()]);
-        setCanchas(cs);
-        setHorarios(hs);
-      } catch (e) {
-        toast(<MiToast mensaje={e.message || 'No se pudieron cargar canchas/horarios'} color="#ef4444" />);
-      }
-    })();
-  }, [openCrear]);
-
-  // User search with debounce
-  useEffect(() => {
-    const t = setTimeout(async () => {
-      if (userQuery.trim().length < 1) { 
-        setUserSugs([]); 
-        return; 
-      }
-      const sugs = await buscarUsuariosAdmin(userQuery);
-      const selectedIds = new Set(selectedUsers.map(s => s.id));
-      setUserSugs(sugs.filter(s => !selectedIds.has(s.id)).slice(0, 8));
-    }, 250);
-    return () => clearTimeout(t);
-  }, [userQuery, selectedUsers]);
-
-  // Crear una nueva reserva
-  const crearReserva = async () => {
-    try {
-      if (!(form.fecha instanceof Date)) {
-        toast(<MiToast mensaje="Elegí una fecha válida con el calendario" color="#ef4444" />);
-        return;
-      }
-      if (!form.cancha_id || !form.horario_id) {
-        toast(<MiToast mensaje="Seleccioná cancha y horario" color="#ef4444" />);
-        return;
-      }
-
-      const payload = {
-        fecha: form.fecha,        // Pass Date object directly - adminApi will convert it
-        cancha_id: form.cancha_id,
-        horario_id: form.horario_id,
-        usuarios: selectedUsers.map((u) => u.id),
-      };
-
-      await adminApi.reservas.crearReservaAdmin(payload);
-
-      toast(<MiToast mensaje="Reserva creada y usuarios notificados" color="#10b981" />);
-      setOpenCrear(false);
-      setForm({ fecha: null, cancha_id: '', horario_id: '', usuarios: [] });
-      setSelectedUsers([]);
-      setUserQuery('');
-      await fetchData(page);
-    } catch (e) {
-      toast(<MiToast mensaje={e?.message || "No se pudo crear la reserva"} color="#ef4444" />);
-    }
-  };
-
   return (
-    <div className="min-h-[60vh] w-full py-4">
-      <h2 className="text-xl font-bold text-white mb-4">Gestión de Reservas</h2>
-
-      {/* Filtros */}
-      <form onSubmit={onBuscar} className="grid grid-cols-1 md:grid-cols-[210px_1fr_1fr_auto] gap-3 bg-gray-800/60 p-4 rounded-xl border border-gray-700">
+    <div className="space-y-6">
+      
+      {/* HEADER UNIFICADO */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <label className="block text-sm text-gray-300 mb-1">Fecha</label>
-          <input
-            type="date"
-            value={fechaISO}
-            onChange={(e) => setFechaISO(e.target.value)}
-            className="w-full bg-gray-800 text-white border border-gray-600 rounded-lg px-3 py-2"
-          />
+          <h2 className="text-2xl font-bold text-white tracking-tight">Reservas</h2>
+          <p className="text-sm text-gray-400 mt-1">Agenda de turnos y control</p>
         </div>
         <div>
-          <label className="block text-sm text-gray-300 mb-1">Cancha</label>
-          <input
-            type="text"
-            value={cancha}
-            onChange={(e) => setCancha(e.target.value)}
-            placeholder="Ej: Cancha 1"
-            className="w-full bg-gray-800 text-white border border-gray-600 rounded-lg px-3 py-2"
-          />
-        </div>
-        <div>
-          <label className="block text-sm text-gray-300 mb-1">Usuario</label>
-          <input
-            type="text"
-            value={usuario}
-            onChange={(e) => setUsuario(e.target.value)}
-            placeholder="username / nombre / apellido"
-            className="w-full bg-gray-800 text-white border border-gray-600 rounded-lg px-3 py-2"
-          />
-        </div>
-        <div className="flex items-end gap-2">
-          <Button type="submit" texto="Buscar" variant="primary" size="md" />
-          <Button type="button" onClick={onLimpiar} texto="Limpiar" variant="secondary" size="md" />
           <Button 
             type="button" 
-            onClick={() => setOpenCrear(true)} 
-            texto="Nueva reserva" 
-            variant="primary" 
+            onClick={() => navigate("/panel-control/reservas/nueva")} // Redirige a la página nueva
+            texto="Nueva Reserva" 
+            variant="default" 
             size="md"
-            className="ml-2"
+            icon={<FiPlus className="w-4 h-4" />}
           />
         </div>
+      </div>
+
+      {/* FILTROS */}
+      <form onSubmit={onBuscar} className="flex flex-col xl:flex-row gap-3">
+            <div className="flex-1 grid grid-cols-1 md:grid-cols-3 gap-3">
+                <input
+                    type="date"
+                    value={fechaISO}
+                    onChange={(e) => setFechaISO(e.target.value)}
+                    className="bg-slate-900/50 text-white text-sm border border-slate-700 rounded-lg px-4 py-2.5 focus:border-yellow-400 outline-none transition-colors"
+                />
+                <input
+                    type="text"
+                    value={cancha}
+                    onChange={(e) => setCancha(e.target.value)}
+                    placeholder="Filtrar por cancha..."
+                    className="bg-slate-900/50 text-white text-sm border border-slate-700 rounded-lg px-4 py-2.5 focus:border-yellow-400 outline-none transition-colors placeholder:text-gray-500"
+                />
+                <input
+                    type="text"
+                    value={usuario}
+                    onChange={(e) => setUsuario(e.target.value)}
+                    placeholder="Buscar por usuario..."
+                    className="bg-slate-900/50 text-white text-sm border border-slate-700 rounded-lg px-4 py-2.5 focus:border-yellow-400 outline-none transition-colors placeholder:text-gray-500"
+                />
+            </div>
+            <div className="flex items-center gap-2 shrink-0">
+                <Button type="submit" texto="Filtrar" variant="secondary" size="md" className="w-full md:w-auto" icon={<FiSearch />} />
+                <button 
+                  type="button" 
+                  onClick={onLimpiar}
+                  className="p-2.5 text-gray-400 hover:text-white bg-slate-800 hover:bg-slate-700 rounded-lg border border-slate-700 transition-colors"
+                  title="Limpiar filtros"
+                >
+                  <FiRefreshCw size={20} />
+                </button>
+            </div>
       </form>
 
-      {/* Tabla */}
-      <div className="mt-4 bg-gray-800/60 rounded-xl border border-gray-700 overflow-hidden">
-        <div className="grid grid-cols-[110px_110px_1fr_1.5fr_100px_auto] gap-0 px-4 py-2 text-xs font-semibold text-gray-300 border-b border-gray-700">
-          <div>Fecha</div>
-          <div>Hora</div>
-          <div>Cancha</div>
-          <div>Usuarios</div>
-          <div>Estado</div>
-          <div className="text-right pr-1">Acciones</div>
+      {/* TABLA */}
+      <div className="bg-slate-900/60 border border-slate-700/70 rounded-xl shadow-lg overflow-hidden transition-all duration-300 hover:shadow-xl hover:border-slate-600/50">
+        <div className="overflow-x-auto scrollbar-thin scrollbar-thumb-slate-700 scrollbar-track-transparent">
+          <table className="min-w-full text-sm text-gray-200">
+            <thead className="bg-slate-800/90 text-xs uppercase text-gray-400 font-semibold tracking-wider border-b border-slate-700/70">
+              <tr>
+                <th className="px-6 py-3 text-left">Fecha</th>
+                <th className="px-6 py-3 text-left">Hora</th>
+                <th className="px-6 py-3 text-left">Cancha</th>
+                <th className="px-6 py-3 text-left">Usuarios</th>
+                <th className="px-6 py-3 text-center">Estado</th>
+                <th className="px-6 py-3 text-right">Acciones</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-slate-800/50 bg-transparent">
+              {rows.length === 0 ? (
+                <tr>
+                  <td colSpan={6} className="px-6 py-12 text-center text-gray-500">
+                     <div className="flex flex-col items-center gap-2">
+                        <MdCalendarToday size={24} className="text-gray-600"/>
+                        <span>No hay reservas que coincidan.</span>
+                     </div>
+                  </td>
+                </tr>
+              ) : (
+                rows.map(r => {
+                  const deshabilitarCancelar = r.estado_nombre === 'Confirmada' || r.estado_nombre === 'Cancelada';
+                  let statusClass = "bg-slate-700 text-slate-300 border-slate-600";
+                  if (r.estado_nombre === 'Confirmada') statusClass = "bg-emerald-500/10 text-emerald-400 border-emerald-500/25";
+                  if (r.estado_nombre === 'Cancelada') statusClass = "bg-rose-500/10 text-rose-400 border-rose-500/25";
+
+                  return (
+                    <tr key={r._id || r.id} className="hover:bg-slate-800/40 transition-colors group relative cursor-default">
+                      <td className="px-6 py-4 align-middle font-medium text-white">{r.fecha}</td>
+                      <td className="px-6 py-4 align-middle text-gray-300">
+                        <div className="flex items-center gap-1"><MdAccessTime className="text-slate-500" />{r.hora_inicio || r.horario}</div>
+                      </td>
+                      <td className="px-6 py-4 align-middle">
+                        <span className="px-2 py-1 bg-slate-800 rounded text-xs text-gray-300 border border-slate-700">{r.cancha_nombre || r.cancha}</span>
+                      </td>
+                      <td className="px-6 py-4 align-middle">
+                        <div className="flex flex-wrap items-center gap-1 max-w-[250px]">
+                            {(r.usuarios || []).slice(0, 3).map((u, i) => (
+                                <span key={i} className="inline-block px-2 py-0.5 rounded-full bg-slate-800 text-[10px] text-gray-300 border border-slate-700 truncate max-w-[100px]" title={u.nombre + ' ' + u.apellido}>
+                                    {u.nombre}
+                                </span>
+                            ))}
+                            {(r.usuarios || []).length > 3 && (
+                                <span className="text-[10px] text-gray-500">+{r.usuarios.length - 3}</span>
+                            )}
+                        </div>
+                      </td>
+                      <td className="px-6 py-4 align-middle text-center">
+                        <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium border ${statusClass}`}>{r.estado_nombre || 'Pendiente'}</span>
+                      </td>
+                      <td className="px-6 py-4 align-middle text-right">
+                         <div className="flex items-center justify-end gap-3 opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-all duration-200">
+                            <button onClick={() => abrirDetalle(r)} className="p-2 text-slate-400 hover:text-blue-400 rounded-lg transition-all"><FiEye size={18} /></button>
+                            {!deshabilitarCancelar && (
+                                <button onClick={() => cancelarReserva(r)} className="p-2 text-slate-400 hover:text-rose-500 rounded-lg transition-all"><FiSlash size={18} /></button>
+                            )}
+                         </div>
+                      </td>
+                    </tr>
+                  );
+                })
+              )}
+            </tbody>
+          </table>
         </div>
-
-        {rows.length === 0 ? (
-          <div className="p-6 text-gray-400">Sin resultados</div>
-        ) : (
-          rows.map(r => {
-            // Calcular si el botón debe estar deshabilitado
-            const deshabilitarCancelar = r.estado_nombre === 'Confirmada' || r.estado_nombre === 'Cancelada';
-
-            // Badge color según estado
-            const badgeClass =
-              r.estado_nombre === 'Confirmada'
-                ? 'bg-green-600/20 text-green-300'
-                : r.estado_nombre === 'Cancelada'
-                ? 'bg-red-600/20 text-red-300'
-                : 'bg-yellow-600/20 text-yellow-300';
-
-            return (
-              <div key={r._id || r.id}
-                className="grid grid-cols-[110px_110px_1fr_1.5fr_100px_auto] items-center gap-0 px-4 py-3 border-b border-gray-700 text-sm text-gray-100">
-                <div>{r.fecha}</div>
-                <div>{r.hora_inicio || r.horario}</div>
-                <div className="truncate">{r.cancha_nombre || r.cancha}</div>
-                <div className="text-gray-200">
-                  <div className="flex flex-wrap items-center gap-1 max-w-full">
-                    {(() => {
-                      const list = (r.usuarios || []).map(u => {
-                        const full = `${(u.nombre||'').trim()} ${(u.apellido||'').trim()}`.trim();
-                        return full || `@${u.username}`;
-                      });
-                      const shown = list.slice(0, 6);
-                      const rest = list.length - shown.length;
-                      return (
-                        <>
-                          {shown.map((name, i) => (
-                            <span
-                              key={i}
-                              className="inline-block max-w-[160px] truncate px-2 py-0.5 rounded-full bg-gray-700 text-xs text-gray-100"
-                              title={name}
-                            >
-                              {name}
-                            </span>
-                          ))}
-                          {rest > 0 && (
-                            <span className="px-2 py-0.5 rounded-full bg-gray-600 text-xs text-gray-100">
-                              +{rest} más
-                            </span>
-                          )}
-                        </>
-                      );
-                    })()}
-                  </div>
-                </div>
-                <div>
-                  <span className={`px-2 py-0.5 text-xs rounded-full ${badgeClass}`}>
-                    {r.estado_nombre || 'Pendiente'}
-                  </span>
-                </div>
-                <div className="flex justify-end gap-2">
-                  <button
-                    onClick={() => abrirDetalle(r)}
-                    className="px-3 py-1 rounded bg-gray-700 hover:bg-gray-600 text-white text-xs"
-                  >
-                    Ver
-                  </button>
-                  <button
-                    disabled={deshabilitarCancelar}
-                    onClick={() => !deshabilitarCancelar && cancelarReserva(r)}
-                    className={[
-                      'px-3 py-1 rounded text-xs font-medium transition-colors',
-                      deshabilitarCancelar
-                        ? 'bg-gray-600 text-gray-300 cursor-not-allowed opacity-60'
-                        : 'bg-red-600 hover:bg-red-700 text-white'
-                    ].join(' ')}
-                    title={
-                      deshabilitarCancelar
-                        ? (r.estado_nombre === 'Confirmada'
-                            ? 'No se puede cancelar una reserva confirmada'
-                            : 'Reserva ya cancelada')
-                        : 'Cancelar reserva'
-                    }
-                  >
-                    {deshabilitarCancelar 
-                      ? (r.estado_nombre === 'Cancelada' ? 'Cancelada' : 'Confirmada') 
-                      : 'Cancelar'}
-                  </button>
-                </div>
-              </div>
-            );
-          })
-        )}
       </div>
-
-      {/* Paginación */}
-      <div className="mt-4">
-        <Paginacion
-          currentPage={page}
-          totalPages={totalPages}
-          onPageChange={(p) => fetchData(p)}
-          loading={false}
-        />
-      </div>
-
-      {/* Modal detalle (reutilizado) */}
-      {detalle && (
-        <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50">
-          <div className="bg-gray-900 rounded-lg p-6 w-full max-w-md relative">
-            <button
-              className="absolute top-2 right-2 text-gray-400 hover:text-white"
-              onClick={() => setDetalle(null)}
-            >✕</button>
-            <h3 className="text-lg font-bold text-[#eaff00] mb-2 text-center">Detalle de Reserva</h3>
-            <div className="mb-2 text-gray-200">
-              <span className="font-semibold">Cancha:</span> {detalle?.cancha}<br />
-              <span className="font-semibold">Fecha:</span> {detalle?.fecha}<br />
-              <span className="font-semibold">Horario:</span> {detalle?.horario}
-            </div>
-            <div className="mb-2">
-              <span className="font-semibold text-gray-200">Usuarios:</span>
-              <ul className="mt-1">
-                {detalle?.usuarios?.length
-                  ? detalle.usuarios.map((u, idx) => (
-                      <li key={idx} className="text-gray-300">
-                        {u.nombre} {u.apellido}
-                      </li>
-                    ))
-                  : <li className="text-gray-400">Nadie aún</li>
-                }
-              </ul>
-            </div>
-          </div>
+      
+      {totalPages > 1 && (
+        <div className="flex justify-center pt-2">
+            <Paginacion currentPage={page} totalPages={totalPages} onPageChange={(p) => fetchData(p)} loading={false} />
         </div>
       )}
 
-      {/* Modal Crear Reserva */}
-      {openCrear && (
-        <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4">
-          <div className="bg-gray-900 rounded-lg p-6 w-full max-w-lg relative max-h-[90vh] overflow-y-auto">
-            <button
-              className="absolute top-4 right-4 text-gray-400 hover:text-white text-2xl"
-              onClick={() => setOpenCrear(false)}
-            >×</button>
-            
-            <h3 className="text-lg font-bold text-[#eaff00] mb-4">Crear Reserva (Admin)</h3>
-            
-            <div className="space-y-4">
-              {/* Fecha */}
-              <div>
-                <label className="block text-sm text-gray-300 mb-1">Fecha</label>
-                <input
-                  type="date"
-                  className="w-full bg-gray-800 text-white border border-gray-600 rounded-lg px-3 py-2"
-                  value={dateToYMD(form.fecha)}
-                  min={todayYMD()}
-                  onChange={(e) => setForm((f) => ({ ...f, fecha: inputToDate(e.target.value) }))}
-                  onClick={(e) => e.target.showPicker?.()}
-                />
-              </div>
-
-              {/* Cancha */}
-              <div>
-                <label className="block text-sm text-gray-300 mb-1">Cancha</label>
-                <select
-                  className="w-full bg-gray-800 text-white border border-gray-600 rounded-lg px-3 py-2"
-                  value={form.cancha_id || ''}
-                  onChange={e => setForm(f => ({ ...f, cancha_id: e.target.value }))}
-                >
-                  <option value="">Seleccioná una cancha</option>
-                  {canchas.map(c => (
-                    <option key={c.id} value={c.id}>{c.nombre}</option>
-                  ))}
-                </select>
-              </div>
-
-              {/* Horario */}
-              <div>
-                <label className="block text-sm text-gray-300 mb-1">Horario</label>
-                <select
-                  className="w-full bg-gray-800 text-white border border-gray-600 rounded-lg px-3 py-2"
-                  value={form.horario_id || ''}
-                  onChange={e => setForm(f => ({ ...f, horario_id: e.target.value }))}
-                >
-                  <option value="">Seleccioná un horario</option>
-                  {horarios.map(h => (
-                    <option key={h.id} value={h.id}>
-                      {h.hora || `${h.inicio} – ${h.fin}`}
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              {/* Usuarios */}
-              <div>
-                <label className="block text-sm text-gray-300 mb-1">
-                  Usuarios ({selectedUsers.length}/6)
-                </label>
-
-                <div className="relative">
-                  {/* chips */}
-                  {selectedUsers.length > 0 && (
-                    <div className="mb-2 flex flex-wrap gap-2">
-                      {selectedUsers.map(u => (
-                        <span key={u.id} className="inline-flex items-center gap-2 bg-gray-700 text-gray-200 px-2 py-1 rounded">
-                          <span className="max-w-[220px] truncate">{u.label}</span>
-                          <button
-                            type="button"
-                            onClick={() => setSelectedUsers(prev => prev.filter(x => x.id !== u.id))}
-                            className="text-gray-400 hover:text-white"
-                            aria-label="Quitar"
-                          >
-                            ×
-                          </button>
-                        </span>
-                      ))}
-                    </div>
-                  )}
-
-                  {/* input */}
-                  <input
-                    value={userQuery}
-                    onChange={e => setUserQuery(e.target.value)}
-                    onKeyDown={(e) => {
-                      if (e.key === 'Enter' && userSugs.length === 1 && selectedUsers.length < 6) {
-                        setSelectedUsers(prev => [...prev, userSugs[0]]);
-                        setUserQuery('');
-                        setUserSugs([]);
-                        e.preventDefault();
-                      }
-                    }}
-                    placeholder="Buscar usuarios…"
-                    className="w-full bg-gray-700 text-white border border-gray-600 rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-yellow-400"
-                  />
-
-                  {/* dropdown */}
-                  {userSugs.length > 0 && (
-                    <ul className="absolute z-20 mt-1 w-full bg-gray-800 border border-gray-700 rounded shadow-lg max-h-56 overflow-auto">
-                      {userSugs.map(s => (
-                        <li
-                          key={s.id}
-                          className="px-3 py-2 hover:bg-gray-700 cursor-pointer text-sm text-gray-100"
-                          onClick={() => {
-                            if (selectedUsers.length < 6) {
-                              setSelectedUsers(prev => [...prev, s]);
-                              setUserQuery('');
-                              setUserSugs([]);
-                            }
-                          }}
-                        >
-                          {s.label}
-                        </li>
-                      ))}
-                    </ul>
-                  )}
-                </div>
-              </div>
-
-              {/* Botones */}
-              <div className="flex justify-end gap-2 pt-4">
-                <Button
-                  type="button"
-                  onClick={() => setOpenCrear(false)}
-                  texto="Cerrar"
-                  variant="secondary"
-                  size="md"
-                />
-                <Button
-                  type="button"
-                  onClick={crearReserva}
-                  texto="Crear Reserva"
-                  variant="primary"
-                  size="md"
-                  disabled={!form.fecha || !form.cancha_id || !form.horario_id || selectedUsers.length < 1}
-                />
-              </div>
+      {detalle && (
+        <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <div className="bg-gray-900 border border-gray-700 rounded-2xl p-6 w-full max-w-md relative shadow-2xl">
+            <button className="absolute top-4 right-4 text-gray-400 hover:text-white" onClick={() => setDetalle(null)}><FiX size={20} /></button>
+            <h3 className="text-lg font-bold text-white mb-4 border-b border-gray-800 pb-2">Detalle de Reserva</h3>
+            <div className="space-y-3 text-sm">
+               <div className="flex justify-between"><span className="text-gray-400">Cancha:</span> <span className="text-white">{detalle?.cancha}</span></div>
+               <div className="flex justify-between"><span className="text-gray-400">Fecha:</span> <span className="text-white">{detalle?.fecha}</span></div>
+               <div className="flex justify-between"><span className="text-gray-400">Horario:</span> <span className="text-white">{detalle?.horario}</span></div>
+               <div className="pt-2">
+                 <span className="block text-gray-400 mb-2">Usuarios en el turno:</span>
+                 <ul className="grid grid-cols-2 gap-2">
+                    {detalle?.usuarios?.map((u, idx) => (
+                        <li key={idx} className="bg-gray-800 rounded px-2 py-1 text-gray-200 text-xs border border-gray-700 truncate">{u.nombre} {u.apellido}</li>
+                    ))}
+                 </ul>
+               </div>
             </div>
           </div>
         </div>

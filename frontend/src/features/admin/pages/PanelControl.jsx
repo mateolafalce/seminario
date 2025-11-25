@@ -1,11 +1,11 @@
-import { useContext, useMemo } from 'react';
-import { Navigate, useLocation, NavLink, Outlet, useNavigate } from 'react-router-dom';
+import { useContext, useMemo, useState } from 'react';
+import { Navigate, NavLink, Outlet, useNavigate } from 'react-router-dom';
 import { AuthContext } from '../../auth/context/AuthContext';
 
-import { HiUsers } from "react-icons/hi";
+// Iconos
+import { HiUsers, HiMenu, HiX } from "react-icons/hi";
 import { IoStatsChartSharp } from "react-icons/io5";
 import { PiCourtBasketballFill } from "react-icons/pi";
-import { MdAccessTime, MdLayers } from "react-icons/md";
 import { FiLogOut } from 'react-icons/fi';
 import { FaProjectDiagram } from "react-icons/fa";
 
@@ -13,16 +13,15 @@ import {
   canManageUsers,
   canManageCanchas,
   canManageReservas,
-  canManageHorarios,
-  canManageCategorias,
   canViewStatistics,
   canUseAlgoritmo,
 } from '../../../shared/utils/permissions';
 
-function SidebarLink({ to, icon, label }) {
+function SidebarLink({ to, icon, label, onClick }) {
   return (
     <NavLink
       to={to}
+      onClick={onClick}
       className={({ isActive }) =>
         [
           'group flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors',
@@ -42,107 +41,90 @@ export default function PanelControl() {
   const { loading, isAuthenticated, roles, permissions } = useContext(AuthContext);
   const me = useMemo(() => ({ roles, permissions }), [roles, permissions]);
   const navigate = useNavigate();
-  const location = useLocation();
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   const flags = useMemo(() => ({
     showUsuarios:     canManageUsers(me),
     showCanchas:      canManageCanchas(me),
     showReservas:     canManageReservas(me),
-    showHorarios:     canManageHorarios(me),
-    showCategorias:   canManageCategorias(me),
     showEstadisticas: canViewStatistics(me),
     showAlgoritmo:    canUseAlgoritmo(me),
   }), [me]);
 
-  // Wait for auth to load before redirecting
   if (loading) {
     return (
       <div className="bg-gray-900 min-h-screen flex items-center justify-center">
-        <div className="text-gray-400">Cargando...</div>
+        <div className="text-gray-400 animate-pulse">Cargando panel...</div>
       </div>
     );
   }
 
   if (!isAuthenticated || !canManageReservas(me)) return <Navigate to="/" replace />;
 
-  const nothing =
-    !flags.showUsuarios &&
-    !flags.showCanchas &&
-    !flags.showReservas &&
-    !flags.showEstadisticas &&
-    !flags.showHorarios &&
-    !flags.showCategorias &&
-    !flags.showAlgoritmo;
+  const nothing = !flags.showUsuarios && !flags.showCanchas && !flags.showReservas && !flags.showEstadisticas && !flags.showAlgoritmo;
 
   return (
-    <div className="bg-gray-900 min-h-screen">
-      <div className="grid grid-cols-[220px_1fr] gap-0 min-h-screen">
-        {/* Sidebar */}
-        <aside className="bg-gray-800 p-6 sticky top-0 h-screen">
-          <div className="hidden lg:block">
-            <h1 className="text-lg font-bold text-white mb-1">Panel Admin</h1>
-            <p className="text-gray-400 text-xs mb-4">Gestión del sistema</p>
-
-            <nav className="flex flex-col gap-2">
-              {flags.showUsuarios   && <SidebarLink to="/panel-control/usuarios"   icon={<HiUsers />}                label="Usuarios" />}
-              {flags.showReservas   && <SidebarLink to="/panel-control/reservas"   icon={<IoStatsChartSharp />}      label="Reservas" />}
-              {flags.showCanchas    && <SidebarLink to="/panel-control/canchas"    icon={<PiCourtBasketballFill />}  label="Canchas" />}
-              {flags.showHorarios   && <SidebarLink to="/panel-control/horarios"   icon={<MdAccessTime />}           label="Horarios" />}
-              {flags.showCategorias && <SidebarLink to="/panel-control/categorias" icon={<MdLayers size={18} />}     label="Categorías" />}
-              {flags.showAlgoritmo  && <SidebarLink to="/panel-control/algoritmo"  icon={<FaProjectDiagram size={18} />} label="Algoritmo" />}
-
-              {nothing && (
-                <div className="text-xs text-gray-400 px-3 py-2">
-                  No tenés permisos para ver secciones del panel.
-                </div>
-              )}
-
-              <div className="my-2 h-px bg-gray-700" />
-
-              <button
-                onClick={() => navigate('/home')}
-                className="group flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium text-yellow-300 hover:bg-yellow-500/10 hover:text-white transition-colors"
-              >
-                <FiLogOut className="w-5 h-5" />
-                Volver
-              </button>
-            </nav>
-          </div>
-
-          {/* Selector mobile */}
-          <div className="block lg:hidden">
-            <label className="text-white text-sm font-medium mb-2">Secciones</label>
-            <select
-              value={location.pathname.split('/')[2] || ''}
-              onChange={(e) => {
-                const value = e.target.value;
-                if (value) navigate(`/panel-control/${value}`);
-              }}
-              className="w-full bg-gray-700 text-white text-base p-3 rounded-lg border border-gray-600 focus:outline-none focus:ring-2 focus:ring-yellow-400"
-            >
-              <option value="">(Seleccioná)</option>
-              {flags.showUsuarios   && <option value="usuarios">Usuarios</option>}
-              {flags.showReservas   && <option value="reservas">Reservas</option>}
-              {flags.showCanchas    && <option value="canchas">Canchas</option>}
-              {flags.showHorarios   && <option value="horarios">Horarios</option>}
-              {flags.showCategorias && <option value="categorias">Categorías</option>}
-              {flags.showAlgoritmo  && <option value="algoritmo">Algoritmo</option>}
-            </select>
-          </div>
-        </aside>
-
-        {/* Main */}
-        <main className="p-6 overflow-y-auto">
-          <Outlet />
-        </main>
+    <div className="bg-gray-900 min-h-screen flex flex-col lg:flex-row">
+      <div className="lg:hidden bg-gray-800 border-b border-gray-700 px-4 py-3 flex items-center justify-between sticky top-0 z-30">
+        <h1 className="text-lg font-bold text-white tracking-wide">Panel Admin</h1>
+        <button 
+          onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+          className="text-gray-300 hover:text-white focus:outline-none p-2 rounded-lg hover:bg-gray-700"
+        >
+          {mobileMenuOpen ? <HiX size={24} /> : <HiMenu size={24} />}
+        </button>
       </div>
+
+      <aside 
+        className={`
+          fixed inset-y-0 left-0 z-40 w-64 bg-gray-800 border-r border-gray-700 transform transition-transform duration-300 ease-in-out
+          lg:translate-x-0 lg:static lg:h-screen lg:overflow-y-auto
+          ${mobileMenuOpen ? 'translate-x-0' : '-translate-x-full'}
+        `}
+      >
+        <div className="p-6">
+          <div className="mb-6 px-2">
+            <h1 className="text-lg font-bold text-white">Administración</h1>
+            <p className="text-gray-400 text-xs mt-1">Gestión del sistema</p>
+          </div>
+
+          <nav className="flex flex-col gap-2">
+            {flags.showUsuarios   && <SidebarLink onClick={() => setMobileMenuOpen(false)} to="/panel-control/usuarios"   icon={<HiUsers />}                label="Usuarios" />}
+            {flags.showReservas   && <SidebarLink onClick={() => setMobileMenuOpen(false)} to="/panel-control/reservas"   icon={<IoStatsChartSharp />}      label="Reservas" />}
+            {flags.showCanchas    && <SidebarLink onClick={() => setMobileMenuOpen(false)} to="/panel-control/canchas"    icon={<PiCourtBasketballFill />}  label="Canchas" />}
+            {flags.showAlgoritmo  && <SidebarLink onClick={() => setMobileMenuOpen(false)} to="/panel-control/algoritmo"  icon={<FaProjectDiagram size={18} />} label="Algoritmo" />}
+
+            {nothing && <div className="text-xs text-gray-500 px-4 py-4 text-center border border-gray-700 rounded-lg border-dashed">Sin permisos visibles</div>}
+
+            <div className="my-2 h-px bg-gray-700" />
+
+            <button
+              onClick={() => navigate('/home')}
+              className="group flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium text-yellow-300 hover:bg-yellow-500/10 hover:text-white transition-colors"
+            >
+              <FiLogOut className="w-5 h-5" />
+              <span>Volver</span>
+            </button>
+          </nav>
+        </div>
+      </aside>
+
+      {mobileMenuOpen && (
+        <div 
+          className="fixed inset-0 bg-black/50 backdrop-blur-sm z-30 lg:hidden"
+          onClick={() => setMobileMenuOpen(false)}
+        />
+      )}
+
+      <main className="flex-1 p-6 overflow-y-auto h-[calc(100vh-60px)] lg:h-screen bg-gray-900">
+         <Outlet />
+      </main>
     </div>
   );
 }
 
-// Re-exports para que App.jsx pueda importar desde PanelControl.jsx
+// CORRECCIÓN FINAL: Exportar correctamente. TabAlgoritmo está en la misma carpeta 'pages'.
 export { default as TabUsuarios }   from '../components/dashboard/GestionUsuarios';
-export { default as TabCanchas } from '../components/dashboard/GestionCanchas';
+export { default as TabCanchas }    from '../components/dashboard/GestionCanchas';
 export { default as TabReservas }   from '../components/dashboard/GestionReservas';
-export { default as TabHorarios }   from './TabHorarios';
-export { default as TabCategorias } from './TabCategorias';
+export { default as TabAlgoritmo }  from './TabAlgoritmo'; // <-- Ruta corregida (está junto a PanelControl.jsx)

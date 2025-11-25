@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { useUsuarios } from "../../../usuarios/hooks/useUsuarios";
 import { useBusquedaUsuarios } from "../../../usuarios/hooks/useBusquedaUsuarios";
 import { useModales } from "../../../../shared/hooks/useModales";
@@ -7,8 +8,10 @@ import ListaUsuarios from "../../../usuarios/pages/ListaUsuarios";
 import ModalesUsuario from "../../../usuarios/pages/ModalesUsuario";
 import Paginacion from "../../../../shared/components/ui/Paginacion";
 import Button from "../../../../shared/components/ui/Button/Button";
+import { MdLayers, MdPersonAdd } from "react-icons/md";
 
 function GestionUsuarios() {
+  const navigate = useNavigate();
   const {
     users, loading, error, currentPage, totalPages,
     fetchUsers, handlePageChange, editarUsuario, eliminarUsuario
@@ -45,7 +48,6 @@ function GestionUsuarios() {
   };
 
   const handleUsuarioCreado = () => {
-    // cerrar modal de crear y refrescar vista actual
     modales.cerrarCrear();
     if (modoBusqueda && terminoBusqueda) {
       buscar(terminoBusqueda);
@@ -56,28 +58,47 @@ function GestionUsuarios() {
   };
 
   return (
-    <section className="w-full px-6 space-y-4">
-      {/* Header con búsqueda y "Nuevo usuario" */}
-      <div className="flex flex-col sm:flex-row gap-3 sm:items-center sm:justify-between">
-        <div className="flex-1 min-w-0">
-          <BarraBusqueda
-            onBuscar={buscar}
-            onLimpiar={limpiar}
-            modoBusqueda={modoBusqueda}
-            resultados={resultados}
-            loading={loadingBusqueda}
-          />
+    <section className="w-full space-y-6">
+      
+      {/* HEADER */}
+      <div className="bg-slate-900/60 border border-slate-700/70 rounded-xl p-5 shadow-lg flex flex-col gap-4">
+        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+          <div>
+            <h2 className="text-2xl font-bold text-white tracking-tight">Usuarios</h2>
+            <p className="text-sm text-gray-400 mt-1">Administración de cuentas y permisos</p>
+          </div>
+          <div className="flex items-center gap-3 w-full sm:w-auto">
+             <Button
+              texto="Categorías"
+              onClick={() => navigate("/panel-control/usuarios/categorias")}
+              variant="secondary"
+              size="md"
+              icon={<MdLayers size={18} />}
+              className="flex-1 sm:flex-none justify-center"
+            />
+            <Button
+              texto="Nuevo Usuario"
+              onClick={() => navigate("/panel-control/usuarios/nuevo")}
+              variant="default"
+              size="md"
+              icon={<MdPersonAdd size={18} />}
+              className="flex-1 sm:flex-none justify-center"
+            />
+          </div>
         </div>
-        <div className="shrink-0 -mt-2 sm:mt-0">
-          <Button
-            texto="Nuevo usuario"
-            onClick={modales.abrirCrear}
-            variant="default"
-            size="md"
-          />
+
+        <div className="w-full">
+            <BarraBusqueda
+              onBuscar={buscar}
+              onLimpiar={limpiar}
+              modoBusqueda={modoBusqueda}
+              resultados={resultados}
+              loading={loadingBusqueda}
+            />
         </div>
       </div>
 
+      {/* CONTENIDO */}
       <div className="w-full space-y-4">
         <ListaUsuarios
           key={usuariosKey}
@@ -90,22 +111,22 @@ function GestionUsuarios() {
         />
 
         {!modoBusqueda && totalPages > 1 && (
-          <Paginacion
-            currentPage={currentPage}
-            totalPages={totalPages}
-            onPageChange={handlePageChange}
-            loading={loading}
-          />
+          <div className="flex justify-center pt-2">
+            <Paginacion
+              currentPage={currentPage}
+              totalPages={totalPages}
+              onPageChange={handlePageChange}
+              loading={loading}
+            />
+          </div>
         )}
 
-        <div className="w-full rounded-xl p-0">
-          <ModalesUsuario
-            modales={modales}
-            onEditar={handleEditar}
-            onEliminar={handleEliminar}
-            onUsuarioCreado={handleUsuarioCreado}
-          />
-        </div>
+        <ModalesUsuario
+           modales={modales}
+           onEditar={handleEditar}
+           onEliminar={handleEliminar}
+           onUsuarioCreado={handleUsuarioCreado}
+        />
       </div>
     </section>
   );

@@ -1,90 +1,135 @@
 import os
 import time
 from pathlib import Path
+from typing import List, Dict, Any
 
-from fastapi import APIRouter, HTTPException, Depends, Query, status, UploadFile, File
-from typing import List, Optional
 from bson import ObjectId
-
+from fastapi import (
+    APIRouter,
+    Depends,
+    HTTPException,
+    Query,
+    status,
+    UploadFile,
+    File,
+)
 from db.client import db_client
-from db.schemas.cancha import canchas_schema, cancha_schema
+from db.schemas.cancha import cancha_schema, canchas_schema
+from db.schemas.horario import horarios_schema
 from db.models.cancha import CanchaCreate, CanchaUpdate
 from routers.Security.auth import verify_csrf, require_perms
+from fastapi.responses import JSONResponse
 
-router = APIRouter(
-    prefix="/canchas",
-    tags=["canchas"],
-    responses={404: {"message": "No encontrado"}},
-)
+router = APIRouter(prefix="/canchas", tags=["canchas"])
 
 IMAGES_DIR = Path("static/images")
 
 
-def horarios_y_cancha_son_validos(nombre: str, horarios: Optional[List[str]]) -> List[ObjectId]:
+def horarios_y_cancha_son_validos(nombre: str, horarios_ids: List[str]) -> List[ObjectId]:
     """
-    Valida nombre y horarios:
-      - nombre no vacío
-      - horarios, si vienen, deben ser ObjectId válidos y existir en la colección horarios
+    Valida que:
+    - los horarios existan.
+    - no haya otra cancha con el mismo nombre usando exactamente ese set de horarios.
     Devuelve la lista de ObjectId de horarios.
     """
-    nombre = (nombre or "").strip()
-    if not nombre:
+    if not horarios_ids:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="El nombre de la cancha es obligatorio",
+            detail="Debés seleccionar al menos un horario para la cancha",
         )
 
-    horarios = horarios or []
-    horarios_oids: List[ObjectId] = []
-
-    if horarios:
-        # Validar IDs
-        for h_id in horarios:
-            if not ObjectId.is_valid(h_id):
-                raise HTTPException(
-                    status_code=status.HTTP_400_BAD_REQUEST,
-                    detail=f"ID de horario inválido: {h_id}",
-                )
-            horarios_oids.append(ObjectId(h_id))
-
-        # Validar existencia en la colección horarios
-        existentes = list(
-            db_client.horarios.find(
-                {"_id": {"$in": horarios_oids}},
-                {"_id": 1},
-            )
-        )
-        if len(existentes) != len(horarios_oids):
+    # Convertimos a ObjectId
+    oids: List[ObjectId] = []
+    for hid in horarios_ids:
+        try:
+            oid = ObjectId(hid)
+        except Exception:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Alguno de los horarios seleccionados no existe",
+                detail=f"ID de horario inválido: {hid}",
             )
+        oids.append(oid)
 
-    return horarios_oids
+    # Verificamos que existan
+    count = db_client.horarios.count_documents({"_id": {"$in": oids}})
+    if count != len(oids):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Alguno de los horarios seleccionados no existe",
+        )
+
+    return oids
 
 
-@router.get("/listar", dependencies=[Depends(verify_csrf)])
+@router.get("/listar")
 async def listar_canchas(
-    solo_habilitadas: bool = Query(False, description="Si es true, sólo devuelve canchas habilitadas"),
+    simple: bool = Query(
+        False,
+        description="True => [{id,nombre}] (ligero). False => cancha completa.",
+    )
 ):
     """
-    Lista todas las canchas ordenadas por nombre.
-    Opcionalmente sólo las habilitadas.
+    Lista canchas. Si simple=True, devuelve solo id/nombre.
     """
-    try:
-        filtro = {}
-        if solo_habilitadas:
-            filtro["habilitada"] = True
+    canchas = list(db_client.canchas.find({}).sort("nombre", 1))
 
-        cursor = db_client.canchas.find(filtro).sort("nombre", 1)
-        canchas = list(cursor)
-        return canchas_schema(canchas)
-    except Exception as e:
-        print(f"Error al listar canchas: {e}")
+    if simple:
+        # modo liviano
+        return [
+            {"id": str(c["_id"]), "nombre": c.get("nombre", "")}
+            for c in canchas
+        ]
+
+    # modo completo (incluye imagenes, horarios, etc.)
+    return canchas_schema(canchas)
+
+
+@router.get("/obtener/{cancha_id}")
+async def obtener_cancha(cancha_id: str):
+    """
+    Devuelve la cancha completa por ID.
+    """
+    if not ObjectId.is_valid(cancha_id):
         raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Error al listar canchas",
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="ID de cancha inválido",
         )
+
+    cancha = db_client.canchas.find_one({"_id": ObjectId(cancha_id)})
+    if not cancha:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Cancha no encontrada",
+        )
+
+    return cancha_schema(cancha)
+
+
+@router.get("/horarios/{cancha_id}")
+async def obtener_horarios_cancha(cancha_id: str):
+    """
+    Devuelve la lista de horarios (completos) asociados a una cancha, para
+    poder mostrar la franja horaria en el frontend.
+    """
+    if not ObjectId.is_valid(cancha_id):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="ID de cancha inválido",
+        )
+
+    cancha = db_client.canchas.find_one({"_id": ObjectId(cancha_id)})
+    if not cancha:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Cancha no encontrada",
+        )
+
+    horarios_ids = cancha.get("horarios") or []
+    if not horarios_ids:
+        return []
+
+    rows = list(db_client.horarios.find({"_id": {"$in": horarios_ids}}).sort("hora", 1))
+    return horarios_schema(rows)
 
 
 @router.post(
@@ -93,7 +138,7 @@ async def listar_canchas(
 )
 async def crear_cancha(cancha: CanchaCreate):
     """
-    Crea una cancha nueva con nombre, descripción, imagen, habilitada y horarios.
+    Crea una cancha nueva con nombre, descripción, imagen, habilitada, horarios e imágenes secundarias.
     """
     try:
         nombre = (cancha.nombre or "").strip()
@@ -118,6 +163,15 @@ async def crear_cancha(cancha: CanchaCreate):
         imagen_url = (cancha.imagen_url or "").strip() if cancha.imagen_url is not None else ""
         habilitada = True if cancha.habilitada is None else bool(cancha.habilitada)
 
+        # Normalizamos imágenes secundarias
+        imagenes_norm: List[str] = []
+        if cancha.imagenes is not None:
+            for img in cancha.imagenes:
+                if isinstance(img, str):
+                    s = img.strip()
+                    if s:
+                        imagenes_norm.append(s)
+
         # Unicidad por nombre
         ya = db_client.canchas.find_one({"nombre": nombre})
         if ya:
@@ -126,12 +180,13 @@ async def crear_cancha(cancha: CanchaCreate):
                 detail="Ya existe una cancha con ese nombre",
             )
 
-        doc = {
+        doc: Dict[str, Any] = {
             "nombre": nombre,
             "descripcion": descripcion,
             "imagen_url": imagen_url,
             "habilitada": habilitada,
             "horarios": horarios_oids,
+            "imagenes": imagenes_norm,
         }
 
         result = db_client.canchas.insert_one(doc)
@@ -156,7 +211,7 @@ async def modificar_cancha(cancha_id: str, data: CanchaUpdate):
     Modifica una cancha existente.
     - nombre sigue siendo obligatorio a nivel de negocio (por ahora).
     - horarios, si vienen, reemplazan la lista actual.
-    - descripción, imagen_url, habilitada: se actualizan sólo si vienen en el body.
+    - descripción, imagen_url, habilitada, imagenes: se actualizan sólo si vienen en el body.
     """
     if not ObjectId.is_valid(cancha_id):
         raise HTTPException(
@@ -188,13 +243,13 @@ async def modificar_cancha(cancha_id: str, data: CanchaUpdate):
             detail="Ya existe otra cancha con ese nombre",
         )
 
-    update_fields = {"nombre": nombre}
+    update_fields: Dict[str, Any] = {"nombre": nombre}
 
     # Descripción
     if data.descripcion is not None:
         update_fields["descripcion"] = (data.descripcion or "").strip()
 
-    # Imagen
+    # Imagen principal
     if data.imagen_url is not None:
         update_fields["imagen_url"] = (data.imagen_url or "").strip()
 
@@ -206,6 +261,16 @@ async def modificar_cancha(cancha_id: str, data: CanchaUpdate):
     if data.horarios is not None:
         horarios_oids = horarios_y_cancha_son_validos(nombre, data.horarios)
         update_fields["horarios"] = horarios_oids
+
+    # Imágenes secundarias (si vienen, reemplazan completamente la lista)
+    if data.imagenes is not None:
+        imagenes_norm: List[str] = []
+        for img in (data.imagenes or []):
+            if isinstance(img, str):
+                s = img.strip()
+                if s:
+                    imagenes_norm.append(s)
+        update_fields["imagenes"] = imagenes_norm
 
     try:
         db_client.canchas.update_one({"_id": cancha_oid}, {"$set": update_fields})

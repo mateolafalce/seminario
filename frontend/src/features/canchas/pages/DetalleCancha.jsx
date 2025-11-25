@@ -75,6 +75,7 @@ export default function DetalleCancha() {
 
   const [reservaPendiente, setReservaPendiente] = useState(null);
   const [mensajeConfirm, setMensajeConfirm] = useState("");
+  const [imgIndex, setImgIndex] = useState(0);
 
   // =========================
   // Carga de datos
@@ -261,9 +262,28 @@ export default function DetalleCancha() {
     );
   }
 
-  const imageSrc = cancha.imagen_url
-    ? getFileUrl(cancha.imagen_url)
-    : homeHeroPadel;
+  // Armamos el array de imágenes: principal + secundarias
+  const imagenesSecundarias = Array.isArray(cancha.imagenes)
+    ? cancha.imagenes
+    : [];
+
+  const imagenesTotal = [
+    cancha.imagen_url ? getFileUrl(cancha.imagen_url) : null,
+    ...imagenesSecundarias.map((img) =>
+      img ? getFileUrl(img) : null
+    ),
+  ].filter(Boolean);
+
+  const totalImagenes = imagenesTotal.length;
+
+  const safeIndex =
+    totalImagenes > 0 && imgIndex >= 0 && imgIndex < totalImagenes
+      ? imgIndex
+      : 0;
+
+  const imageSrc =
+    totalImagenes > 0 ? imagenesTotal[safeIndex] : homeHeroPadel;
+
   const descripcion =
     cancha.descripcion && cancha.descripcion.trim().length
       ? cancha.descripcion
@@ -288,13 +308,57 @@ export default function DetalleCancha() {
           <span>Volver</span>
         </button>
 
-        {/* Hero imagen */}
-        <div className="rounded-2xl overflow-hidden border border-slate-800 shadow-lg mb-6">
+        {/* Hero imagen como carrusel */}
+        <div className="relative rounded-2xl overflow-hidden border border-slate-800 shadow-lg mb-6">
           <img
             src={imageSrc}
             alt={cancha.nombre}
             className="w-full max-h-[380px] object-cover"
           />
+
+          {totalImagenes > 1 && (
+            <>
+              {/* Flecha izquierda */}
+              <button
+                type="button"
+                onClick={() =>
+                  setImgIndex((prev) =>
+                    prev === 0 ? totalImagenes - 1 : prev - 1
+                  )
+                }
+                className="absolute left-3 top-1/2 -translate-y-1/2 bg-black/40 hover:bg-black/60 text-white rounded-full w-9 h-9 flex items-center justify-center border border-white/30"
+                aria-label="Imagen anterior"
+              >
+                ‹
+              </button>
+
+              {/* Flecha derecha */}
+              <button
+                type="button"
+                onClick={() =>
+                  setImgIndex((prev) =>
+                    prev === totalImagenes - 1 ? 0 : prev + 1
+                  )
+                }
+                className="absolute right-3 top-1/2 -translate-y-1/2 bg-black/40 hover:bg-black/60 text-white rounded-full w-9 h-9 flex items-center justify-center border border-white/30"
+                aria-label="Imagen siguiente"
+              >
+                ›
+              </button>
+
+              {/* Indicadores (puntitos) */}
+              <div className="absolute bottom-3 left-1/2 -translate-x-1/2 flex gap-2">
+                {imagenesTotal.map((_, i) => (
+                  <span
+                    key={i}
+                    className={`h-2.5 w-2.5 rounded-full ${
+                      i === safeIndex ? "bg-amber-400" : "bg-white/40"
+                    }`}
+                  />
+                ))}
+              </div>
+            </>
+          )}
         </div>
 
         {/* Cabecera cancha + CTA reservar */}
