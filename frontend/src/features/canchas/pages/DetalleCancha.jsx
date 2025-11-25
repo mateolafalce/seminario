@@ -180,10 +180,6 @@ export default function DetalleCancha() {
     else navigate("/reserva", { replace: true });
   };
 
-  const handleIrAReservar = () => {
-    navigate("/reserva");
-  };
-
   // click en un horario dentro del detalle
   const handleClickHorario = (hora) => {
     if (!user) {
@@ -298,18 +294,28 @@ export default function DetalleCancha() {
 
   return (
     <div className="min-h-screen bg-slate-950 text-gray-100">
-      <div className="max-w-6xl mx-auto px-4 py-6">
-        {/* Volver atrás */}
+      <div className="max-w-6xl mx-auto px-4 md:pt-8 pb-8">
+        {/* Volver atrás (solo desktop/tablet) */}
         <button
           onClick={handleBack}
-          className="mb-4 flex items-center gap-2 text-sm text-yellow-400 hover:text-yellow-300 transition-colors"
+          className="hidden md:inline-flex items-center gap-2 mb-4 text-sm text-yellow-400 hover:text-yellow-300 transition-colors"
         >
           <span className="text-lg">‹</span>
           <span>Volver</span>
         </button>
 
         {/* Hero imagen como carrusel */}
-        <div className="relative rounded-2xl overflow-hidden border border-slate-800 shadow-lg mb-6">
+        <div className="relative overflow-hidden border border-slate-800 shadow-lg mb-6 -mx-4 sm:mx-0 rounded-none sm:rounded-2xl">
+          {/* Botón volver flotando sobre la imagen en mobile */}
+          <button
+            type="button"
+            onClick={handleBack}
+            className="md:hidden absolute top-3 left-3 z-10 bg-black/50 hover:bg-black/70 text-yellow-300 rounded-full px-3 py-1 text-xs flex items-center gap-1"
+          >
+            <span className="text-base leading-none">‹</span>
+          
+          </button>
+
           <img
             src={imageSrc}
             alt={cancha.nombre}
@@ -361,8 +367,8 @@ export default function DetalleCancha() {
           )}
         </div>
 
-        {/* Cabecera cancha + CTA reservar */}
-        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-8">
+        {/* Cabecera cancha */}
+        <div className="mb-8">
           <div>
             <h1 className="text-2xl md:text-3xl font-bold text-white mb-2">
               {cancha.nombre}
@@ -370,15 +376,6 @@ export default function DetalleCancha() {
             <p className="text-sm text-gray-400">
               Cancha disponible para reservas en Boulevard 81
             </p>
-          </div>
-
-          <div className="flex flex-col sm:flex-row gap-3">
-            <Button
-              texto="Ir a pantalla de reservas"
-              onClick={handleIrAReservar}
-              variant="crear"
-              size="pill"
-            />
           </div>
         </div>
 

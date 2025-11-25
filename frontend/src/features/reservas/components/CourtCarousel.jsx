@@ -1,22 +1,9 @@
-// src/features/reservas/components/CourtCarousel.jsx
 import { useEffect, useMemo, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import homeHeroPadel from "../../../assets/images/homeHeroPadel.jpg";
 import { getFileUrl } from "../../../app/config";
+import { FiChevronLeft, FiChevronRight, FiMapPin, FiInfo, FiClock, FiCalendar } from "react-icons/fi";
 
-/** Carousel de canchas con horarios
- * Props:
- * - canchas: (string | { nombre: string; descripcion?: string; imagen_url?: string })[]
- * - horarios: string[]              ← array de "HH:MM-HH:MM"
- * - horariosByCancha?: { [nombreCancha: string]: string[] }  ← opcional
- * - cantidades: Record<string,number>  ← clave `${cancha}-${hora}` -> reservados
- * - isAuthenticated: boolean
- * - selected?: { cancha: string, hora: string } | null
- * - onOpenDetail: (cancha: string, hora: string) => void
- * - onViewCancha?: (cancha: string | object) => void
- * - isPastSlot: (hora: string) => boolean
- * - capacity?: number (default 6)
- */
 export default function CourtCarousel({
   canchas = [],
   horarios = [],
@@ -29,15 +16,15 @@ export default function CourtCarousel({
   isPastSlot,
   capacity = 6,
 }) {
-  const GOLD = {
-    ring: "focus:ring-amber-400/70 focus-visible:ring-2 focus-visible:ring-amber-400/70",
-    card: "bg-white/5 backdrop-blur-sm border border-white/10",
-    chip: "bg-white/5 hover:bg-white/10 border border-white/10",
-    shadow: "shadow-[0_10px_25px_-10px_rgba(0,0,0,0.6)]",
+  const THEME = {
+    cardBg: "bg-[#0F1524]",
+    cardBorder: "border border-white/10",
     accent: "text-amber-400",
+    activeBtn: "bg-amber-400 text-slate-900 font-bold shadow-lg shadow-amber-400/20",
+    defaultBtn: "bg-slate-800/40 text-slate-300 border border-slate-700 hover:border-amber-400/50 hover:bg-slate-700 hover:text-white transition-all",
+    disabledBtn: "bg-slate-900/30 text-slate-600 border border-slate-800/50 cursor-not-allowed",
   };
 
-  // --- Carousel state ---
   const [[page, direction], setPage] = useState([0, 0]);
   const index = useMemo(() => {
     const len = canchas.length || 1;
@@ -45,57 +32,23 @@ export default function CourtCarousel({
     return (i + len) % len;
   }, [page, canchas.length]);
 
-  useEffect(() => {
-    const handler = (e) => {
-      if (e.key === "ArrowRight") setPage(([p]) => [p + 1, 1]);
-      if (e.key === "ArrowLeft") setPage(([p]) => [p - 1, -1]);
-    };
-    window.addEventListener("keydown", handler);
-    return () => window.removeEventListener("keydown", handler);
-  }, []);
-
   const paginate = (dir) => setPage(([p]) => [p + dir, dir]);
 
-  // --- Animaciones ---
   const variants = {
-    enter: (dir) => ({ x: dir > 0 ? 120 : -120, opacity: 0, scale: 0.98 }),
-    center: { x: 0, opacity: 1, scale: 1 },
-    exit: (dir) => ({ x: dir < 0 ? 120 : -120, opacity: 0, scale: 0.98 }),
+    enter: (dir) => ({ x: dir > 0 ? 50 : -50, opacity: 0 }),
+    center: { x: 0, opacity: 1 },
+    exit: (dir) => ({ x: dir < 0 ? 50 : -50, opacity: 0 }),
   };
-  const swipeThreshold = 100;
 
-  // --- Helpers cancha actual ---
   const canchaRaw = canchas[index];
-
-  const canchaNombre =
-    typeof canchaRaw === "string"
-      ? canchaRaw
-      : canchaRaw?.nombre || "";
-
-  // la seguimos calculando por si algún día la queremos usar en otro lado,
-  // pero ya no la mostramos en el UI
-  const canchaDescripcion =
-    canchaRaw && typeof canchaRaw === "object"
-      ? canchaRaw.descripcion || canchaRaw.description || ""
-      : "";
-
-  const canchaImagen =
-    canchaRaw && typeof canchaRaw === "object"
-      ? getFileUrl(
-          canchaRaw.imagen_url || canchaRaw.imagenUrl || ""
-        ) || homeHeroPadel
+  const canchaNombre = typeof canchaRaw === "string" ? canchaRaw : canchaRaw?.nombre || "";
+  const canchaImagen = canchaRaw && typeof canchaRaw === "object"
+      ? getFileUrl(canchaRaw.imagen_url || canchaRaw.imagenUrl || "") || homeHeroPadel
       : homeHeroPadel;
-
   const canchaKey = canchaNombre || String(canchaRaw || "");
 
-  // 🔸 Horarios visibles para ESTA cancha:
   const horariosVisibles = useMemo(() => {
-    if (
-      horariosByCancha &&
-      canchaNombre &&
-      Array.isArray(horariosByCancha[canchaNombre]) &&
-      horariosByCancha[canchaNombre].length > 0
-    ) {
+    if (horariosByCancha && canchaNombre && Array.isArray(horariosByCancha[canchaNombre]) && horariosByCancha[canchaNombre].length > 0) {
       return horariosByCancha[canchaNombre];
     }
     return horarios;
@@ -109,204 +62,96 @@ export default function CourtCarousel({
     return { cantidad, lleno, restantes };
   };
 
-  const ocupacionPct = useMemo(() => {
-    if (!canchaKey) return 0;
-    const ocupados = horariosVisibles.reduce(
-      (acc, h) => acc + (cantidades[`${canchaKey}-${h}`] || 0),
-      0
-    );
-    const total = horariosVisibles.length * capacity;
-    return total ? Math.round((ocupados / total) * 100) : 0;
-  }, [cantidades, canchaKey, horariosVisibles, capacity]);
-
   return (
-    <div className="relative mt-8">
-      {/* Flechas */}
-      <button
-        className={`absolute -left-2 md:-left-8 top-1/2 -translate-y-1/2 z-10 p-2 rounded-full border ${GOLD.chip} ${GOLD.ring}`}
-        onClick={() => paginate(-1)}
-        aria-label="Anterior cancha"
-      >
-        ←
+    <div className="relative w-full max-w-5xl mx-auto mt-6 px-4">
+      {/* Navegación Lateral */}
+      <button onClick={() => paginate(-1)} className="absolute left-0 md:-left-8 top-1/2 -translate-y-1/2 z-20 p-3 text-slate-500 hover:text-amber-400 transition-all">
+        <FiChevronLeft size={32} />
       </button>
-      <button
-        className={`absolute -right-2 md:-right-8 top-1/2 -translate-y-1/2 z-10 p-2 rounded-full border ${GOLD.chip} ${GOLD.ring}`}
-        onClick={() => paginate(1)}
-        aria-label="Siguiente cancha"
-      >
-        →
+      <button onClick={() => paginate(1)} className="absolute right-0 md:-right-8 top-1/2 -translate-y-1/2 z-20 p-3 text-slate-500 hover:text-amber-400 transition-all">
+        <FiChevronRight size={32} />
       </button>
 
-      {/* Slide */}
-      <div className="overflow-hidden">
-        <AnimatePresence custom={direction} mode="popLayout">
+      <div className="overflow-hidden py-2">
+        <AnimatePresence custom={direction} mode="wait">
           <motion.div
-            key={`${index}-${canchaKey || "empty"}`}
+            key={`${index}-${canchaKey}`}
             custom={direction}
             variants={variants}
             initial="enter"
             animate="center"
             exit="exit"
-            transition={{
-              type: "spring",
-              stiffness: 300,
-              damping: 30,
-              opacity: { duration: 0.2 },
-            }}
-            className="mx-auto max-w-3xl"
-            drag="x"
-            dragConstraints={{ left: 0, right: 0 }}
-            onDragEnd={(e, info) => {
-              if (info.offset.x > swipeThreshold) paginate(-1);
-              else if (info.offset.x < -swipeThreshold) paginate(1);
-            }}
+            transition={{ type: "spring", stiffness: 300, damping: 30 }}
+            className={`flex flex-col md:flex-row w-full rounded-2xl overflow-hidden shadow-2xl ${THEME.cardBg} ${THEME.cardBorder}`}
+            style={{ minHeight: '400px' }}
           >
-            {/* Tarjeta */}
-            {!canchas.length ? (
-              <div className={`text-center rounded-2xl p-10 ${GOLD.card}`}>
-                <p className="text-slate-300">
-                  No hay canchas para mostrar.
-                </p>
-              </div>
-            ) : (
-              <div
-                className={`rounded-2xl p-0 overflow-hidden ${GOLD.card} ${GOLD.shadow}`}
-              >
-                {/* Imagen */}
-                <div className="relative w-full h-40 md:h-52 bg-slate-900/50">
-                  <img
-                    src={canchaImagen}
-                    alt={canchaNombre || "Cancha"}
-                    className="w-full h-full object-cover object-center"
-                  />
-                  <div className="absolute inset-0 bg-gradient-to-t from-slate-950/80 via-slate-950/10 to-transparent" />
-                  <div className="absolute bottom-3 left-4 right-4 flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
-                    <div>
-                      <h3
-                        className={`text-xl font-semibold tracking-tight text-white drop-shadow ${GOLD.accent}`}
-                      >
-                        {canchaNombre || "Cancha"}
-                      </h3>
-                      {/* 🔸 Descripción eliminada del UI */}
-                      <p className="text-[11px] text-slate-300 mt-0.5">
-                        {horariosVisibles.length} horarios disponibles
-                      </p>
+            {/* Imagen Izquierda */}
+            <div className="relative w-full md:w-5/12 h-56 md:h-auto bg-slate-900">
+               <img src={canchaImagen} alt={canchaNombre} className="w-full h-full object-cover opacity-90 transition-transform duration-700 hover:scale-105" />
+               <div className="absolute inset-0 bg-gradient-to-t from-[#0F1524] via-transparent to-transparent md:bg-gradient-to-r md:from-transparent md:to-[#0F1524]" />
+            </div>
+
+            {/* Panel Derecha */}
+            <div className="flex-1 p-6 md:p-8 flex flex-col">
+                <div className="hidden md:block mb-4">
+                    <div className="flex items-center gap-2 text-amber-400 text-xs font-bold uppercase tracking-widest mb-1">
+                        <FiMapPin /> Cancha {index + 1}
                     </div>
-                    <div className="flex items-center gap-3">
-                      <div className="text-right text-xs text-slate-200">
-                        <div className="opacity-80">Ocupación</div>
-                        <div className="text-base font-bold text-white">
-                          {ocupacionPct}%
-                        </div>
-                      </div>
-                      {onViewCancha && (
-                        <button
-                          type="button"
-                          onClick={() => onViewCancha(canchaRaw)}
-                          className={`px-3 py-1.5 text-xs rounded-full bg-slate-900/80 text-slate-100 border border-white/15 hover:bg-slate-800/90 ${GOLD.ring}`}
-                        >
-                          Ver cancha
+                    <h2 className="text-3xl font-bold text-white">{canchaNombre || "Cancha Principal"}</h2>
+                    {onViewCancha && (
+                        <button onClick={() => onViewCancha(canchaRaw)} className="mt-1 text-xs text-slate-400 hover:text-white flex items-center gap-1 transition-colors">
+                            <FiInfo /> Ver info detallada
                         </button>
-                      )}
-                    </div>
-                  </div>
+                    )}
                 </div>
 
-                {/* Contenido abajo de la imagen */}
-                <div className="p-6 md:p-7">
-                  {/* Barra ocupación */}
-                  <div className="mt-1 w-full h-1.5 bg-white/10 rounded-full overflow-hidden">
-                    <div
-                      className="h-full bg-amber-400 transition-all"
-                      style={{ width: `${ocupacionPct}%` }}
-                    />
-                  </div>
-
-                  {/* Horarios */}
-                  <div className="mt-5">
-                    <div className="flex flex-wrap gap-2">
-                      {horariosVisibles.map((hora) => {
-                        const { cantidad, lleno, restantes } =
-                          disponibilidad(canchaKey, hora);
-                        const selectedHere =
-                          selected?.cancha === canchaKey &&
-                          selected?.hora === hora;
-                        const pasado = isPastSlot?.(hora);
-                        const almostFull =
-                          !lleno && !pasado && restantes <= 2;
-
-                        const base =
-                          "px-3 py-1.5 rounded-full text-[13px] font-medium transition-all border " +
-                          "inline-flex flex-col items-center justify-center min-w-[4.8rem]";
-                        const stateCls = lleno
-                          ? "cursor-not-allowed bg-white/5 text-rose-300 border-rose-500/40"
-                          : pasado
-                          ? "cursor-not-allowed bg-white/5 text-neutral-400 border-neutral-500/40"
-                          : selectedHere
-                          ? "bg-amber-400 text-[#0B1220] border-amber-400 shadow"
-                          : almostFull
-                          ? "bg-amber-400/10 text-amber-200 border-amber-400/60 hover:bg-amber-400/20"
-                          : `${GOLD.chip} text-slate-100 hover:bg-white/10`;
-
-                        const subtitle = lleno
-                          ? "Lleno"
-                          : pasado
-                          ? "Pasado"
-                          : `${cantidad}/${capacity}`;
-
-                        return (
-                          <button
-                            key={hora}
-                            className={`${base} ${stateCls} ${GOLD.ring}`}
-                            disabled={!isAuthenticated || lleno || pasado}
-                            onClick={() =>
-                              onOpenDetail?.(canchaKey, hora)
-                            }
-                            title={
-                              lleno
-                                ? "No hay cupos"
-                                : `Quedan ${restantes} cupos`
-                            }
-                            aria-label={`Horario ${hora} ${subtitle}`}
-                          >
-                            <span>{hora}</span>
-                            <span className="text-[11px] leading-none opacity-80">
-                              {subtitle}
-                            </span>
-                          </button>
-                        );
-                      })}
+                <div className="flex-1">
+                    <div className="flex items-center gap-2 mb-3 text-sm text-slate-400 border-b border-white/5 pb-2">
+                         <FiClock className="text-amber-400"/> Horarios disponibles
                     </div>
-                  </div>
 
-                  {/* Pie: indicador y hint */}
-                  <div className="mt-6 flex items-center justify-between">
-                    <div className="text-xs text-slate-400">
-                      Usa ← → o arrastra para cambiar de cancha
-                    </div>
-                    <div className="flex items-center gap-1.5">
-                      {canchas.map((_, i) => (
-                        <button
-                          key={i}
-                          onClick={() =>
-                            setPage(([p]) => [
-                              p + (i - index),
-                              i > index ? 1 : -1,
-                            ])
-                          }
-                          className={`w-2.5 h-2.5 rounded-full transition-all ${
-                            i === index
-                              ? "bg-amber-400 scale-100"
-                              : "bg-white/20 scale-90 hover:bg-white/30"
-                          }`}
-                          aria-label={`Ir a cancha ${i + 1}`}
-                        />
-                      ))}
-                    </div>
-                  </div>
+                    {horariosVisibles.length === 0 ? (
+                        <div className="h-32 flex items-center justify-center text-slate-500 border border-dashed border-slate-800 rounded-lg">
+                            Sin horarios
+                        </div>
+                    ) : (
+                        <div className="grid grid-cols-3 sm:grid-cols-4 gap-3 overflow-y-auto max-h-[220px] pr-2 custom-scrollbar">
+                            {horariosVisibles.map((hora) => {
+                                const { lleno, restantes } = disponibilidad(canchaKey, hora);
+                                const selectedHere = selected?.cancha === canchaKey && selected?.hora === hora;
+                                const pasado = isPastSlot?.(hora);
+
+                                return (
+                                    <button
+                                        key={hora}
+                                        disabled={!isAuthenticated || lleno || pasado}
+                                        onClick={() => onOpenDetail?.(canchaKey, hora)}
+                                        className={`
+                                            relative flex flex-col items-center justify-center py-2.5 rounded-lg text-sm group transition-all duration-200 border
+                                            ${lleno || pasado ? 'border-transparent ' + THEME.disabledBtn : selectedHere ? 'border-amber-400 ' + THEME.activeBtn : THEME.defaultBtn}
+                                        `}
+                                    >
+                                        <span className="font-semibold tracking-tight">{hora}</span>
+                                        {!lleno && !pasado && (
+                                            <span className={`text-[10px] mt-0.5 ${selectedHere ? 'text-slate-900' : 'text-slate-500 group-hover:text-slate-300'}`}>
+                                               {restantes} libres
+                                            </span>
+                                        )}
+                                        {lleno && <span className="text-[9px] text-rose-500 font-bold mt-0.5">FULL</span>}
+                                    </button>
+                                );
+                            })}
+                        </div>
+                    )}
                 </div>
-              </div>
-            )}
+                
+                {/* Paginador Puntos */}
+                <div className="mt-4 flex justify-center gap-2">
+                     {canchas.map((_, i) => (
+                        <button key={i} onClick={() => setPage(([p]) => [p + (i - index), i > index ? 1 : -1])} className={`h-1.5 rounded-full transition-all ${i === index ? "w-6 bg-amber-400" : "w-1.5 bg-slate-700"}`} />
+                     ))}
+                </div>
+            </div>
           </motion.div>
         </AnimatePresence>
       </div>

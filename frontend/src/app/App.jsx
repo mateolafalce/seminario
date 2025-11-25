@@ -44,7 +44,18 @@ import PanelControl, {
 
 function MainLayout({ children }) {
   const location = useLocation();
-  const hideNavbar = location.pathname.startsWith('/panel-control'); 
+  const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
+
+  useEffect(() => {
+    const handleResize = () => setIsMobile(window.innerWidth < 768);
+    window.addEventListener('resize', handleResize, { passive: true });
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
+
+  const isPanel = location.pathname.startsWith('/panel-control');
+  const isDetalleCancha = /^\/canchas\/[a-zA-Z0-9_-]+$/.test(location.pathname);
+
+  const hideNavbar = isPanel || (isMobile && isDetalleCancha);
 
   return (
     <>
