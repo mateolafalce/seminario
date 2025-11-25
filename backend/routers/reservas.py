@@ -96,7 +96,12 @@ class CrearReservaAdminRequest(BaseModel):
     fecha: str = Field(..., description="Fecha en formato DD-MM-YYYY")
     cancha_id: str = Field(..., description="ObjectId de la cancha")
     horario_id: str = Field(..., description="ObjectId del horario")
-    usuarios: list[str] = Field(..., min_items=1, max_items=6, description="IDs de usuarios (1-6)")
+    usuarios: list[str] = Field(
+        ..., 
+        min_items=1, 
+        max_items=50,
+        description="IDs de usuarios (1-50, se valida contra capacidad de la cancha)"
+    )
 
 # ==========================
 # Reglas/estados/validaciones
@@ -295,6 +300,33 @@ async def reservar(reserva: Reserva, user: dict = Depends(current_user)):
             if not isinstance(horarios_cancha, list) or horario_id not in horarios_cancha:
                 raise ValueError("Ese horario no está habilitado para esta cancha")
 
+            # 🔴 Reglas de disponibilidad de la cancha
+
+            # Capacidad máxima
+            cap_raw = cancha_doc.get("capacidad_maxima", 6)
+            try:
+                capacidad_maxima = int(cap_raw)
+            except (TypeError, ValueError):
+                capacidad_maxima = 6
+            capacidad_maxima = max(1, min(capacidad_maxima, 50))
+
+            # Días de la semana (0=lunes...6=domingo)
+            dias_conf = cancha_doc.get("dias_semana")
+            if isinstance(dias_conf, list) and len(dias_conf) > 0:
+                try:
+                    allowed = {int(d) for d in dias_conf}
+                except (TypeError, ValueError):
+                    allowed = set()
+                if allowed:
+                    weekday = fecha_reserva_dt.weekday()
+                    if weekday not in allowed:
+                        raise ValueError("La cancha no está habilitada para reservas ese día de la semana")
+
+            # Fechas bloqueadas exactas
+            fechas_bloq = cancha_doc.get("fechas_bloqueadas") or []
+            if any(isinstance(f, str) and f.strip() == reserva.fecha.strip() for f in fechas_bloq):
+                raise ValueError("La cancha está bloqueada para reservas en esa fecha")
+
             # --- Estados ---
             estado_reservada = db_client.estadoreserva.find_one({"nombre": "Reservada"})
             if not estado_reservada:
@@ -346,8 +378,8 @@ async def reservar(reserva: Reserva, user: dict = Depends(current_user)):
             })
 
             if reserva_existente:
-                # Cupo
-                if len(reserva_existente.get("usuarios", [])) >= 6:
+                # Cupo dinámico según la cancha
+                if len(reserva_existente.get("usuarios", [])) >= capacidad_maxima:
                     raise ValueError("No hay cupo disponible para esta cancha en ese horario")
 
                 # Agregar user si no está
@@ -1036,6 +1068,7 @@ async def admin_buscar_reservas(payload: AdminBuscarReservasRequest):
             # extraer hora de inicio "HH:MM" desde "HH:MM-HH:MM"
             "hora_inicio": {"$arrayElemAt": [{"$split": [{"$ifNull": ["$h.hora", "00:00-00:00"]}, "-"]}, 0]}
         }},
+        {"$sort": {"horario": 1, "_id": 1}}
     ]
 
     # Filtro por usuario (prefijo) si vino término
@@ -1142,7 +1175,7 @@ async def admin_crear_reserva(data: CrearReservaAdminRequest, user: dict = Depen
         # Validar formato de fecha: DD-MM-YYYY
         fecha_guardar = data.fecha.strip()
         try:
-            datetime.strptime(fecha_guardar, "%d-%m-%Y")
+            fecha_dt = datetime.strptime(fecha_guardar, "%d-%m-%Y").date()
         except ValueError:
             raise ValueError("Formato de fecha inválido; usá DD-MM-YYYY")
         
@@ -1162,10 +1195,40 @@ async def admin_crear_reserva(data: CrearReservaAdminRequest, user: dict = Depen
         if not isinstance(horarios_cancha, list) or horario_id not in horarios_cancha:
             raise ValueError("Ese horario no está habilitado para esta cancha")
 
+        # 🔴 REGLAS DE DISPONIBILIDAD PROPIAS DE LA CANCHA
+
+        # Capacidad máxima
+        cap_raw = cancha.get("capacidad_maxima", 6)
+        try:
+            capacidad_maxima = int(cap_raw)
+        except (TypeError, ValueError):
+            capacidad_maxima = 6
+        capacidad_maxima = max(1, min(capacidad_maxima, 50))
+
         u_ids = [ObjectId(u) for u in data.usuarios]
         usuarios = list(db_client.users.find({"_id": {"$in": u_ids}}))
         if len(usuarios) != len(u_ids):
             raise ValueError("Algún usuario no existe")
+
+        if len(u_ids) > capacidad_maxima:
+            raise ValueError(f"La cancha tiene un máximo de {capacidad_maxima} jugadores para ese horario")
+
+        # Días de la semana permitidos (0=lunes...6=domingo)
+        dias_conf = cancha.get("dias_semana")
+        if isinstance(dias_conf, list) and len(dias_conf) > 0:
+            try:
+                allowed = {int(d) for d in dias_conf}
+            except (TypeError, ValueError):
+                allowed = set()
+            if allowed:
+                weekday = fecha_dt.weekday()  # 0 lunes ... 6 domingo
+                if weekday not in allowed:
+                    raise ValueError("La cancha no está habilitada para reservas ese día de la semana")
+
+        # Fechas bloqueadas exactas
+        fechas_bloq = cancha.get("fechas_bloqueadas") or []
+        if any(isinstance(f, str) and f.strip() == fecha_guardar for f in fechas_bloq):
+            raise ValueError("La cancha está bloqueada para reservas en esa fecha")
 
         # Estado 'Reservada'
         est_res = db_client.estadoreserva.find_one({"nombre": "Reservada"})

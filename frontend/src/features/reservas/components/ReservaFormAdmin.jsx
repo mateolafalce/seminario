@@ -32,6 +32,13 @@ export default function ReservaFormAdmin({ onSubmit, loading = false }) {
   const [selectedUsers, setSelectedUsers] = useState([]);
   const [reservasDelDia, setReservasDelDia] = useState([]);
 
+  // Capacidad dinámica según la cancha seleccionada
+  const canchaSeleccionada = useMemo(
+    () => canchas.find((c) => c.id === form.cancha_id),
+    [canchas, form.cancha_id]
+  );
+  const capacidadMaxima = canchaSeleccionada?.capacidad_maxima ?? 6;
+
   useEffect(() => {
     (async () => {
       try {
@@ -156,7 +163,19 @@ export default function ReservaFormAdmin({ onSubmit, loading = false }) {
                 {userSugs.length > 0 && (
                     <ul className="absolute w-full bg-gray-800 border border-gray-600 rounded-lg shadow-xl z-20 max-h-40 overflow-auto mt-1">
                         {userSugs.map(s => (
-                            <li key={s.id} className="px-3 py-2 hover:bg-slate-700 cursor-pointer text-gray-200 border-b border-gray-700 last:border-0 flex justify-between" onClick={() => { if(selectedUsers.length < 6) { setSelectedUsers(p => [...p, s]); setUserQuery(''); setUserSugs([]); } }}>
+                            <li key={s.id} className="px-3 py-2 hover:bg-slate-700 cursor-pointer text-gray-200 border-b border-gray-700 last:border-0 flex justify-between" onClick={() => { 
+                              if (selectedUsers.length >= capacidadMaxima) {
+                                return toast(
+                                  <MiToast 
+                                    mensaje={`La cancha admite como máximo ${capacidadMaxima} jugadores.`} 
+                                    color="#ef4444" 
+                                  />
+                                );
+                              }
+                              setSelectedUsers((p) => [...p, s]);
+                              setUserQuery("");
+                              setUserSugs([]);
+                            }}>
                                 <span>{s.label}</span><FiPlus/>
                             </li>
                         ))}
@@ -171,6 +190,11 @@ export default function ReservaFormAdmin({ onSubmit, loading = false }) {
                         <button type="button" onClick={() => setSelectedUsers(p => p.filter(x => x.id !== u.id))} className="text-red-400 hover:text-red-300"><FiX/></button>
                     </div>
                 ))}
+                {selectedUsers.length > 0 && (
+                  <p className="text-xs text-gray-400 mt-2 text-center">
+                    {selectedUsers.length} / {capacidadMaxima} jugadores seleccionados
+                  </p>
+                )}
              </div>
          </div>
       </div>

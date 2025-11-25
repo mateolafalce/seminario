@@ -5,13 +5,27 @@ import adminApi from "../../../shared/services/adminApi";
 import { FiUpload, FiTrash2, FiImage } from "react-icons/fi";
 import { getFileUrl } from "../../../app/config";
 
+const DIAS_SEMANA = [
+  { value: 0, label: "Lunes" },
+  { value: 1, label: "Martes" },
+  { value: 2, label: "Miércoles" },
+  { value: 3, label: "Jueves" },
+  { value: 4, label: "Viernes" },
+  { value: 5, label: "Sábado" },
+  { value: 6, label: "Domingo" },
+];
+
 const defaultValues = {
   nombre: "",
   descripcion: "",
-  imagen_url: "",     // Portada (URL relativa tipo "/images/...")
-  imagenes: [],       // Secundarias (Array de strings URLs relativas)
+  imagen_url: "",
+  imagenes: [],
   habilitada: true,
   horarios: [],
+  // 🔴 NUEVO
+  capacidad_maxima: 6,
+  dias_semana: [0, 1, 2, 3, 4, 5, 6],
+  fechas_bloqueadas: [],
 };
 
 export default function CanchaForm({
@@ -21,11 +35,21 @@ export default function CanchaForm({
   loading = false,
   erroresExternos = {},
 }) {
-  const [v, setV] = useState(() => ({
-    ...defaultValues,
-    ...initialValues,
-    imagenes: initialValues.imagenes || [],
-  }));
+  const [v, setV] = useState(() => {
+    const init = initialValues || {};
+    return {
+      ...defaultValues,
+      ...init,
+      imagenes: init.imagenes || [],
+      // normalizar por si vienen como strings
+      dias_semana: Array.isArray(init.dias_semana) && init.dias_semana.length
+        ? init.dias_semana.map((d) => Number(d)).filter((d) => d >= 0 && d <= 6)
+        : defaultValues.dias_semana,
+      fechas_bloqueadas: Array.isArray(init.fechas_bloqueadas)
+        ? init.fechas_bloqueadas
+        : [],
+    };
+  });
 
   // Si cambian los initialValues (ej: cuando cargás una cancha para editar),
   // sincronizamos el formulario
@@ -41,6 +65,7 @@ export default function CanchaForm({
   const [uploading, setUploading] = useState(false);
   const [horariosDisponibles, setHorariosDisponibles] = useState([]);
   const [cargandoHorarios, setCargandoHorarios] = useState(true);
+  const [fechaBloqInput, setFechaBloqInput] = useState("");
 
   useEffect(() => {
     let cancelado = false;
@@ -71,6 +96,43 @@ export default function CanchaForm({
           : [...actuales, id],
       };
     });
+  };
+
+  const toggleDiaSemana = (diaValue) => {
+    setV((prev) => {
+      const actuales = Array.isArray(prev.dias_semana) ? prev.dias_semana : [];
+      const yaEsta = actuales.includes(diaValue);
+      const nueva = yaEsta
+        ? actuales.filter((d) => d !== diaValue)
+        : [...actuales, diaValue];
+      return {
+        ...prev,
+        dias_semana: nueva.sort((a, b) => a - b),
+      };
+    });
+  };
+
+  const handleAgregarFechaBloqueada = () => {
+    if (!fechaBloqInput) return;
+    const [yyyy, mm, dd] = fechaBloqInput.split("-");
+    if (!yyyy || !mm || !dd) return;
+    const ddmmyyyy = `${dd}-${mm}-${yyyy}`;
+    setV((prev) => {
+      const existentes = prev.fechas_bloqueadas || [];
+      if (existentes.includes(ddmmyyyy)) return prev;
+      return {
+        ...prev,
+        fechas_bloqueadas: [...existentes, ddmmyyyy],
+      };
+    });
+    setFechaBloqInput("");
+  };
+
+  const removeFechaBloqueada = (index) => {
+    setV((prev) => ({
+      ...prev,
+      fechas_bloqueadas: prev.fechas_bloqueadas.filter((_, i) => i !== index),
+    }));
   };
 
   // Subida de imagen (genérico)
@@ -130,10 +192,22 @@ export default function CanchaForm({
     const payload = {
       nombre,
       descripcion: (v.descripcion || "").trim(),
-      imagen_url: (v.imagen_url || "").trim(), // guardamos la ruta tal cual la devuelve el backend
+      imagen_url: (v.imagen_url || "").trim(),
       imagenes: v.imagenes || [],
       habilitada: !!v.habilitada,
       horarios: Array.isArray(v.horarios) ? v.horarios : [],
+      // 🔴 NUEVOS CAMPOS
+      capacidad_maxima:
+        v.capacidad_maxima && Number(v.capacidad_maxima) > 0
+          ? Number(v.capacidad_maxima)
+          : 6,
+      dias_semana:
+        Array.isArray(v.dias_semana) && v.dias_semana.length
+          ? v.dias_semana
+          : undefined,
+      fechas_bloqueadas: Array.isArray(v.fechas_bloqueadas)
+        ? v.fechas_bloqueadas
+        : [],
     };
 
     await onSubmit?.(payload);
@@ -237,6 +311,106 @@ export default function CanchaForm({
               ))}
             </div>
           )}
+
+          {/* 🔴 NUEVO: Capacidad, Días y Fechas bloqueadas */}
+          <div className="mt-4 space-y-4 border-t border-slate-700 pt-4">
+            {/* Capacidad */}
+            <div>
+              <label className="block text-sm text-gray-300 mb-1.5 font-medium">
+                Capacidad máxima de jugadores
+              </label>
+              <input
+                type="number"
+                min={1}
+                max={50}
+                value={v.capacidad_maxima}
+                onChange={(e) =>
+                  setV((prev) => ({
+                    ...prev,
+                    capacidad_maxima: e.target.value,
+                  }))
+                }
+                className="w-32 px-3 py-2 rounded-lg border border-gray-600 bg-gray-900 text-white focus:outline-none focus:ring-2 focus:ring-emerald-500/70"
+              />
+              <p className="text-xs text-gray-400 mt-1">
+                Si no sabés, dejalo en 6. Se usa para limitar el cupo en cada
+                horario.
+              </p>
+            </div>
+
+            {/* Días de la semana */}
+            <div>
+              <label className="block text-sm text-gray-300 mb-1.5 font-medium">
+                Días habilitados
+              </label>
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                {DIAS_SEMANA.map((d) => (
+                  <button
+                    key={d.value}
+                    type="button"
+                    onClick={() => toggleDiaSemana(d.value)}
+                    className={`px-3 py-1.5 rounded-lg text-xs border transition ${
+                      v.dias_semana.includes(d.value)
+                        ? "bg-emerald-500/20 border-emerald-400 text-emerald-200"
+                        : "bg-slate-900 border-slate-700 text-slate-400 hover:border-slate-500"
+                    }`}
+                  >
+                    {d.label}
+                  </button>
+                ))}
+              </div>
+              <p className="text-xs text-gray-400 mt-1">
+                Si desmarcás todos, se interpreta como sin restricción (todos los
+                días).
+              </p>
+            </div>
+
+            {/* Fechas bloqueadas */}
+            <div>
+              <label className="block text-sm text-gray-300 mb-1.5 font-medium">
+                Fechas bloqueadas
+              </label>
+              <div className="flex items-center gap-2 mb-3">
+                <input
+                  type="date"
+                  value={fechaBloqInput}
+                  onChange={(e) => setFechaBloqInput(e.target.value)}
+                  className="px-3 py-2 rounded-lg border border-gray-600 bg-gray-900 text-white focus:outline-none focus:ring-2 focus:ring-emerald-500/70"
+                />
+                <Button
+                  type="button"
+                  variant="secondary"
+                  size="sm"
+                  texto="Agregar"
+                  onClick={handleAgregarFechaBloqueada}
+                  disabled={!fechaBloqInput}
+                />
+              </div>
+              {(!v.fechas_bloqueadas || v.fechas_bloqueadas.length === 0) ? (
+                <p className="text-xs text-gray-500">
+                  No hay fechas bloqueadas para esta cancha.
+                </p>
+              ) : (
+                <div className="flex flex-wrap gap-2">
+                  {v.fechas_bloqueadas.map((f, idx) => (
+                    <span
+                      key={idx}
+                      className="inline-flex items-center gap-2 px-2 py-1 rounded-full bg-slate-900 border border-slate-600 text-xs text-gray-200"
+                    >
+                      {f}
+                      <button
+                        type="button"
+                        onClick={() => removeFechaBloqueada(idx)}
+                        className="text-red-400 hover:text-red-300"
+                      >
+                        ×
+                      </button>
+                    </span>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
         </div>
       </div>
 

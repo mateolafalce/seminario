@@ -100,10 +100,17 @@ export default function GestionReservas() {
           <h2 className="text-2xl font-bold text-white tracking-tight">Reservas</h2>
           <p className="text-sm text-gray-400 mt-1">Agenda de turnos y control</p>
         </div>
-        <div>
+        <div className="flex gap-2">
+          <Button
+            type="button"
+            onClick={() => navigate("/panel-control/reservas/resultados")}
+            texto="Cargar resultados"
+            variant="secondary"
+            size="md"
+          />
           <Button 
             type="button" 
-            onClick={() => navigate("/panel-control/reservas/nueva")} // Redirige a la página nueva
+            onClick={() => navigate("/panel-control/reservas/nueva")}
             texto="Nueva Reserva" 
             variant="default" 
             size="md"

@@ -7,6 +7,7 @@ import MessageConfirm from "../../../shared/components/ui/Confirm/MessageConfirm
 import backendClient from "../../../shared/services/backendClient";
 import CourtCard from "./CourtCard"; // Usamos la tarjeta bonita
 import { FiCalendar, FiFilter } from "react-icons/fi";
+import { isCanchaDisponibleEnFecha } from "../../../shared/utils/disponibilidadCancha";
 
 const formatDate = (date) => {
     const d = new Date(date);
@@ -142,6 +143,11 @@ export default function ReservaTabla() {
       if(id) navigate(`/canchas/${id}`, { state: { cancha } });
   };
 
+  // Filter canchas based on selected date
+  const canchasVisibles = canchasOrdenadas.filter((c) =>
+    isCanchaDisponibleEnFecha(c, selectedDate)
+  );
+
   return (
     <div className="min-h-[85vh] w-full pt-12 pb-20 px-4 bg-[#0B101B]">
       <div className="mx-auto max-w-7xl">
@@ -182,27 +188,29 @@ export default function ReservaTabla() {
             <span className="text-slate-500 text-xs">{canchasRaw.length} canchas encontradas</span>
         </div>
 
-        {canchasOrdenadas.length > 0 ? (
-            // GRID RESPONSIVE: 1 col en celular, 2 cols en PC
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 animate-fadeIn">
-                {canchasOrdenadas.map((cancha) => (
-                    <CourtCard
-                        key={cancha.id || cancha.nombre}
-                        cancha={cancha}
-                        horarios={horariosPorCancha[cancha.nombre] || []}
-                        cantidades={cantidades}
-                        isAuthenticated={!!user}
-                        selected={selected}
-                        onOpenDetail={abrirDetalle}
-                        onViewCancha={handleViewCancha}
-                        isPastSlot={isPastSlot}
-                    />
-                ))}
-            </div>
+        {canchasVisibles.length === 0 ? (
+          <div className="mt-10 text-center text-slate-400 text-sm">
+            No hay canchas disponibles para esta fecha.
+            <br />
+            Probá cambiar el día o el horario.
+          </div>
         ) : (
-            <div className="text-center py-24 bg-[#151B2B] rounded-3xl border border-white/5">
-                <p className="text-slate-500 animate-pulse">Cargando canchas...</p>
-            </div>
+          // GRID RESPONSIVE: 1 col en celular, 2 cols en PC
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 animate-fadeIn">
+              {canchasVisibles.map((cancha) => (
+                  <CourtCard
+                      key={cancha.id || cancha.nombre}
+                      cancha={cancha}
+                      horarios={horariosPorCancha[cancha.nombre] || []}
+                      cantidades={cantidades}
+                      isAuthenticated={!!user}
+                      selected={selected}
+                      onOpenDetail={abrirDetalle}
+                      onViewCancha={handleViewCancha}
+                      isPastSlot={isPastSlot}
+                  />
+              ))}
+          </div>
         )}
 
         {/* MODALES IGUAL QUE SIEMPRE */}

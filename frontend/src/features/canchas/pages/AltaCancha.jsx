@@ -53,16 +53,15 @@ function AltaCancha({ refresh }) {
       return
     }
 
+    const body = {
+      ...payload,
+      nombre,
+      descripcion: (payload.descripcion || '').trim(),
+      imagen_url: (payload.imagen_url || '').trim(),
+    }
+
     setLoading(true)
     try {
-      // Armamos el body que espera tu backend (CanchaCreate)
-      const body = {
-        nombre,
-        descripcion: (payload.descripcion || '').trim(),
-        imagen_url: (payload.imagen_url || '').trim(),
-        habilitada: payload.habilitada ?? true,
-      }
-
       const response = await backendClient.post('canchas/crear', body)
 
       if (response) {

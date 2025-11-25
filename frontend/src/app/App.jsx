@@ -185,6 +185,14 @@ function AppWithTimeout() {
           {/* RUTAS DE RESERVAS */}
           <Route path="reservas" element={<PermissionRoute check={canManageReservas}><TabReservas /></PermissionRoute>} />
           <Route path="reservas/nueva" element={<PermissionRoute check={canManageReservas}><PersistirReservaAdmin /></PermissionRoute>} />
+          <Route
+            path="reservas/resultados"
+            element={
+              <PermissionRoute check={canManageReservas}>
+                <CargarResultados />
+              </PermissionRoute>
+            }
+          />
 
           <Route path="algoritmo" element={<PermissionRoute check={canUseAlgoritmo}><TabAlgoritmo /></PermissionRoute>} />
         </Route>

@@ -180,6 +180,48 @@ async def crear_cancha(cancha: CanchaCreate):
                 detail="Ya existe una cancha con ese nombre",
             )
 
+        # Normalizar capacidad
+        cap_raw = cancha.capacidad_maxima if cancha.capacidad_maxima is not None else 6
+        try:
+            capacidad_maxima = int(cap_raw)
+        except (TypeError, ValueError):
+            raise HTTPException(status_code=400, detail="capacidad_maxima inválida")
+
+        if capacidad_maxima < 1 or capacidad_maxima > 50:
+            raise HTTPException(status_code=400, detail="capacidad_maxima debe estar entre 1 y 50")
+
+        # Normalizar días de semana (permitimos None = sin restricción)
+        dias_semana = None
+        if cancha.dias_semana is not None:
+            if not isinstance(cancha.dias_semana, list) or not cancha.dias_semana:
+                raise HTTPException(status_code=400, detail="dias_semana debe ser una lista no vacía de enteros 0..6")
+            dias_norm = []
+            for d in cancha.dias_semana:
+                try:
+                    di = int(d)
+                except (TypeError, ValueError):
+                    raise HTTPException(status_code=400, detail="dias_semana debe contener enteros entre 0 y 6")
+                if di < 0 or di > 6:
+                    raise HTTPException(status_code=400, detail="dias_semana debe contener enteros entre 0 y 6")
+                dias_norm.append(di)
+            dias_semana = sorted(set(dias_norm))
+
+        # Normalizar fechas bloqueadas
+        fechas_bloqueadas = []
+        if cancha.fechas_bloqueadas:
+            from datetime import datetime
+            for f in cancha.fechas_bloqueadas:
+                if not isinstance(f, str):
+                    raise HTTPException(status_code=400, detail="fechas_bloqueadas debe ser lista de strings DD-MM-YYYY")
+                s = f.strip()
+                if not s:
+                    continue
+                try:
+                    datetime.strptime(s, "%d-%m-%Y")
+                except ValueError:
+                    raise HTTPException(status_code=400, detail=f"Fecha bloqueada inválida: {s}, usar formato DD-MM-YYYY")
+                fechas_bloqueadas.append(s)
+
         doc: Dict[str, Any] = {
             "nombre": nombre,
             "descripcion": descripcion,
@@ -187,6 +229,10 @@ async def crear_cancha(cancha: CanchaCreate):
             "habilitada": habilitada,
             "horarios": horarios_oids,
             "imagenes": imagenes_norm,
+            # 🔴 NUEVOS CAMPOS
+            "capacidad_maxima": capacidad_maxima,
+            "dias_semana": dias_semana,              # puede ser None => sin restricción
+            "fechas_bloqueadas": fechas_bloqueadas,  # lista de strings
         }
 
         result = db_client.canchas.insert_one(doc)
@@ -271,6 +317,50 @@ async def modificar_cancha(cancha_id: str, data: CanchaUpdate):
                 if s:
                     imagenes_norm.append(s)
         update_fields["imagenes"] = imagenes_norm
+
+    # 🔴 NUEVO: capacidad
+    if data.capacidad_maxima is not None:
+        try:
+            cap = int(data.capacidad_maxima)
+        except (TypeError, ValueError):
+            raise HTTPException(status_code=400, detail="capacidad_maxima inválida")
+        if cap < 1 or cap > 50:
+            raise HTTPException(status_code=400, detail="capacidad_maxima debe estar entre 1 y 50")
+        update_fields["capacidad_maxima"] = cap
+
+    # 🔴 NUEVO: días semana
+    if data.dias_semana is not None:
+        if not data.dias_semana:
+            # interpretamos lista vacía como "sin restricción" => eliminamos el campo
+            update_fields["dias_semana"] = []
+        else:
+            dias_norm = []
+            for d in data.dias_semana:
+                try:
+                    di = int(d)
+                except (TypeError, ValueError):
+                    raise HTTPException(status_code=400, detail="dias_semana debe contener enteros entre 0 y 6")
+                if di < 0 or di > 6:
+                    raise HTTPException(status_code=400, detail="dias_semana debe contener enteros entre 0 y 6")
+                dias_norm.append(di)
+            update_fields["dias_semana"] = sorted(set(dias_norm))
+
+    # 🔴 NUEVO: fechas bloqueadas
+    if data.fechas_bloqueadas is not None:
+        from datetime import datetime
+        fechas_ok = []
+        for f in data.fechas_bloqueadas:
+            if not isinstance(f, str):
+                raise HTTPException(status_code=400, detail="fechas_bloqueadas debe ser lista de strings DD-MM-YYYY")
+            s = f.strip()
+            if not s:
+                continue
+            try:
+                datetime.strptime(s, "%d-%m-%Y")
+            except ValueError:
+                raise HTTPException(status_code=400, detail=f"Fecha bloqueada inválida: {s}, usar formato DD-MM-YYYY")
+            fechas_ok.append(s)
+        update_fields["fechas_bloqueadas"] = fechas_ok
 
     try:
         db_client.canchas.update_one({"_id": cancha_oid}, {"$set": update_fields})
