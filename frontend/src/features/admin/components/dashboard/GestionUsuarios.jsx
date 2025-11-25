@@ -8,7 +8,7 @@ import ListaUsuarios from "../../../usuarios/pages/ListaUsuarios";
 import ModalesUsuario from "../../../usuarios/pages/ModalesUsuario";
 import Paginacion from "../../../../shared/components/ui/Paginacion";
 import Button from "../../../../shared/components/ui/Button/Button";
-import { MdLayers, MdPersonAdd } from "react-icons/md";
+import { MdLayers, MdPersonAdd, MdPeopleAlt } from "react-icons/md"; // Nuevo icono
 
 function GestionUsuarios() {
   const navigate = useNavigate();
@@ -58,44 +58,45 @@ function GestionUsuarios() {
   };
 
   return (
-    <section className="w-full space-y-6">
+    // ANIMACIÓN AGREGADA
+    <section className="w-full space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
       
-      {/* HEADER */}
-      <div className="bg-slate-900/60 border border-slate-700/70 rounded-xl p-5 shadow-lg flex flex-col gap-4">
-        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+      {/* HEADER REFINADO */}
+      <div className="flex flex-col md:flex-row md:items-end justify-between gap-4 border-b border-slate-800 pb-5">
           <div>
-            <h2 className="text-2xl font-bold text-white tracking-tight">Usuarios</h2>
-            <p className="text-sm text-gray-400 mt-1">Administración de cuentas y permisos</p>
+            <h2 className="text-3xl font-bold text-white tracking-tight flex items-center gap-3">
+               <span className="text-yellow-400"><MdPeopleAlt /></span>
+               Usuarios
+            </h2>
+            <p className="text-slate-400 mt-2 text-sm">Administración de cuentas, perfiles y permisos de acceso.</p>
           </div>
-          <div className="flex items-center gap-3 w-full sm:w-auto">
+          <div className="flex items-center gap-3 w-full md:w-auto">
              <Button
               texto="Categorías"
               onClick={() => navigate("/panel-control/usuarios/categorias")}
               variant="secondary"
-              size="md"
               icon={<MdLayers size={18} />}
-              className="flex-1 sm:flex-none justify-center"
+              className="flex-1 md:flex-none justify-center"
             />
             <Button
               texto="Nuevo Usuario"
               onClick={() => navigate("/panel-control/usuarios/nuevo")}
               variant="default"
-              size="md"
-              icon={<MdPersonAdd size={18} />}
-              className="flex-1 sm:flex-none justify-center"
+              icon={<MdPersonAdd size={20} />}
+              className="flex-1 md:flex-none justify-center shadow-lg shadow-yellow-400/10"
             />
           </div>
-        </div>
+      </div>
 
-        <div className="w-full">
-            <BarraBusqueda
-              onBuscar={buscar}
-              onLimpiar={limpiar}
-              modoBusqueda={modoBusqueda}
-              resultados={resultados}
-              loading={loadingBusqueda}
-            />
-        </div>
+      {/* BARRA DE BÚSQUEDA INTEGRADA */}
+      <div className="w-full max-w-2xl">
+          <BarraBusqueda
+            onBuscar={buscar}
+            onLimpiar={limpiar}
+            modoBusqueda={modoBusqueda}
+            resultados={resultados}
+            loading={loadingBusqueda}
+          />
       </div>
 
       {/* CONTENIDO */}
