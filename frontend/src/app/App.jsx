@@ -15,32 +15,47 @@ import Habilitado from '../features/admin/pages/Habilitado';
 import MisDatos from '../features/usuarios/pages/MisDatos';
 import CargarResultados from '../features/reservas/pages/CargarResultados';
 import ReseniasPublicas from '../features/resenias/pages/ReseniasPublicas';
-import TabAlgoritmo from '../features/admin/pages/TabAlgoritmo';
+import DetalleCancha from '../features/canchas/pages/DetalleCancha';
+import PersistirCancha from '../features/canchas/pages/PersistirCancha';
+import PersistirReservaAdmin from '../features/reservas/pages/PersistirReservaAdmin';
+import PersistirUsuarioAdmin from '../features/usuarios/pages/PersistirUsuarioAdmin';
+import PageCategorias from '../features/admin/pages/PageCategorias';
+import PageHorarios from '../features/admin/pages/PageHorarios';
 
 import { ToastContainer } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 
 import AuthProvider, { AuthContext } from '../features/auth/context/AuthContext';
 
-
-// Permisos (modelo nuevo basado en roles/permissions)
 import {
   canManageUsers,
   canManageCanchas,
   canManageReservas,
-  canManageHorarios,
-  canManageCategorias,
   canViewStatistics,
   canUseAlgoritmo,
 } from '../shared/utils/permissions';
 
-// PanelControl y tabs hijas
-import PanelControl, { TabUsuarios, TabCanchas, TabReservas, TabHorarios, TabCategorias } from '../features/admin/pages/PanelControl';
+import PanelControl, { 
+  TabUsuarios, 
+  TabCanchas, 
+  TabReservas, 
+  TabAlgoritmo 
+} from '../features/admin/pages/PanelControl';
 
-// ---------- Layout que esconde Navbar en /panel-control ----------
 function MainLayout({ children }) {
   const location = useLocation();
-  const hideNavbar = location.pathname.startsWith('/panel-control'); // ocultar navbar en el panel
+  const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
+
+  useEffect(() => {
+    const handleResize = () => setIsMobile(window.innerWidth < 768);
+    window.addEventListener('resize', handleResize, { passive: true });
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
+
+  const isPanel = location.pathname.startsWith('/panel-control');
+  const isDetalleCancha = /^\/canchas\/[a-zA-Z0-9_-]+$/.test(location.pathname);
+
+  const hideNavbar = isPanel || (isMobile && isDetalleCancha);
 
   return (
     <>
@@ -62,7 +77,6 @@ function MainLayout({ children }) {
   );
 }
 
-// ---------- Protege pestañas específicas del panel ----------
 function PermissionRoute({ check, children }) {
   const { loading, isAuthenticated, roles, permissions } = useContext(AuthContext);
   const me = useMemo(() => ({ roles, permissions }), [roles, permissions]);
@@ -74,7 +88,6 @@ function PermissionRoute({ check, children }) {
   return children;
 }
 
-// ---------- Auto redirige a la primera pestaña permitida ----------
 function AutoRedirectPanel() {
   const { loading, isAuthenticated, roles, permissions } = useContext(AuthContext);
   const me = useMemo(() => ({ roles, permissions }), [roles, permissions]);
@@ -82,22 +95,20 @@ function AutoRedirectPanel() {
   if (loading) return <div className="p-6 text-gray-200">Cargando…</div>;
   if (!isAuthenticated) return <Navigate to="/login" replace />;
 
-  // Orden sugerido: usuarios → canchas → horarios → reservas → estadísticas
   if (canManageUsers(me))     return <Navigate to="/panel-control/usuarios" replace />;
   if (canManageCanchas(me))   return <Navigate to="/panel-control/canchas" replace />;
-  if (canManageCanchas(me))   return <Navigate to="/panel-control/horarios" replace />; // 👈 NUEVO
   if (canManageReservas(me))  return <Navigate to="/panel-control/reservas" replace />;
   if (canViewStatistics(me))  return <Navigate to="/panel-control/estadisticas" replace />;
+  if (canUseAlgoritmo(me))    return <Navigate to="/panel-control/algoritmo" replace />;
 
   return <Navigate to="/" replace />;
 }
 
-// ---------- App con timeout de inactividad (tu lógica original) ----------
 function AppWithTimeout() {
   const [showTimeoutOverlay, setShowTimeoutOverlay] = useState(false);
   const { logout, isAuthenticated } = useContext(AuthContext);
   const [lastActivity, setLastActivity] = useState(Date.now());
-  const inactivityTimeout = 60 * 60 * 1000; // 60 min
+  const inactivityTimeout = 60 * 60 * 1000; 
 
   const resetInactivityTimer = () => setLastActivity(Date.now());
 
@@ -138,12 +149,10 @@ function AppWithTimeout() {
       )}
 
       <Routes>
-        {/* Públicas */}
         <Route path="/" element={<HomePage />} />
         <Route path="/home" element={<HomePage />} />
         <Route path="/login" element={<Login />} />
         <Route path="/register" element={<Register />} />
-
         <Route path="/reserva" element={<Reserva />} />
         <Route path="/clientes/buscar" element={<BuscarCliente />} />
         <Route path="/preferencias" element={<Preferencias />} />
@@ -154,69 +163,39 @@ function AppWithTimeout() {
         <Route path="/cargar-resultados" element={<CargarResultados />} />
         <Route path="/resenias" element={<ReseniasPublicas />} />
 
-        {/* Compat: vieja ruta -> nueva */}
+        <Route
+          path="/canchas/:id"
+          element={<PermissionRoute check={() => true}><DetalleCancha /></PermissionRoute>}
+        />
+
         <Route path="/admin/dashboard" element={<Navigate to="/panel-control" replace />} />
 
-        {/* Panel de Control con subrutas */}
         <Route path="/panel-control" element={<PanelControl />}>
           <Route index element={<AutoRedirectPanel />} />
+          <Route path="usuarios" element={<PermissionRoute check={canManageUsers}><TabUsuarios /></PermissionRoute>} />
+          <Route path="usuarios/nuevo" element={<PermissionRoute check={canManageUsers}><PersistirUsuarioAdmin /></PermissionRoute>} />
+          <Route path="usuarios/categorias" element={<PermissionRoute check={canManageUsers}><PageCategorias /></PermissionRoute>} />
+          
+          {/* RUTAS DE CANCHAS */}
+          <Route path="canchas" element={<PermissionRoute check={canManageCanchas}><TabCanchas /></PermissionRoute>} />
+          <Route path="canchas/nueva" element={<PermissionRoute check={canManageCanchas}><PersistirCancha /></PermissionRoute>} />
+          <Route path="canchas/editar/:id" element={<PermissionRoute check={canManageCanchas}><PersistirCancha /></PermissionRoute>} />
+          <Route path="canchas/horarios" element={<PermissionRoute check={canManageCanchas}><PageHorarios /></PermissionRoute>} />
 
+          {/* RUTAS DE RESERVAS */}
+          <Route path="reservas" element={<PermissionRoute check={canManageReservas}><TabReservas /></PermissionRoute>} />
+          <Route path="reservas/nueva" element={<PermissionRoute check={canManageReservas}><PersistirReservaAdmin /></PermissionRoute>} />
           <Route
-            path="usuarios"
-            element={
-              <PermissionRoute check={canManageUsers}>
-                <TabUsuarios />
-              </PermissionRoute>
-            }
-          />
-
-          <Route
-            path="canchas"
-            element={
-              <PermissionRoute check={canManageCanchas}>
-                <TabCanchas />
-              </PermissionRoute>
-            }
-          />
-
-          <Route
-            path="horarios"
-            element={
-              <PermissionRoute check={canManageHorarios}>
-                <TabHorarios />
-              </PermissionRoute>
-            }
-          />
-
-          <Route
-            path="categorias"
-            element={
-              <PermissionRoute check={canManageCategorias}>
-                <TabCategorias />
-              </PermissionRoute>
-            }
-          />
-
-          <Route
-            path="reservas"
+            path="reservas/resultados"
             element={
               <PermissionRoute check={canManageReservas}>
-                <TabReservas />
+                <CargarResultados />
               </PermissionRoute>
             }
           />
 
-          <Route
-            path="algoritmo"
-            element={
-              <PermissionRoute check={canUseAlgoritmo}>
-                <TabAlgoritmo />
-              </PermissionRoute>
-            }
-          />
+          <Route path="algoritmo" element={<PermissionRoute check={canUseAlgoritmo}><TabAlgoritmo /></PermissionRoute>} />
         </Route>
-
-        {/* Catch-all */}
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </>

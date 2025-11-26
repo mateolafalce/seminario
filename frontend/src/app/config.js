@@ -10,3 +10,18 @@ export const getApiUrl = (endpoint) => {
   // En prod: /api/...
   return IS_LOCAL ? `${BACKEND_URL}/api/${clean}` : `/api/${clean}`;
 };
+
+export const getFileUrl = (path) => {
+  if (!path) return "";
+
+  // Si ya es absoluta (http/https), la dejamos como está
+  if (/^https?:\/\//i.test(path)) return path;
+
+  // En local usamos el BACKEND_URL (ej: http://localhost:8000)
+  if (IS_LOCAL) {
+    return `${BACKEND_URL}${path.startsWith("/") ? "" : "/"}${path}`;
+  }
+
+  // En prod asumimos que /images lo resuelve el mismo host (nginx / reverse-proxy)
+  return path;
+};

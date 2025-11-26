@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import { useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import MiToast from "../../../shared/components/ui/Toast/MiToast";
 import { toast } from "react-toastify";

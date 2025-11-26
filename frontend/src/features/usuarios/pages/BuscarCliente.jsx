@@ -1,8 +1,6 @@
-// src/pages/ReseniasPublicas.jsx
-import React, { useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import { FiUser } from "react-icons/fi";
 
-// igual que en tus otras pantallas
 const BACKEND_URL = `http://${window.location.hostname}:8000`;
 const API_BASE =
   window.location.hostname === "localhost"

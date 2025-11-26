@@ -36,8 +36,18 @@ const normHorarios = (data) =>
 
 const normCanchas = (data) =>
   (Array.isArray(data) ? data : []).map(it => ({
-    id: it?.id ?? it?.nombre ?? String(it),
+    id: it?.id ?? it?._id ?? String(it),
     nombre: it?.nombre ?? String(it),
+    habilitada: it?.habilitada ?? true,
+    descripcion: it?.descripcion ?? "",
+    imagen_url: it?.imagen_url ?? "",
+    horarios: (it?.horarios || []).map(h => {
+      if (typeof h === 'string') return h;
+      if (typeof h === 'object' && h !== null) {
+        return h._id || h.id || String(h);
+      }
+      return String(h);
+    }),
   }));
 
 const adminApi = {
@@ -112,9 +122,20 @@ const adminApi = {
 
 // --- Named exports para el admin modal (canchas/horarios) ---
 export const listarCanchas = async () => {
-  const data = await backendClient.get('canchas/listar'); // GET /api/canchas/listar
+  const data = await backendClient.get('canchas/listar');
   const list = data?.canchas ?? data ?? [];
-  return list.map(c => ({ id: c._id || c.id, nombre: c.nombre }));
+
+  return list.map(c => ({
+    id: c._id || c.id,
+    nombre: c.nombre,
+    horarios: (c.horarios || []).map(h => {
+      if (typeof h === 'string') return h;
+      if (typeof h === 'object' && h !== null) {
+        return h._id || h.id || String(h);
+      }
+      return String(h);
+    }),
+  }));
 };
 
 export const listarHorarios = async () => {

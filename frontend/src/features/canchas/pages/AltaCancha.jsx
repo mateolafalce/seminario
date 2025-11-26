@@ -1,10 +1,10 @@
-import React, { useState, useContext } from 'react'
+import { useState, useContext } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { AuthContext } from '../../auth/context/AuthContext'
-import AuthForm from '../../auth/components/AuthForm'
 import backendClient from '../../../shared/services/backendClient'
 import ListarCanchas from './ListarCanchas'
 import { canManageCanchas } from '../../../shared/utils/permissions'
+import CanchaForm from "../components/CanchaForm"
 
 function AltaCancha({ refresh }) {
   const [errores, setErrores] = useState({})
@@ -43,28 +43,40 @@ function AltaCancha({ refresh }) {
     )
   }
 
-  const campos = [
-    { nombre: "nombre", etiqueta: "Nombre de la cancha", tipo: "text", placeholder: "Ej: Cancha 1" }
-  ]
-
-  const handleSubmit = async (valores) => {
+  const handleSubmit = async (payload) => {
     setErrores({})
     setMensajeExito('')
-    if (!valores.nombre || !valores.nombre.trim()) {
+
+    const nombre = (payload?.nombre || '').trim()
+    if (!nombre) {
       setErrores({ nombre: "El nombre es obligatorio" })
       return
     }
+
+    const body = {
+      ...payload,
+      nombre,
+      descripcion: (payload.descripcion || '').trim(),
+      imagen_url: (payload.imagen_url || '').trim(),
+    }
+
     setLoading(true)
     try {
-      const response = await backendClient.post('canchas/crear', { nombre: valores.nombre })
+      const response = await backendClient.post('canchas/crear', body)
+
       if (response) {
         setMensajeExito('Cancha creada correctamente')
         setRefreshCanchas(r => !r) // trigger refresh
       } else {
         setErrores({ general: 'Error al crear la cancha' })
       }
-    } catch (err) {
-      setErrores({ general: err.message || 'Error de conexión con el servidor' })
+    } catch (error) {
+      const mensaje =
+        error?.data?.detail ||
+        error?.detail ||
+        error?.message ||
+        'Error de conexión con el servidor'
+      setErrores({ general: mensaje })
     } finally {
       setLoading(false)
     }
@@ -73,18 +85,22 @@ function AltaCancha({ refresh }) {
   return (
     <div>
       <div className="max-w-md mx-auto p-8 my-5">
-        <AuthForm
-          titulo="Crear Nueva Cancha"
-          campos={campos}
+        <h1 className="text-2xl font-semibold text-gray-100 mb-4">
+          Crear Nueva Cancha
+        </h1>
+
+        <CanchaForm
           onSubmit={handleSubmit}
-          textoBoton="Crear Cancha"
-          cargando={loading}
-          errores={errores}
-        >
-          {mensajeExito && (
-            <p className="text-green-700 text-center mt-4">{mensajeExito}</p>
-          )}
-        </AuthForm>
+          submitText="Crear Cancha"
+          loading={loading}
+          erroresExternos={errores}
+        />
+
+        {mensajeExito && (
+          <p className="text-green-700 text-center mt-4">
+            {mensajeExito}
+          </p>
+        )}
       </div>
     </div>
   )

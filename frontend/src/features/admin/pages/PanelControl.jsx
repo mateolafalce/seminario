@@ -1,38 +1,32 @@
-import React, { useContext, useMemo } from 'react';
-import { Navigate, useLocation, NavLink, Outlet, useNavigate } from 'react-router-dom';
+import { useContext, useMemo, useState } from 'react';
+import { Navigate, NavLink, Outlet, useNavigate } from 'react-router-dom';
 import { AuthContext } from '../../auth/context/AuthContext';
-
-import { HiUsers } from "react-icons/hi";
+import { HiUsers, HiMenu, HiX } from "react-icons/hi";
 import { IoStatsChartSharp } from "react-icons/io5";
 import { PiCourtBasketballFill } from "react-icons/pi";
-import { MdAccessTime, MdLayers } from "react-icons/md";
 import { FiLogOut } from 'react-icons/fi';
 import { FaProjectDiagram } from "react-icons/fa";
 
 import {
-  canManageUsers,
-  canManageCanchas,
-  canManageReservas,
-  canManageHorarios,
-  canManageCategorias,
-  canViewStatistics,
-  canUseAlgoritmo,
+  canManageUsers, canManageCanchas, canManageReservas, canViewStatistics, canUseAlgoritmo,
 } from '../../../shared/utils/permissions';
 
-function SidebarLink({ to, icon, label }) {
+// SidebarLink mejorado con indicador visual activo (borde izquierdo)
+function SidebarLink({ to, icon, label, onClick }) {
   return (
     <NavLink
       to={to}
+      onClick={onClick}
       className={({ isActive }) =>
         [
-          'group flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors',
+          'group flex items-center gap-3 rounded-r-lg border-l-[3px] px-4 py-3 text-sm font-medium transition-all duration-200',
           isActive
-            ? 'bg-yellow-500/10 text-yellow-300'
-            : 'text-gray-300 hover:bg-gray-700 hover:text-white',
+            ? 'bg-yellow-500/10 border-yellow-400 text-yellow-400' // Activo: fondo sutil + borde amarillo
+            : 'border-transparent text-slate-400 hover:bg-slate-800 hover:text-slate-200', // Inactivo
         ].join(' ')
       }
     >
-      <span className="w-5 h-5 flex items-center justify-center">{icon}</span>
+      <span className="text-lg">{icon}</span>
       <span className="truncate">{label}</span>
     </NavLink>
   );
@@ -42,107 +36,82 @@ export default function PanelControl() {
   const { loading, isAuthenticated, roles, permissions } = useContext(AuthContext);
   const me = useMemo(() => ({ roles, permissions }), [roles, permissions]);
   const navigate = useNavigate();
-  const location = useLocation();
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   const flags = useMemo(() => ({
     showUsuarios:     canManageUsers(me),
     showCanchas:      canManageCanchas(me),
     showReservas:     canManageReservas(me),
-    showHorarios:     canManageHorarios(me),
-    showCategorias:   canManageCategorias(me),
     showEstadisticas: canViewStatistics(me),
     showAlgoritmo:    canUseAlgoritmo(me),
   }), [me]);
 
-  // Wait for auth to load before redirecting
-  if (loading) {
-    return (
-      <div className="bg-gray-900 min-h-screen flex items-center justify-center">
-        <div className="text-gray-400">Cargando...</div>
-      </div>
-    );
-  }
-
+  if (loading) return <div className="bg-slate-950 min-h-screen flex items-center justify-center text-slate-500">Cargando...</div>;
   if (!isAuthenticated || !canManageReservas(me)) return <Navigate to="/" replace />;
 
-  const nothing =
-    !flags.showUsuarios &&
-    !flags.showCanchas &&
-    !flags.showReservas &&
-    !flags.showEstadisticas &&
-    !flags.showHorarios &&
-    !flags.showCategorias &&
-    !flags.showAlgoritmo;
+  const nothing = !flags.showUsuarios && !flags.showCanchas && !flags.showReservas && !flags.showEstadisticas && !flags.showAlgoritmo;
 
   return (
-    <div className="bg-gray-900 min-h-screen">
-      <div className="grid grid-cols-[220px_1fr] gap-0 min-h-screen">
-        {/* Sidebar */}
-        <aside className="bg-gray-800 p-6 sticky top-0 h-screen">
-          <div className="hidden lg:block">
-            <h1 className="text-lg font-bold text-white mb-1">Panel Admin</h1>
-            <p className="text-gray-400 text-xs mb-4">Gestión del sistema</p>
-
-            <nav className="flex flex-col gap-2">
-              {flags.showUsuarios   && <SidebarLink to="/panel-control/usuarios"   icon={<HiUsers />}                label="Usuarios" />}
-              {flags.showReservas   && <SidebarLink to="/panel-control/reservas"   icon={<IoStatsChartSharp />}      label="Reservas" />}
-              {flags.showCanchas    && <SidebarLink to="/panel-control/canchas"    icon={<PiCourtBasketballFill />}  label="Canchas" />}
-              {flags.showHorarios   && <SidebarLink to="/panel-control/horarios"   icon={<MdAccessTime />}           label="Horarios" />}
-              {flags.showCategorias && <SidebarLink to="/panel-control/categorias" icon={<MdLayers size={18} />}     label="Categorías" />}
-              {flags.showAlgoritmo  && <SidebarLink to="/panel-control/algoritmo"  icon={<FaProjectDiagram size={18} />} label="Algoritmo" />}
-
-              {nothing && (
-                <div className="text-xs text-gray-400 px-3 py-2">
-                  No tenés permisos para ver secciones del panel.
-                </div>
-              )}
-
-              <div className="my-2 h-px bg-gray-700" />
-
-              <button
-                onClick={() => navigate('/home')}
-                className="group flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium text-yellow-300 hover:bg-yellow-500/10 hover:text-white transition-colors"
-              >
-                <FiLogOut className="w-5 h-5" />
-                Volver
-              </button>
-            </nav>
-          </div>
-
-          {/* Selector mobile */}
-          <div className="block lg:hidden">
-            <label className="text-white text-sm font-medium mb-2">Secciones</label>
-            <select
-              value={location.pathname.split('/')[2] || ''}
-              onChange={(e) => {
-                const value = e.target.value;
-                if (value) navigate(`/panel-control/${value}`);
-              }}
-              className="w-full bg-gray-700 text-white text-base p-3 rounded-lg border border-gray-600 focus:outline-none focus:ring-2 focus:ring-yellow-400"
-            >
-              <option value="">(Seleccioná)</option>
-              {flags.showUsuarios   && <option value="usuarios">Usuarios</option>}
-              {flags.showReservas   && <option value="reservas">Reservas</option>}
-              {flags.showCanchas    && <option value="canchas">Canchas</option>}
-              {flags.showHorarios   && <option value="horarios">Horarios</option>}
-              {flags.showCategorias && <option value="categorias">Categorías</option>}
-              {flags.showAlgoritmo  && <option value="algoritmo">Algoritmo</option>}
-            </select>
-          </div>
-        </aside>
-
-        {/* Main */}
-        <main className="p-6 overflow-y-auto">
-          <Outlet />
-        </main>
+    // CAMBIO: bg-slate-950 para el fondo general (más oscuro)
+    <div className="bg-slate-950 min-h-screen flex flex-col lg:flex-row font-sans">
+      
+      {/* Mobile Header */}
+      <div className="lg:hidden bg-slate-900 border-b border-slate-800 px-4 py-3 flex items-center justify-between sticky top-0 z-30">
+        <h1 className="text-lg font-bold text-white tracking-wide">Panel Admin</h1>
+        <button onClick={() => setMobileMenuOpen(!mobileMenuOpen)} className="text-slate-300 p-2">
+          {mobileMenuOpen ? <HiX size={24} /> : <HiMenu size={24} />}
+        </button>
       </div>
+
+      {/* Sidebar - CAMBIO: bg-slate-900 (un poco más claro que el fondo) y borde sutil */}
+      <aside 
+        className={`
+          fixed inset-y-0 left-0 z-40 w-64 bg-slate-900 border-r border-slate-800 transform transition-transform duration-300 ease-in-out
+          lg:translate-x-0 lg:static lg:h-screen lg:overflow-y-auto
+          ${mobileMenuOpen ? 'translate-x-0' : '-translate-x-full'}
+        `}
+      >
+        <div className="p-6">
+          <div className="mb-8 px-2">
+            <h1 className="text-xl font-bold text-white tracking-tight">Boulevard<span className="text-yellow-400">81</span></h1>
+            <p className="text-slate-500 text-xs mt-1 uppercase tracking-wider font-semibold">Administración</p>
+          </div>
+
+          <nav className="flex flex-col gap-1">
+            {flags.showUsuarios   && <SidebarLink onClick={() => setMobileMenuOpen(false)} to="/panel-control/usuarios"   icon={<HiUsers />}                label="Usuarios" />}
+            {flags.showReservas   && <SidebarLink onClick={() => setMobileMenuOpen(false)} to="/panel-control/reservas"   icon={<IoStatsChartSharp />}      label="Reservas" />}
+            {flags.showCanchas    && <SidebarLink onClick={() => setMobileMenuOpen(false)} to="/panel-control/canchas"    icon={<PiCourtBasketballFill />}  label="Canchas" />}
+            {flags.showAlgoritmo  && <SidebarLink onClick={() => setMobileMenuOpen(false)} to="/panel-control/algoritmo"  icon={<FaProjectDiagram size={18} />} label="Algoritmo" />}
+
+            {nothing && <div className="text-xs text-slate-500 px-4 py-4 text-center border border-slate-800 rounded border-dashed">Sin permisos</div>}
+
+            <div className="my-4 h-px bg-slate-800 mx-2" />
+
+            <button
+              onClick={() => navigate('/home')}
+              className="group flex items-center gap-3 rounded-lg px-4 py-3 text-sm font-medium text-slate-400 hover:text-white transition-colors w-full text-left"
+            >
+              <FiLogOut className="w-5 h-5 group-hover:text-red-400 transition-colors" />
+              <span>Volver al Home</span>
+            </button>
+          </nav>
+        </div>
+      </aside>
+
+      {/* Overlay Mobile */}
+      {mobileMenuOpen && <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-30 lg:hidden" onClick={() => setMobileMenuOpen(false)} />}
+
+      {/* Main Content - CAMBIO: max-w-7xl para evitar que se estire demasiado en pantallas gigantes */}
+      <main className="flex-1 p-4 lg:p-8 overflow-y-auto h-[calc(100vh-60px)] lg:h-screen">
+         <div className="max-w-7xl mx-auto">
+            <Outlet />
+         </div>
+      </main>
     </div>
   );
 }
 
-// Re-exports para que App.jsx pueda importar desde PanelControl.jsx
 export { default as TabUsuarios }   from '../components/dashboard/GestionUsuarios';
-export { default as TabCanchas }    from '../../canchas/pages/VerCanchasInline';
+export { default as TabCanchas }    from '../components/dashboard/GestionCanchas';
 export { default as TabReservas }   from '../components/dashboard/GestionReservas';
-export { default as TabHorarios }   from './TabHorarios';
-export { default as TabCategorias } from './TabCategorias';
+export { default as TabAlgoritmo }  from './TabAlgoritmo';

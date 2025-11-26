@@ -1,10 +1,11 @@
-import { useContext, useEffect, useState, useCallback } from "react";
+import { useContext, useEffect, useState, useCallback, useRef } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { AuthContext } from "../../../../features/auth/context/AuthContext";
 import Button from "../../ui/Button/Button";
 import logoCompleto from "../../../../assets/icons/logoCompletoBlanco.svg";
 import { motion, AnimatePresence } from "framer-motion";
 import { canManageUsers, canManageReservas } from "../../../utils/permissions";
+import IconoAvatar from "../../../../assets/icons/iconoAvatar.jsx";
 
 function CustomNavbar() {
   const navigate = useNavigate();
@@ -15,6 +16,8 @@ function CustomNavbar() {
   const [scrolled, setScrolled] = useState(false);
   const [showOffcanvas, setShowOffcanvas] = useState(false);
   const [loggingOut, setLoggingOut] = useState(false);
+  const [showUserMenu, setShowUserMenu] = useState(false);
+  const userMenuRef = useRef(null);
 
   // fondo blur al scrollear
   useEffect(() => {
@@ -48,12 +51,32 @@ function CustomNavbar() {
     }
   }, [showOffcanvas]);
 
+  // cerrar menú de usuario al hacer click fuera
+  useEffect(() => {
+    if (!showUserMenu) return;
+
+    const handleClickOutside = (e) => {
+      if (userMenuRef.current && !userMenuRef.current.contains(e.target)) {
+        setShowUserMenu(false);
+      }
+    };
+
+    document.addEventListener("mousedown", handleClickOutside);
+    document.addEventListener("touchstart", handleClickOutside);
+
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+      document.removeEventListener("touchstart", handleClickOutside);
+    };
+  }, [showUserMenu]);
+
   const handleLogout = useCallback(async () => {
     if (loggingOut) return;
     setLoggingOut(true);
     try {
       await logout();
       setShowOffcanvas(false);
+      setShowUserMenu(false);
       navigate('/home', { replace: true });
     } finally {
       setLoggingOut(false);
@@ -69,49 +92,47 @@ function CustomNavbar() {
   );
 
   const renderSessionButtons = (isMobile = false) => {
-    if (isAuthenticated) {
+    // solo se usa cuando NO está autenticado
+    if (!isAuthenticated) {
       return (
-        <Button
-          texto={loggingOut ? "Cerrando..." : "Cerrar Sesión"}
-          onClick={handleLogout}
-          variant="primary"
-          disabled={loggingOut}
-          className={isMobile ? "mb-2" : ""}
-        />
+        <>
+          <Button
+            texto="Iniciar Sesión"
+            onClick={() => (isMobile ? handleNavigate("/login") : navigate("/login"))}
+            variant="primary"
+            className={isMobile ? "mb-2" : ""}
+          />
+          <Button
+            texto="Registrarse"
+            onClick={() => (isMobile ? handleNavigate("/register") : navigate("/register"))}
+            variant="primary"
+            className={isMobile ? "" : "ml-2"}
+          />
+        </>
       );
     }
-    return (
-      <>
-        <Button
-          texto="Iniciar Sesión"
-          onClick={() => (isMobile ? handleNavigate("/login") : navigate("/login"))}
-          variant="primary"
-          className={isMobile ? "mb-2" : ""}
-        />
-        <Button
-          texto="Registrarse"
-          onClick={() => (isMobile ? handleNavigate("/register") : navigate("/register"))}
-          variant="primary"
-          className={isMobile ? "" : "ml-2"}
-        />
-      </>
-    );
+    return null;
   };
 
   // Links centrales (visibilidad por rol/permisos)
   const links = [
-    { label: "Home", path: "/home", show: () => isAuthenticated },
-    { label: "Reseñas", path: "/resenias", show: () => isAuthenticated },
-    { label: "Turnos", path: "/reserva", show: () => isAuthenticated },
-    { label: "Reservas", path: "/mis-reservas", show: () => isAuthenticated },
-    { label: "Preferencias", path: "/preferencias", show: () => isAuthenticated },
-    { label: "Datos", path: "/mis-datos", show: () => isAuthenticated },
-    { label: "Resultados", path: "/cargar-resultados", show: () => isAuthenticated && (canManageReservas(me) || permissions.includes('reservas.resultado.cargar')) },
-    { label: "Panel", path: "/admin/dashboard", show: () => isAuthenticated && canManageUsers(me) },
+    { label: "Home", path: "/home", desktop: true, show: () => isAuthenticated },
+    { label: "Turnos", path: "/reserva", desktop: true, show: () => isAuthenticated },
+    { label: "Reservas", path: "/mis-reservas", desktop: true, show: () => isAuthenticated },
+    
+    // Estos se ocultan en desktop pero siguen en mobile
+    { label: "Reseñas", path: "/resenias", desktop: false, show: () => isAuthenticated },
+    { label: "Preferencias", path: "/preferencias", desktop: false, show: () => isAuthenticated },
+    { label: "Datos", path: "/mis-datos", desktop: false, show: () => isAuthenticated },
+    { label: "Resultados", path: "/cargar-resultados", desktop: false, show: () => isAuthenticated && (canManageReservas(me) || permissions.includes('reservas.resultado.cargar')) },
+    { label: "Panel", path: "/admin/dashboard", desktop: false, show: () => isAuthenticated && canManageUsers(me) },
   ];
 
-  // Links visibles
+  // Links visibles según permisos
   const visibleLinks = links.filter(link => link.show());
+  
+  // Links visibles solo en desktop (filtrados por desktop: true)
+  const desktopLinks = visibleLinks.filter(link => link.desktop);
 
   // estilos (desktop: solo cambio de color -> yellow-400)
   const navButtonBase =
@@ -144,10 +165,10 @@ function CustomNavbar() {
             />
           </button>
 
-          {/* Links (Centro) - SOLO DESKTOP */}
+          {/* Links (Centro) - SOLO DESKTOP - filtrados por desktop: true */}
           <div className="hidden lg:block absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2">
             <div className="flex items-center gap-3">
-              {visibleLinks.map(link => {
+              {desktopLinks.map(link => {
                 const isActive = location.pathname === link.path;
                 return (
                   <button
@@ -173,7 +194,77 @@ function CustomNavbar() {
           <div className="flex items-center">
             {/* Desktop */}
             <div className="hidden lg:flex items-center gap-2">
-              {renderSessionButtons(false)}
+              {!isAuthenticated ? (
+                renderSessionButtons(false)
+              ) : (
+                <div className="relative" ref={userMenuRef}>
+                  <button
+                    type="button"
+                    onClick={() => setShowUserMenu((open) => !open)}
+                    className="flex items-center gap-2 rounded-full bg-slate-800/80 hover:bg-slate-700/80 px-3 py-1.5 text-sm text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-yellow-400/60"
+                  >
+                    <span className="h-8 w-8 rounded-full bg-slate-700 flex items-center justify-center overflow-hidden">
+                      {/* Icono de usuario por defecto */}
+                      <IconoAvatar className="h-5 w-5 text-yellow-400" />
+                    </span>
+                    <svg
+                      className={`h-4 w-4 text-white/70 transition-transform ${showUserMenu ? "rotate-180" : ""}`}
+                      fill="none"
+                      viewBox="0 0 24 24"
+                      stroke="currentColor"
+                    >
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                    </svg>
+                  </button>
+
+                  {showUserMenu && (
+                    <div className="absolute right-0 mt-2 w-48 rounded-xl bg-slate-900 border border-white/10 shadow-lg py-2 z-50">
+                      <button
+                        type="button"
+                        onClick={() => { navigate("/mis-datos"); setShowUserMenu(false); }}
+                        className="block w-full px-4 py-2 text-left text-sm text-slate-100 hover:bg-white/5"
+                      >
+                        Mis datos
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => { navigate("/preferencias"); setShowUserMenu(false); }}
+                        className="block w-full px-4 py-2 text-left text-sm text-slate-100 hover:bg-white/5"
+                      >
+                        Preferencias
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() => { navigate("/resenias"); setShowUserMenu(false); }}
+                        className="block w-full px-4 py-2 text-left text-sm text-slate-100 hover:bg-white/5"
+                      >
+                        Reseñas
+                      </button>
+
+                      {canManageUsers(me) && (
+                        <button
+                          type="button"
+                          onClick={() => { navigate("/panel-control"); setShowUserMenu(false); }}
+                          className="block w-full px-4 py-2 text-left text-sm text-slate-100 hover:bg-white/5"
+                        >
+                          Panel de control
+                        </button>
+                      )}
+
+                      <div className="my-1 h-px bg-white/10" />
+                      <button
+                        type="button"
+                        onClick={handleLogout}
+                        disabled={loggingOut}
+                        className="block w-full px-4 py-2 text-left text-sm text-red-300 hover:bg-red-500/10 disabled:opacity-60"
+                      >
+                        {loggingOut ? "Cerrando..." : "Cerrar sesión"}
+                      </button>
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
 
             {/* Mobile: botón hamburguesa */}

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import backendClient from '../../../shared/services/backendClient';
 import { toast } from 'react-toastify';
 import Button from '../../../shared/components/ui/Button/Button';

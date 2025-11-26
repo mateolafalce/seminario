@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import Modal from "../../../shared/components/ui/Modal/Modal";
 import Button from "../../../shared/components/ui/Button/Button";
 import { IoMdAlert } from "react-icons/io";

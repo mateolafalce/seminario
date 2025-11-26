@@ -1,286 +1,272 @@
-// src/features/reservas/components/ReservaTabla.jsx
-import { useState, useContext, useEffect } from 'react';
+import { useState, useContext, useEffect, useMemo } from "react";
+import { useNavigate } from "react-router-dom";
 import { AuthContext } from "../../auth/context/AuthContext";
-import { toast } from 'react-toastify';
-import MiToast from '../../../shared/components/ui/Toast/MiToast';
-import CourtCarousel from './CourtCarousel';
-import MessageConfirm from '../../../shared/components/ui/Confirm/MessageConfirm';
-import backendClient from '../../../shared/services/backendClient';
+import { toast } from "react-toastify";
+import MiToast from "../../../shared/components/ui/Toast/MiToast";
+import MessageConfirm from "../../../shared/components/ui/Confirm/MessageConfirm";
+import backendClient from "../../../shared/services/backendClient";
+import CourtCard from "./CourtCard"; 
+import { FiCalendar, FiFilter } from "react-icons/fi";
+import { isCanchaDisponibleEnFecha } from "../../../shared/utils/disponibilidadCancha";
 
-// ===== Helpers =====
-const MAX_CAPACITY = 6;
-
-const generarFechas = () => {
-  const r = [], hoy = new Date();
-  const opt = { weekday: 'long', day: 'numeric', month: 'long' };
-  for (let i = 0; i < 7; i++) {
-    const f = new Date(hoy); f.setDate(hoy.getDate() + i);
-    r.push({
-      display: new Intl.DateTimeFormat('es-ES', opt).format(f).replace(/^\w/, c => c.toUpperCase()),
-      value: `${String(f.getDate()).padStart(2,'0')}-${String(f.getMonth()+1).padStart(2,'0')}-${f.getFullYear()}`
-    });
-  }
-  return r;
+// Helper para el input (YYYY-MM-DD)
+const formatDate = (date) => {
+    const d = new Date(date);
+    const month = '' + (d.getMonth() + 1);
+    const day = '' + d.getDate();
+    const year = d.getFullYear();
+    return [year, month.padStart(2, '0'), day.padStart(2, '0')].join('-');
 };
-const FECHAS = generarFechas();
 
-const normalizarTexto = (t) => t.trim().replace(/\s+/g, ' ');
+// Helper para el Backend (DD-MM-YYYY)
+// Transforma 2025-12-02 -> 02-12-2025
+const convertirFechaParaBackend = (fechaIso) => {
+    if (!fechaIso) return "";
+    const [year, month, day] = fechaIso.split("-");
+    return `${day}-${month}-${year}`;
+};
 
-// ===== Componente =====
+const normalizarTexto = (t) => t.trim().replace(/\s+/g, " ");
+
 export default function ReservaTabla() {
-  const { isAuthenticated, user } = useContext(AuthContext);
+  const { user } = useContext(AuthContext);
+  const navigate = useNavigate();
+
+  // Estados
   const [mensaje, setMensaje] = useState("");
   const [reservaPendiente, setReservaPendiente] = useState(null);
-
-  const [canchas, setCanchas] = useState([]);
-  const [horarios, setHorarios] = useState([]); // ✅ ahora desde backend
-  const [cantidades, setCantidades] = useState({});
-  const [selectedDate, setSelectedDate] = useState(FECHAS[0].value);
+  const [selectedDate, setSelectedDate] = useState(formatDate(new Date())); // Esto guarda YYYY-MM-DD
   const [selected, setSelected] = useState(null);
-
+  
+  // Datos
+  const [canchasRaw, setCanchasRaw] = useState([]);
+  const [horarios, setHorarios] = useState([]);
+  const [horariosById, setHorariosById] = useState({});
+  const [horariosPorCancha, setHorariosPorCancha] = useState({});
+  const [cantidades, setCantidades] = useState({});
+  
+  // Modales
   const [modalOpen, setModalOpen] = useState(false);
   const [detalleReserva, setDetalleReserva] = useState(null);
   const [loadingDetalle, setLoadingDetalle] = useState(false);
 
-  // Cargar HORARIOS desde backend 1 sola vez
+  // --- Carga de Datos Iniciales ---
   useEffect(() => {
     let alive = true;
-    (async () => {
-      try {
-        const data = await backendClient.get('horarios/listar');
-        const arr = Array.isArray(data) ? data.map(h => (h?.hora ?? h)).filter(Boolean) : [];
-        if (alive) setHorarios(arr);
-      } catch {
-        if (alive) setHorarios([]);
-      }
-    })();
+    const fetchData = async () => {
+        try {
+            const [hData, cData] = await Promise.all([
+                backendClient.get("horarios/listar"),
+                backendClient.get("canchas/listar")
+            ]);
+            if (!alive) return;
+
+            const hArr = Array.isArray(hData) ? hData : [];
+            const byId = {};
+            const horas = [];
+            hArr.forEach(h => {
+                if(h.hora && h.id) { byId[h.id] = h.hora; if(!horas.includes(h.hora)) horas.push(h.hora); }
+            });
+            setHorarios(horas);
+            setHorariosById(byId);
+
+            const cArr = Array.isArray(cData) ? cData : [];
+            setCanchasRaw(cArr);
+        } catch (e) { console.error(e); }
+    };
+    fetchData();
     return () => { alive = false; };
   }, []);
 
-  // Cargar canchas (1 vez)
+  // Mapeo de horarios por cancha
   useEffect(() => {
-    let alive = true;
-    (async () => {
-      try {
-        const data = await backendClient.get('canchas/listar');
-        if (!alive) return;
-        setCanchas(Array.isArray(data) ? data.map(c => c.nombre) : []);
-      } catch (e) {
-        toast(<MiToast mensaje={e.message || 'Error al cargar canchas'} color="var(--color-red-400)" />);
-      }
-    })();
-    return () => { alive = false; };
-  }, []);
+    const map = {};
+    canchasRaw.forEach((c) => {
+      const ids = Array.isArray(c.horarios) ? c.horarios : [];
+      map[c.nombre] = ids.map((id) => horariosById[id]).filter(Boolean);
+    });
+    setHorariosPorCancha(map);
+  }, [canchasRaw, horariosById]);
 
-  // Cargar conteos por fecha
+  // --- Carga de Cantidades (CORREGIDO LA FECHA) ---
   useEffect(() => {
     let alive = true;
-    (async () => {
-      try {
-        const data = await backendClient.get('reservas/cantidad', { fecha: selectedDate }); // GET /api/reservas/cantidad?fecha=...
-        if (!alive) return;
-        const mapa = {};
-        (data || []).forEach(it => { mapa[`${it.cancha}-${it.horario}`] = it.cantidad; });
-        setCantidades(mapa);
-      } catch {
-        if (alive) setCantidades({});
-      }
-    })();
+    const fetchCantidades = async () => {
+        try {
+            // CORRECCIÓN: Convertimos la fecha antes de enviarla
+            const fechaBackend = convertirFechaParaBackend(selectedDate);
+            const data = await backendClient.get("reservas/cantidad", { fecha: fechaBackend });
+            
+            if (!alive) return;
+            const mapa = {};
+            (data || []).forEach((it) => { mapa[`${it.cancha}-${it.horario}`] = it.cantidad; });
+            setCantidades(mapa);
+        } catch { if(alive) setCantidades({}); }
+    };
+    fetchCantidades();
     return () => { alive = false; };
   }, [selectedDate]);
 
+  // UX: Ordenar canchas
+  const canchasOrdenadas = useMemo(() => {
+     return [...canchasRaw].sort((a, b) => a.nombre.localeCompare(b.nombre));
+  }, [canchasRaw]);
+
+  // Lógica Negocio
   const isPastSlot = (hora) => {
-    if (selectedDate !== FECHAS[0].value) return false;
-    const [h, m] = hora.split('-')[0].split(':').map(Number);
-    const t = new Date(); t.setHours(h, m, 0, 0);
-    return (t.getTime() - Date.now()) < 3600000;
+    const todayStr = formatDate(new Date());
+    if (selectedDate !== todayStr) return false;
+    const [h, m] = hora.split("-")[0].split(":").map(Number);
+    const slotTime = new Date(); slotTime.setHours(h, m, 0, 0);
+    return slotTime.getTime() - Date.now() < 3600000;
   };
 
-  const abrirDetalle = async (cancha, hora) => {
-    setLoadingDetalle(true);
-    setModalOpen(true);
+  // --- Abrir Detalle (CORREGIDO LA FECHA) ---
+  const abrirDetalle = async (cancha, hora) => { 
+    setLoadingDetalle(true); setModalOpen(true);
     try {
-      const data = await backendClient.get('reservas/detalle', {
-        cancha: normalizarTexto(cancha),
-        horario: normalizarTexto(hora),
-        fecha: selectedDate,
-        ...(user?.id ? { usuario_id: user.id } : {})
-      }); // GET /api/reservas/detalle
-      setDetalleReserva(data ?? null);
-    } catch {
-      setDetalleReserva(null);
-    } finally {
-      setLoadingDetalle(false);
-    }
+        // CORRECCIÓN: Fecha formateada para backend
+        const fechaBackend = convertirFechaParaBackend(selectedDate);
+        
+        const data = await backendClient.get("reservas/detalle", {
+            cancha: normalizarTexto(cancha), 
+            horario: normalizarTexto(hora), 
+            fecha: fechaBackend, // <--- Aquí estaba el error potencial
+            ...(user?.id ? { usuario_id: user.id } : {})
+        });
+        setDetalleReserva(data);
+    } catch { setDetalleReserva(null); } finally { setLoadingDetalle(false); }
+  };
+  
+  // --- Confirmar Reserva (CORREGIDO LA FECHA - EL ERROR PRINCIPAL) ---
+  const handleConfirmar = async () => { 
+      if (!reservaPendiente) return;
+      const { cancha, hora } = reservaPendiente;
+      try {
+          // CORRECCIÓN CRÍTICA: Transformar YYYY-MM-DD a DD-MM-YYYY
+          const fechaBackend = convertirFechaParaBackend(selectedDate);
+
+          await backendClient.post("reservas/reservar", { 
+              cancha, 
+              horario: hora, 
+              fecha: fechaBackend // <--- Aquí estaba fallando
+          });
+          
+          toast(<MiToast mensaje="Reserva confirmada" color="var(--color-green-400)" />);
+          
+          // Actualizar cantidades inmediatamente
+          const res = await backendClient.get("reservas/cantidad", { fecha: fechaBackend });
+          const mapa = {}; (res || []).forEach((it) => { mapa[`${it.cancha}-${it.horario}`] = it.cantidad; });
+          setCantidades(mapa);
+          
+          setSelected({ cancha, hora });
+      } catch (e) { 
+          toast(<MiToast mensaje={e.response?.data?.detail || e.message} color="var(--color-red-400)" />); 
+      } 
+      finally { setReservaPendiente(null); setMensaje(""); }
   };
 
   const reservar = (cancha, hora) => {
     setReservaPendiente({ cancha, hora });
-    setMensaje(`¿Confirmás reservar "${cancha}" a las ${hora} para el ${selectedDate}?`);
+    setMensaje(`¿Confirmar reserva en "${cancha}" a las ${hora}?`);
   };
 
-  const recargarCantidades = async () => {
-    try {
-      const data = await backendClient.get('reservas/cantidad', { fecha: selectedDate });
-      const mapa = {};
-      (data || []).forEach(it => { mapa[`${it.cancha}-${it.horario}`] = it.cantidad; });
-      setCantidades(mapa);
-    } catch { setCantidades({}); }
+  const handleViewCancha = (cancha) => {
+      const id = cancha.id || cancha._id;
+      if(id) navigate(`/canchas/${id}`, { state: { cancha } });
   };
 
-  const handleConfirmar = async () => {
-    if (!reservaPendiente) return;
-    const { cancha, hora } = reservaPendiente;
-    setSelected({ cancha, hora });
-    setReservaPendiente(null);
-    setMensaje("");
-
-    try {
-      const data = await backendClient.post('reservas/reservar', {
-        cancha,
-        horario: hora,
-        fecha: selectedDate
-      }); // POST /api/reservas/reservar
-      toast(<MiToast mensaje={`Reserva exitosa: ${data?.msg || 'OK'}`} color="var(--color-green-400)" />);
-      await recargarCantidades();
-    } catch (e) {
-      toast(<MiToast mensaje={`Error: ${e.message}`} color="var(--color-red-400)" />);
-      setSelected(null);
-    }
-  };
-
-  const cancelar = async (reservaId) => {
-    try {
-      await backendClient.delete(`reservas/cancelar/${reservaId}`); // DELETE /api/reservas/cancelar/:id
-      toast(<MiToast mensaje="Reserva cancelada" color="var(--color-red-400)" />);
-      setModalOpen(false);
-      await recargarCantidades();
-    } catch (e) {
-      toast(<MiToast mensaje={e.message} color="var(--color-red-400)" />);
-    }
-  };
-
-  const handleCancelar = () => {
-    setReservaPendiente(null);
-    setMensaje("");
-  };
+  // Filtro visual
+  const canchasVisibles = canchasOrdenadas.filter((c) =>
+    isCanchaDisponibleEnFecha(c, selectedDate)
+  );
 
   return (
-    <div className="min-h-[80vh] w-full pt-10 pb-16">
-      <div className="mx-auto max-w-5xl px-4">
-        {/* Selector de fecha centrado */}
-        <div className="mt-4 flex justify-center">
-          <select
-            aria-label="Seleccionar fecha"
-            value={selectedDate}
-            onChange={(e) => { setSelectedDate(e.target.value); setSelected(null); }}
-            className="w-full max-w-sm bg-[#0F1524] border border-white/10 text-white text-sm rounded-lg px-3 py-2
-                       focus:outline-none focus:border-amber-400 focus:ring-2 focus:ring-amber-400/50"
-          >
-            {FECHAS.map(f => <option key={f.value} value={f.value}>{f.display}</option>)}
-          </select>
+    <div className="min-h-[85vh] w-full pt-12 pb-20 px-4 bg-[#0B101B]">
+      <div className="mx-auto max-w-7xl">
+        
+        {/* HEADER LIMPIO */}
+        <div className="flex flex-col items-center mb-10">
+            <h1 className="text-3xl font-bold text-white mb-6 tracking-tight">
+                Reservar Turno
+            </h1>
+            
+            {/* Input de Fecha Grande */}
+            <div className="relative group w-full max-w-md">
+                <div className="absolute left-5 top-1/2 -translate-y-1/2 text-amber-400 pointer-events-none">
+                    <FiCalendar size={22} />
+                </div>
+                <input 
+                    type="date"
+                    value={selectedDate}
+                    onChange={(e) => { if(e.target.value) setSelectedDate(e.target.value); setSelected(null); }}
+                    min={formatDate(new Date())}
+                    className="
+                        bg-[#151B2B] border border-white/10 text-white text-xl font-bold text-center
+                        pl-12 pr-6 py-5 rounded-2xl shadow-2xl cursor-pointer outline-none w-full
+                        focus:border-amber-400 focus:ring-4 focus:ring-amber-400/10 transition-all
+                        hover:bg-[#1A2133]
+                        [color-scheme:dark]
+                    "
+                />
+            </div>
         </div>
 
-        {/* Carousel */}
-        <CourtCarousel
-          canchas={canchas}
-          horarios={horarios}  // ✅ ahora vienen del backend
-          cantidades={cantidades}
-          isAuthenticated={isAuthenticated}
-          selected={selected}
-          onOpenDetail={abrirDetalle}
-          isPastSlot={isPastSlot}
-          capacity={MAX_CAPACITY}
-        />
-
-        {/* MODAL Detalle */}
-        {modalOpen && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4" role="dialog" aria-modal="true">
-            <div className="absolute inset-0 bg-black/70 backdrop-blur-sm" onClick={() => setModalOpen(false)} />
-            <div className="relative w-full max-w-md rounded-2xl p-6 bg-white/5 backdrop-blur-sm border border-white/10">
-              <button className="absolute top-3 right-3 text-slate-300 hover:text-white" onClick={() => setModalOpen(false)} aria-label="Cerrar">✕</button>
-
-              {loadingDetalle ? (
-                <div className="space-y-4">
-                  <div className="h-6 w-1/2 bg-white/10 rounded animate-pulse" />
-                  <div className="h-24 w-full bg-white/10 rounded animate-pulse" />
-                </div>
-              ) : !detalleReserva ? (
-                <div className="text-center text-rose-300">No se pudo cargar el detalle</div>
-              ) : (
-                <div>
-                  <h3 className="text-lg font-bold text-white"><span className="text-amber-400">Detalle</span> de Reserva</h3>
-
-                  <div className="mt-3 grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm">
-                    <div className="p-3 rounded-xl bg-white/5 border border-white/10">
-                      <div className="text-slate-400">Cancha</div>
-                      <div className="text-white font-semibold">{detalleReserva.cancha}</div>
-                    </div>
-                    <div className="p-3 rounded-xl bg-white/5 border border-white/10">
-                      <div className="text-slate-400">Fecha</div>
-                      <div className="text-white font-semibold">{detalleReserva.fecha}</div>
-                    </div>
-                    <div className="p-3 rounded-xl bg-white/5 border border-white/10 sm:col-span-2">
-                      <div className="text-slate-400">Horario</div>
-                      <div className="text-white font-semibold">{detalleReserva.horario}</div>
-                    </div>
-                  </div>
-
-                  <div className="mt-4">
-                    <div className="text-slate-200 font-semibold">Reservaron</div>
-                    <ul className="mt-1 space-y-1 max-h-40 overflow-auto pr-1">
-                      {detalleReserva.usuarios.length === 0
-                        ? <li className="text-slate-400">Nadie aún</li>
-                        : detalleReserva.usuarios
-                            .filter(u => u.estado !== detalleReserva.estado_cancelada)
-                            .map((u, i) => <li key={i} className="text-slate-300">{u.nombre} {u.apellido}</li>)
-                      }
-                    </ul>
-                  </div>
-
-                  <div className="mt-5 flex flex-wrap gap-2">
-                    {(() => {
-                      const key = `${detalleReserva.cancha}-${detalleReserva.horario}`;
-                      const count = (cantidades[key] ??
-                        detalleReserva.usuarios.filter(u => u.estado !== detalleReserva.estado_cancelada).length) || 0;
-                      const full = count >= MAX_CAPACITY;
-                      const yo = detalleReserva.usuarios.find(u => u.usuario_id === user?.id);
-                      const cancelada = yo?.estado === detalleReserva.estado_cancelada;
-
-                      if (yo && !cancelada) {
-                        return (
-                          <button
-                            className="px-4 py-2 rounded-lg bg-rose-500 text-white font-semibold hover:bg-rose-600"
-                            onClick={() => cancelar(yo.reserva_id)}
-                          >Cancelar reserva</button>
-                        );
-                      }
-                      if (!full && isAuthenticated && (!yo || cancelada)) {
-                        return (
-                          <button
-                            className="px-4 py-2 rounded-lg bg-amber-400 text-[#0B1220] font-bold hover:bg-amber-300"
-                            onClick={() => { setModalOpen(false); reservar(detalleReserva.cancha, detalleReserva.horario); }}
-                          >Reservar</button>
-                        );
-                      }
-                      return <span className="text-sm text-slate-400">{full ? 'Turno lleno.' : !isAuthenticated ? 'Inicia sesión para reservar.' : ''}</span>;
-                    })()}
-                    <button className="px-4 py-2 rounded-lg font-semibold border bg-white/5 border-white/10" onClick={() => setModalOpen(false)}>Cerrar</button>
-                  </div>
-                </div>
-              )}
+        {/* FEED DE CANCHAS */}
+        <div className="mb-4 flex items-center justify-between px-2">
+            <div className="flex items-center gap-2">
+                 <FiFilter className="text-amber-400"/>
+                 <span className="text-slate-400 text-sm font-bold uppercase tracking-wider">Disponibilidad</span>
             </div>
+            <span className="text-slate-500 text-xs">{canchasRaw.length} canchas encontradas</span>
+        </div>
+
+        {canchasVisibles.length === 0 ? (
+          <div className="mt-10 text-center text-slate-400 text-sm">
+            No hay canchas disponibles para esta fecha.
+            <br />
+            Probá cambiar el día o el horario.
+          </div>
+        ) : (
+          // GRID RESPONSIVE
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 animate-fadeIn">
+              {canchasVisibles.map((cancha) => (
+                  <CourtCard
+                      key={cancha.id || cancha.nombre}
+                      cancha={cancha}
+                      horarios={horariosPorCancha[cancha.nombre] || []}
+                      cantidades={cantidades}
+                      isAuthenticated={!!user}
+                      selected={selected}
+                      onOpenDetail={abrirDetalle}
+                      onViewCancha={handleViewCancha}
+                      isPastSlot={isPastSlot}
+                  />
+              ))}
           </div>
         )}
-      </div>
 
-      {/* Confirmación */}
-      <MessageConfirm
-        mensaje={mensaje}
-        onClose={handleCancelar}
-        onConfirm={handleConfirmar}
-        onCancel={handleCancelar}
-      />
+        {/* MODALES */}
+        {modalOpen && detalleReserva && (
+             <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm" onClick={() => setModalOpen(false)}>
+                <div className="w-full max-w-md bg-[#0F1524] border border-white/10 p-6 rounded-2xl shadow-2xl relative" onClick={e => e.stopPropagation()}>
+                    <button className="absolute top-3 right-3 text-slate-400 hover:text-white" onClick={() => setModalOpen(false)}>✕</button>
+                    <h3 className="text-xl font-bold text-white text-center mb-6">
+                        {detalleReserva.cancha} <span className="text-amber-400">|</span> {detalleReserva.horario}
+                    </h3>
+                    <div className="bg-slate-900/50 rounded-xl p-4 mb-4 max-h-40 overflow-y-auto custom-scrollbar border border-white/5">
+                       {detalleReserva.usuarios.length === 0 ? <p className="text-slate-400 text-sm italic">Sin jugadores.</p> : 
+                            detalleReserva.usuarios.map((u,i) => <div key={i} className="text-slate-300 text-sm">• {u.nombre}</div>)
+                       }
+                    </div>
+                    <div className="flex gap-3">
+                        <button onClick={() => { setModalOpen(false); reservar(detalleReserva.cancha, detalleReserva.horario); }} className="w-full py-3 rounded-lg bg-amber-400 text-slate-900 font-bold hover:bg-amber-300">Reservar</button>
+                    </div>
+                </div>
+             </div>
+        )}
+        <MessageConfirm mensaje={mensaje} onClose={() => setMensaje("")} onConfirm={handleConfirmar} onCancel={() => setMensaje("")} />
+      </div>
     </div>
   );
 }
