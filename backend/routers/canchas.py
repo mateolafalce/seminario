@@ -186,8 +186,12 @@ async def crear_cancha(cancha: CanchaCreate):
             capacidad_maxima = int(cap_raw)
         except (TypeError, ValueError):
             raise HTTPException(status_code=400, detail="capacidad_maxima inválida")
-
-        if capacidad_maxima < 1 or capacidad_maxima > 50:
+        if capacidad_maxima < 2:
+            raise HTTPException(
+                status_code=400,
+                detail="La capacidad debe ser de al menos 2 jugadores (1 vs 1).",
+            )
+        if capacidad_maxima > 50:
             raise HTTPException(status_code=400, detail="capacidad_maxima debe estar entre 1 y 50")
 
         # Normalizar días de semana (permitimos None = sin restricción)
@@ -229,7 +233,7 @@ async def crear_cancha(cancha: CanchaCreate):
             "habilitada": habilitada,
             "horarios": horarios_oids,
             "imagenes": imagenes_norm,
-            # 🔴 NUEVOS CAMPOS
+           
             "capacidad_maxima": capacidad_maxima,
             "dias_semana": dias_semana,              # puede ser None => sin restricción
             "fechas_bloqueadas": fechas_bloqueadas,  # lista de strings
@@ -318,34 +322,42 @@ async def modificar_cancha(cancha_id: str, data: CanchaUpdate):
                     imagenes_norm.append(s)
         update_fields["imagenes"] = imagenes_norm
 
-    # 🔴 NUEVO: capacidad
+    # capacidad
     if data.capacidad_maxima is not None:
         try:
             cap = int(data.capacidad_maxima)
         except (TypeError, ValueError):
             raise HTTPException(status_code=400, detail="capacidad_maxima inválida")
-        if cap < 1 or cap > 50:
+        if cap < 2:
+            raise HTTPException(
+                status_code=400,
+                detail="La capacidad debe ser de al menos 2 jugadores (1 vs 1).",
+            )
+        if cap > 50:
             raise HTTPException(status_code=400, detail="capacidad_maxima debe estar entre 1 y 50")
         update_fields["capacidad_maxima"] = cap
 
-    # 🔴 NUEVO: días semana
+    # días semana
     if data.dias_semana is not None:
         if not data.dias_semana:
-            # interpretamos lista vacía como "sin restricción" => eliminamos el campo
-            update_fields["dias_semana"] = []
-        else:
-            dias_norm = []
-            for d in data.dias_semana:
-                try:
-                    di = int(d)
-                except (TypeError, ValueError):
-                    raise HTTPException(status_code=400, detail="dias_semana debe contener enteros entre 0 y 6")
-                if di < 0 or di > 6:
-                    raise HTTPException(status_code=400, detail="dias_semana debe contener enteros entre 0 y 6")
-                dias_norm.append(di)
-            update_fields["dias_semana"] = sorted(set(dias_norm))
+            raise HTTPException(
+                status_code=400,
+                detail="Debes habilitar al menos un día de la semana para que la cancha funcione.",
+            )
+        if not isinstance(data.dias_semana, list):
+            raise HTTPException(status_code=400, detail="dias_semana debe ser una lista no vacía de enteros 0..6")
+        dias_norm = []
+        for d in data.dias_semana:
+            try:
+                di = int(d)
+            except (TypeError, ValueError):
+                raise HTTPException(status_code=400, detail="dias_semana debe contener enteros entre 0 y 6")
+            if di < 0 or di > 6:
+                raise HTTPException(status_code=400, detail="dias_semana debe contener enteros entre 0 y 6")
+            dias_norm.append(di)
+        update_fields["dias_semana"] = sorted(set(dias_norm))
 
-    # 🔴 NUEVO: fechas bloqueadas
+    # fechas bloqueadas
     if data.fechas_bloqueadas is not None:
         from datetime import datetime
         fechas_ok = []

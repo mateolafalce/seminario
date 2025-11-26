@@ -1,21 +1,16 @@
 import React from "react";
 
 const variants = {
-  // MODERNIZADO: "Glow" amarillo suave y texto oscuro fuerte
   default:   "bg-yellow-400 text-slate-950 hover:bg-yellow-300 border border-yellow-300 shadow-[0_0_15px_rgba(250,204,21,0.15)] hover:shadow-[0_0_20px_rgba(250,204,21,0.3)] focus-visible:ring-yellow-400",
-  
-  // MODERNIZADO: Fondo oscuro (slate-800) con borde sutil
+
   secondary: "bg-slate-800 text-slate-200 border border-slate-700 hover:bg-slate-700 hover:border-slate-600 focus-visible:ring-slate-500",
   
-  // MODERNIZADO: Rojo con fondo translúcido (estilo alerta moderna)
   danger:    "bg-red-500/10 text-red-400 border border-red-500/20 hover:bg-red-500/20 hover:border-red-500/50 focus-visible:ring-red-500",
-  
-  // MODERNIZADO: Ghost más limpio
+
   ghost:     "bg-transparent text-slate-400 hover:text-yellow-400 hover:bg-slate-800/50",
   
   disabled:  "bg-slate-800/50 text-slate-600 border border-slate-800 cursor-not-allowed",
 
-  // Mantenemos estos por compatibilidad con tu código existente
   primary:   "bg-yellow-400 text-slate-950 hover:bg-yellow-300", 
   cancelar:  "bg-slate-700 text-white hover:bg-slate-600",
   eliminar:  "bg-red-500/10 text-red-400 border border-red-500/20 hover:bg-red-500/20", 

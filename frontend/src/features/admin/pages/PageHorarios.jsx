@@ -1,11 +1,21 @@
 import { useEffect, useState, useCallback, useContext } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { motion } from "framer-motion"; // <---
 import { AuthContext } from '../../auth/context/AuthContext';
 import backendClient from '../../../shared/services/backendClient';
 import Button from '../../../shared/components/ui/Button/Button';
 import { successToast, errorToast } from '../../../shared/utils/apiHelpers';
 import MessageConfirm from "../../../shared/components/ui/Confirm/MessageConfirm";
 import { FiTrash2, FiEdit2, FiPlus, FiSave, FiX, FiArrowLeft, FiClock } from "react-icons/fi";
+
+const containerVariants = {
+  hidden: { opacity: 0 },
+  visible: { opacity: 1, transition: { staggerChildren: 0.05 } }
+};
+const itemVariants = {
+  hidden: { y: 10, opacity: 0, filter: "blur(2px)" },
+  visible: { y: 0, opacity: 1, filter: "blur(0px)", transition: { type: "spring", stiffness: 260, damping: 20 } }
+};
 
 export default function PageHorarios() {
   const navigate = useNavigate();
@@ -89,10 +99,15 @@ export default function PageHorarios() {
   };
 
   return (
-    <div className="max-w-5xl mx-auto space-y-8 pb-12">
+    <motion.div 
+      className="max-w-5xl mx-auto space-y-8 pb-12"
+      variants={containerVariants}
+      initial="hidden"
+      animate="visible"
+    >
       
       {/* HEADER */}
-      <div className="flex items-center gap-4 border-b border-gray-700 pb-6">
+      <motion.div variants={itemVariants} className="flex items-center gap-4 border-b border-gray-700 pb-6">
         <button 
             onClick={() => navigate("/panel-control/canchas")}
             className="p-2 text-gray-400 hover:text-white hover:bg-slate-800 rounded-full transition"
@@ -103,13 +118,13 @@ export default function PageHorarios() {
             <h2 className="text-2xl font-bold text-white">Horarios Globales</h2>
             <p className="text-gray-400 text-sm">Bloques de tiempo disponibles para asignar a canchas.</p>
         </div>
-      </div>
+      </motion.div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
         
-        {/* COLUMNA IZQUIERDA: CREAR */}
+        {/* COLUMNA IZQUIERDA */}
         {canAdmin && (
-            <div className="lg:col-span-1 space-y-6">
+            <motion.div variants={itemVariants} className="lg:col-span-1 space-y-6">
                 <div className="bg-slate-900/60 border border-slate-700/70 p-6 rounded-xl shadow-lg sticky top-6">
                     <h3 className="text-lg font-bold text-white mb-4 border-b border-slate-700 pb-2">Nuevo Horario</h3>
                     <div className="space-y-4">
@@ -140,11 +155,11 @@ export default function PageHorarios() {
                         </div>
                     </div>
                 </div>
-            </div>
+            </motion.div>
         )}
 
-        {/* COLUMNA DERECHA: LISTA */}
-        <div className="lg:col-span-2">
+        {/* COLUMNA DERECHA */}
+        <motion.div variants={itemVariants} className="lg:col-span-2">
             <div className="bg-slate-900/60 border border-slate-700/70 rounded-xl shadow-lg overflow-hidden">
                 {loading ? (
                     <div className="p-12 text-center text-gray-400">Cargando horarios...</div>
@@ -194,7 +209,7 @@ export default function PageHorarios() {
                     </table>
                 )}
             </div>
-        </div>
+        </motion.div>
       </div>
 
       {confirmData.open && (
@@ -205,6 +220,6 @@ export default function PageHorarios() {
           onCancel={() => setConfirmData({ ...confirmData, open: false })}
         />
       )}
-    </div>
+    </motion.div>
   );
 }

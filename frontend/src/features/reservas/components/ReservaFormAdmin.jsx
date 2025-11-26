@@ -82,11 +82,6 @@ export default function ReservaFormAdmin({ onSubmit, loading = false }) {
     if (!form.cancha_id) return [];
     const cancha = canchas.find(c => c.id === form.cancha_id);
     if (!cancha) return [];
-
-    // --- SOLUCIÓN DE COMPATIBILIDAD ---
-    // El backend devuelve IDs como strings en `cancha.horarios` ["id1", "id2"]
-    // Los `horariosGlobales` tienen { id: "id1", hora: "..." }
-    // Comparamos String vs String para estar seguros.
     
     const idsHabilitados = (cancha.horarios || []).map(String); // Forzamos a array de strings
     

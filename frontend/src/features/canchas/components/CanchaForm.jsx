@@ -22,7 +22,6 @@ const defaultValues = {
   imagenes: [],
   habilitada: true,
   horarios: [],
-  // 🔴 NUEVO
   capacidad_maxima: 6,
   dias_semana: [0, 1, 2, 3, 4, 5, 6],
   fechas_bloqueadas: [],
@@ -196,7 +195,6 @@ export default function CanchaForm({
       imagenes: v.imagenes || [],
       habilitada: !!v.habilitada,
       horarios: Array.isArray(v.horarios) ? v.horarios : [],
-      // 🔴 NUEVOS CAMPOS
       capacidad_maxima:
         v.capacidad_maxima && Number(v.capacidad_maxima) > 0
           ? Number(v.capacidad_maxima)
@@ -312,7 +310,7 @@ export default function CanchaForm({
             </div>
           )}
 
-          {/* 🔴 NUEVO: Capacidad, Días y Fechas bloqueadas */}
+          {/* Capacidad, Días y Fechas bloqueadas */}
           <div className="mt-4 space-y-4 border-t border-slate-700 pt-4">
             {/* Capacidad */}
             <div>

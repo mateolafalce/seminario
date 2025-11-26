@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { motion } from "framer-motion"; // <--- Importamos Motion
 import { useUsuarios } from "../../../usuarios/hooks/useUsuarios";
 import { useBusquedaUsuarios } from "../../../usuarios/hooks/useBusquedaUsuarios";
 import { useModales } from "../../../../shared/hooks/useModales";
@@ -8,7 +9,25 @@ import ListaUsuarios from "../../../usuarios/pages/ListaUsuarios";
 import ModalesUsuario from "../../../usuarios/pages/ModalesUsuario";
 import Paginacion from "../../../../shared/components/ui/Paginacion";
 import Button from "../../../../shared/components/ui/Button/Button";
-import { MdLayers, MdPersonAdd, MdPeopleAlt } from "react-icons/md"; // Nuevo icono
+import { MdLayers, MdPersonAdd, MdPeopleAlt } from "react-icons/md";
+
+const containerVariants = {
+  hidden: { opacity: 0 },
+  visible: {
+    opacity: 1,
+    transition: { staggerChildren: 0.05 }
+  }
+};
+
+const itemVariants = {
+  hidden: { y: 10, opacity: 0, filter: "blur(2px)" },
+  visible: {
+    y: 0,
+    opacity: 1,
+    filter: "blur(0px)",
+    transition: { type: "spring", stiffness: 260, damping: 20 }
+  }
+};
 
 function GestionUsuarios() {
   const navigate = useNavigate();
@@ -58,11 +77,15 @@ function GestionUsuarios() {
   };
 
   return (
-    // ANIMACIÓN AGREGADA
-    <section className="w-full space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
+    <motion.section 
+      className="w-full space-y-8"
+      variants={containerVariants}
+      initial="hidden"
+      animate="visible"
+    >
       
-      {/* HEADER REFINADO */}
-      <div className="flex flex-col md:flex-row md:items-end justify-between gap-4 border-b border-slate-800 pb-5">
+      {/* ITEM 1: HEADER */}
+      <motion.div variants={itemVariants} className="flex flex-col md:flex-row md:items-end justify-between gap-4 border-b border-slate-800 pb-5">
           <div>
             <h2 className="text-3xl font-bold text-white tracking-tight flex items-center gap-3">
                <span className="text-yellow-400"><MdPeopleAlt /></span>
@@ -86,10 +109,10 @@ function GestionUsuarios() {
               className="flex-1 md:flex-none justify-center shadow-lg shadow-yellow-400/10"
             />
           </div>
-      </div>
+      </motion.div>
 
-      {/* BARRA DE BÚSQUEDA INTEGRADA */}
-      <div className="w-full max-w-2xl">
+      {/* ITEM 2: BUSCADOR */}
+      <motion.div variants={itemVariants} className="w-full max-w-2xl">
           <BarraBusqueda
             onBuscar={buscar}
             onLimpiar={limpiar}
@@ -97,10 +120,10 @@ function GestionUsuarios() {
             resultados={resultados}
             loading={loadingBusqueda}
           />
-      </div>
+      </motion.div>
 
-      {/* CONTENIDO */}
-      <div className="w-full space-y-4">
+      {/* ITEM 3: LISTA Y MODALES */}
+      <motion.div variants={itemVariants} className="w-full space-y-4">
         <ListaUsuarios
           key={usuariosKey}
           usuarios={usuariosParaMostrar}
@@ -128,8 +151,8 @@ function GestionUsuarios() {
            onEliminar={handleEliminar}
            onUsuarioCreado={handleUsuarioCreado}
         />
-      </div>
-    </section>
+      </motion.div>
+    </motion.section>
   );
 }
 

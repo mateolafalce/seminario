@@ -20,9 +20,6 @@ export default function PersistirCancha() {
       try {
         const data = await backendClient.get(`canchas/obtener/${id}`);
         
-        // --- CORRECCIÓN CRÍTICA AQUÍ ---
-        // Si el backend devuelve objetos [{id:1, hora:..}], los convertimos a [1]
-        // Si ya devuelve [1], lo dejamos igual.
         let horariosIds = [];
         if (Array.isArray(data.horarios)) {
             horariosIds = data.horarios.map(h => (typeof h === 'object' ? h.id : h));

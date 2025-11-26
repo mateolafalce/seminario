@@ -295,12 +295,12 @@ async def reservar(reserva: Reserva, user: dict = Depends(current_user)):
                 raise ValueError("Cancha inválida")
             cancha_id = cancha_doc["_id"]
 
-            # 🔴 NUEVO: validar que ese horario esté habilitado para esa cancha
+            # validar que ese horario esté habilitado para esa cancha
             horarios_cancha = cancha_doc.get("horarios") or []
             if not isinstance(horarios_cancha, list) or horario_id not in horarios_cancha:
                 raise ValueError("Ese horario no está habilitado para esta cancha")
 
-            # 🔴 Reglas de disponibilidad de la cancha
+            # reglas de disponibilidad de la cancha
 
             # Capacidad máxima
             cap_raw = cancha_doc.get("capacidad_maxima", 6)
@@ -1194,8 +1194,6 @@ async def admin_crear_reserva(data: CrearReservaAdminRequest, user: dict = Depen
         horarios_cancha = cancha.get("horarios") or []
         if not isinstance(horarios_cancha, list) or horario_id not in horarios_cancha:
             raise ValueError("Ese horario no está habilitado para esta cancha")
-
-        # 🔴 REGLAS DE DISPONIBILIDAD PROPIAS DE LA CANCHA
 
         # Capacidad máxima
         cap_raw = cancha.get("capacidad_maxima", 6)

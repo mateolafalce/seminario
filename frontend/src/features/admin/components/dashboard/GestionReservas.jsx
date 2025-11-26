@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { motion } from "framer-motion"; // <--- Importamos Motion
 import adminApi from '../../../../shared/services/adminApi';
 import backendClient from '../../../../shared/services/backendClient';
 import Paginacion from '../../../../shared/components/ui/Paginacion';
@@ -9,7 +10,25 @@ import Button from '../../../../shared/components/ui/Button/Button';
 import { FiSearch, FiRefreshCw, FiPlus, FiEye, FiSlash, FiX } from "react-icons/fi";
 import { MdAccessTime, MdCalendarToday, MdOutlineBookmarkAdded } from "react-icons/md";
 
-// Utiles de fecha (sin cambios)
+const containerVariants = {
+  hidden: { opacity: 0 },
+  visible: {
+    opacity: 1,
+    transition: { staggerChildren: 0.05 }
+  }
+};
+
+const itemVariants = {
+  hidden: { y: 10, opacity: 0, filter: "blur(2px)" },
+  visible: {
+    y: 0,
+    opacity: 1,
+    filter: "blur(0px)",
+    transition: { type: "spring", stiffness: 260, damping: 20 }
+  }
+};
+
+// Utiles de fecha
 const isoToDMY = (iso) => {
   if (!iso || !/^\d{4}-\d{2}-\d{2}$/.test(iso)) return '';
   const [y, m, d] = iso.split('-');
@@ -43,6 +62,25 @@ export default function GestionReservas() {
 
   const [detalle, setDetalle] = useState(null);
 
+  // Diccionario de nombres para arreglar IDs
+  const [nombresCanchas, setNombresCanchas] = useState({});
+
+  useEffect(() => {
+    const cargarNombres = async () => {
+        try {
+            const data = await backendClient.get("canchas/listar");
+            const lista = Array.isArray(data) ? data : (data.canchas || []);
+            const mapa = {};
+            lista.forEach(c => {
+                const id = c.id || c._id;
+                if (id) mapa[id] = c.nombre;
+            });
+            setNombresCanchas(mapa);
+        } catch (error) { console.error(error); }
+    };
+    cargarNombres();
+  }, []);
+
   const fetchData = async (goToPage = page) => {
     try {
       const fechaDMY = fechaISO ? isoToDMY(ensureYMD(fechaISO)) : undefined;
@@ -68,8 +106,9 @@ export default function GestionReservas() {
 
   const abrirDetalle = async (r) => {
     try {
+      const nombreCanchaReal = nombresCanchas[r.cancha] || r.cancha_nombre || r.cancha;
       const data = await backendClient.get('reservas/detalle', {
-        cancha: r.cancha_nombre || r.cancha,
+        cancha: nombreCanchaReal,
         horario: r.horario,
         fecha: r.fecha,
       });
@@ -92,11 +131,15 @@ export default function GestionReservas() {
   };
 
   return (
-    // ANIMACIÓN AGREGADA AQUÍ: animate-in fade-in slide-in-from-bottom-4
-    <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
+    <motion.div 
+      className="space-y-8"
+      variants={containerVariants}
+      initial="hidden"
+      animate="visible"
+    >
       
-      {/* HEADER LIMPIO */}
-      <div className="flex flex-col md:flex-row md:items-end justify-between gap-4 border-b border-slate-800 pb-5">
+      {/* ITEM 1: HEADER */}
+      <motion.div variants={itemVariants} className="flex flex-col md:flex-row md:items-end justify-between gap-4 border-b border-slate-800 pb-5">
         <div>
           <h2 className="text-3xl font-bold text-white tracking-tight flex items-center gap-3">
             <span className="text-yellow-400"><MdOutlineBookmarkAdded /></span>
@@ -122,10 +165,10 @@ export default function GestionReservas() {
             className="shadow-lg shadow-yellow-400/10"
           />
         </div>
-      </div>
+      </motion.div>
 
-      {/* FILTROS INTEGRADOS */}
-      <div className="bg-slate-900/40 border border-slate-800 rounded-xl p-4">
+      {/* ITEM 2: FILTROS */}
+      <motion.div variants={itemVariants} className="bg-slate-900/40 border border-slate-800 rounded-xl p-4">
         <form onSubmit={onBuscar} className="flex flex-col xl:flex-row gap-3">
             <div className="flex-1 grid grid-cols-1 md:grid-cols-3 gap-3">
                 <input
@@ -161,10 +204,10 @@ export default function GestionReservas() {
                 </button>
             </div>
         </form>
-      </div>
+      </motion.div>
 
-      {/* TABLA ESTILIZADA */}
-      <div className="bg-slate-900 border border-slate-800 rounded-xl overflow-hidden shadow-sm">
+      {/* ITEM 3: TABLA */}
+      <motion.div variants={itemVariants} className="bg-slate-900 border border-slate-800 rounded-xl overflow-hidden shadow-sm">
         <div className="overflow-x-auto">
           <table className="min-w-full text-sm text-left">
             <thead className="bg-slate-950/50 text-xs uppercase text-slate-400 font-semibold tracking-wider border-b border-slate-800">
@@ -196,6 +239,8 @@ export default function GestionReservas() {
                   if (r.estado_nombre === 'Confirmada') { statusClass = "bg-emerald-500/10 text-emerald-400 border-emerald-500/20"; dotClass="bg-emerald-400"; }
                   if (r.estado_nombre === 'Cancelada') { statusClass = "bg-red-500/10 text-red-400 border-red-500/20"; dotClass="bg-red-400"; }
 
+                  const nombreCanchaVisual = nombresCanchas[r.cancha] || r.cancha_nombre || r.cancha;
+
                   return (
                     <tr key={r._id || r.id} className="hover:bg-slate-800/40 transition-colors group">
                       <td className="px-6 py-4 font-medium text-slate-200">{r.fecha}</td>
@@ -203,7 +248,7 @@ export default function GestionReservas() {
                         <div className="flex items-center gap-2"><MdAccessTime className="text-slate-500" />{r.hora_inicio || r.horario}</div>
                       </td>
                       <td className="px-6 py-4">
-                        <span className="text-slate-300">{r.cancha_nombre || r.cancha}</span>
+                        <span className="text-slate-300">{nombreCanchaVisual}</span>
                       </td>
                       <td className="px-6 py-4">
                         <div className="flex flex-wrap items-center gap-1 max-w-[200px]">
@@ -238,7 +283,7 @@ export default function GestionReservas() {
             </tbody>
           </table>
         </div>
-      </div>
+      </motion.div>
       
       {totalPages > 1 && (
         <div className="flex justify-center pt-2">
@@ -246,7 +291,7 @@ export default function GestionReservas() {
         </div>
       )}
 
-      {/* MODAL DETALLE (ESTILIZADO) */}
+      {/* MODAL DETALLE */}
       {detalle && (
         <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-50 p-4 animate-in fade-in duration-200">
           <div className="bg-slate-900 border border-slate-800 rounded-xl p-6 w-full max-w-md relative shadow-2xl">
@@ -292,6 +337,6 @@ export default function GestionReservas() {
           </div>
         </div>
       )}
-    </div>
+    </motion.div>
   );
 }

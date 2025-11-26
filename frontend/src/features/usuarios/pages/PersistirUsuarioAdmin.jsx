@@ -1,10 +1,20 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { motion } from "framer-motion"; // <---
 import adminApi from "../../../shared/services/adminApi";
 import UsuarioForm from "../components/UsuarioForm";
 import { FiArrowLeft } from "react-icons/fi";
 import { toast } from "react-toastify";
 import MiToast from "../../../shared/components/ui/Toast/MiToast";
+
+const containerVariants = {
+  hidden: { opacity: 0 },
+  visible: { opacity: 1, transition: { staggerChildren: 0.05 } }
+};
+const itemVariants = {
+  hidden: { y: 10, opacity: 0 },
+  visible: { y: 0, opacity: 1, transition: { type: "spring", stiffness: 260, damping: 20 } }
+};
 
 export default function PersistirUsuarioAdmin() {
   const navigate = useNavigate();
@@ -14,7 +24,6 @@ export default function PersistirUsuarioAdmin() {
     try {
       setLoading(true);
 
-      // Aseguramos el shape que espera RegisterUser (backend)
       const payload = {
         nombre: formValues.nombre,
         apellido: formValues.apellido,
@@ -22,9 +31,7 @@ export default function PersistirUsuarioAdmin() {
         dni: String(formValues.dni ?? "").trim(),
         username: formValues.username,
         password: formValues.password,
-        habilitado: false, // Por defecto deshabilitado hasta confirmar email
-        // cualquier otro campo extra (categoria, etc.)
-        // es ignorado por Pydantic, así que no rompen nada
+        habilitado: false, 
       };
 
       await adminApi.users.create(payload);
@@ -37,11 +44,7 @@ export default function PersistirUsuarioAdmin() {
       );
       navigate("/panel-control/usuarios");
     } catch (e) {
-      const msg =
-        e?.response?.data?.detail ||
-        e?.response?.data?.message ||
-        e.message ||
-        "Error al crear usuario";
+      const msg = e?.response?.data?.detail || e?.response?.data?.message || e.message || "Error al crear usuario";
       toast(<MiToast mensaje={msg} color="#ef4444" />);
     } finally {
       setLoading(false);
@@ -49,9 +52,14 @@ export default function PersistirUsuarioAdmin() {
   };
 
   return (
-    <div className="max-w-5xl mx-auto space-y-6 pb-12">
+    <motion.div 
+      className="max-w-5xl mx-auto space-y-6 pb-12"
+      variants={containerVariants}
+      initial="hidden"
+      animate="visible"
+    >
       {/* Header */}
-      <div className="flex items-center gap-4 border-b border-gray-700 pb-4 mb-6">
+      <motion.div variants={itemVariants} className="flex items-center gap-4 border-b border-gray-700 pb-4 mb-6">
         <button
           onClick={() => navigate("/panel-control/usuarios")}
           className="p-2 text-gray-400 hover:text-white hover:bg-slate-800 rounded-full transition"
@@ -64,16 +72,18 @@ export default function PersistirUsuarioAdmin() {
             Dar de alta un nuevo cliente o administrador.
           </p>
         </div>
-      </div>
+      </motion.div>
 
-      {/* Formulario en modo CREAR */}
-      <UsuarioForm
-        mode="create"
-        showAuthFields={true}
-        onSubmit={handleSubmit}
-        loading={loading}
-        submitText="Crear Usuario"
-      />
-    </div>
+      {/* Formulario */}
+      <motion.div variants={itemVariants}>
+        <UsuarioForm
+          mode="create"
+          showAuthFields={true}
+          onSubmit={handleSubmit}
+          loading={loading}
+          submitText="Crear Usuario"
+        />
+      </motion.div>
+    </motion.div>
   );
 }

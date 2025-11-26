@@ -129,7 +129,6 @@ function CargarResultados() {
     setSaving(false);
   };
 
-  // 🔐 Gate de acceso (ahora después de TODOS los hooks)
   if (!isAuthenticated || !puedeCargar) return <Navigate to="/" replace />;
 
   return (

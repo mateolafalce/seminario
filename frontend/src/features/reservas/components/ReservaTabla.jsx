@@ -5,16 +5,25 @@ import { toast } from "react-toastify";
 import MiToast from "../../../shared/components/ui/Toast/MiToast";
 import MessageConfirm from "../../../shared/components/ui/Confirm/MessageConfirm";
 import backendClient from "../../../shared/services/backendClient";
-import CourtCard from "./CourtCard"; // Usamos la tarjeta bonita
+import CourtCard from "./CourtCard"; 
 import { FiCalendar, FiFilter } from "react-icons/fi";
 import { isCanchaDisponibleEnFecha } from "../../../shared/utils/disponibilidadCancha";
 
+// Helper para el input (YYYY-MM-DD)
 const formatDate = (date) => {
     const d = new Date(date);
     const month = '' + (d.getMonth() + 1);
     const day = '' + d.getDate();
     const year = d.getFullYear();
     return [year, month.padStart(2, '0'), day.padStart(2, '0')].join('-');
+};
+
+// Helper para el Backend (DD-MM-YYYY)
+// Transforma 2025-12-02 -> 02-12-2025
+const convertirFechaParaBackend = (fechaIso) => {
+    if (!fechaIso) return "";
+    const [year, month, day] = fechaIso.split("-");
+    return `${day}-${month}-${year}`;
 };
 
 const normalizarTexto = (t) => t.trim().replace(/\s+/g, " ");
@@ -26,7 +35,7 @@ export default function ReservaTabla() {
   // Estados
   const [mensaje, setMensaje] = useState("");
   const [reservaPendiente, setReservaPendiente] = useState(null);
-  const [selectedDate, setSelectedDate] = useState(formatDate(new Date()));
+  const [selectedDate, setSelectedDate] = useState(formatDate(new Date())); // Esto guarda YYYY-MM-DD
   const [selected, setSelected] = useState(null);
   
   // Datos
@@ -41,7 +50,7 @@ export default function ReservaTabla() {
   const [detalleReserva, setDetalleReserva] = useState(null);
   const [loadingDetalle, setLoadingDetalle] = useState(false);
 
-  // --- Carga de Datos ---
+  // --- Carga de Datos Iniciales ---
   useEffect(() => {
     let alive = true;
     const fetchData = async () => {
@@ -69,6 +78,7 @@ export default function ReservaTabla() {
     return () => { alive = false; };
   }, []);
 
+  // Mapeo de horarios por cancha
   useEffect(() => {
     const map = {};
     canchasRaw.forEach((c) => {
@@ -78,11 +88,15 @@ export default function ReservaTabla() {
     setHorariosPorCancha(map);
   }, [canchasRaw, horariosById]);
 
+  // --- Carga de Cantidades (CORREGIDO LA FECHA) ---
   useEffect(() => {
     let alive = true;
     const fetchCantidades = async () => {
         try {
-            const data = await backendClient.get("reservas/cantidad", { fecha: selectedDate });
+            // CORRECCIÓN: Convertimos la fecha antes de enviarla
+            const fechaBackend = convertirFechaParaBackend(selectedDate);
+            const data = await backendClient.get("reservas/cantidad", { fecha: fechaBackend });
+            
             if (!alive) return;
             const mapa = {};
             (data || []).forEach((it) => { mapa[`${it.cancha}-${it.horario}`] = it.cantidad; });
@@ -93,7 +107,7 @@ export default function ReservaTabla() {
     return () => { alive = false; };
   }, [selectedDate]);
 
-  // UX: Ordenar canchas (Las que tienen ID más bajo o alfabético primero)
+  // UX: Ordenar canchas
   const canchasOrdenadas = useMemo(() => {
      return [...canchasRaw].sort((a, b) => a.nombre.localeCompare(b.nombre));
   }, [canchasRaw]);
@@ -107,28 +121,48 @@ export default function ReservaTabla() {
     return slotTime.getTime() - Date.now() < 3600000;
   };
 
+  // --- Abrir Detalle (CORREGIDO LA FECHA) ---
   const abrirDetalle = async (cancha, hora) => { 
     setLoadingDetalle(true); setModalOpen(true);
     try {
+        // CORRECCIÓN: Fecha formateada para backend
+        const fechaBackend = convertirFechaParaBackend(selectedDate);
+        
         const data = await backendClient.get("reservas/detalle", {
-            cancha: normalizarTexto(cancha), horario: normalizarTexto(hora), fecha: selectedDate,
+            cancha: normalizarTexto(cancha), 
+            horario: normalizarTexto(hora), 
+            fecha: fechaBackend, // <--- Aquí estaba el error potencial
             ...(user?.id ? { usuario_id: user.id } : {})
         });
         setDetalleReserva(data);
     } catch { setDetalleReserva(null); } finally { setLoadingDetalle(false); }
   };
   
+  // --- Confirmar Reserva (CORREGIDO LA FECHA - EL ERROR PRINCIPAL) ---
   const handleConfirmar = async () => { 
       if (!reservaPendiente) return;
       const { cancha, hora } = reservaPendiente;
       try {
-          await backendClient.post("reservas/reservar", { cancha, horario: hora, fecha: selectedDate });
+          // CORRECCIÓN CRÍTICA: Transformar YYYY-MM-DD a DD-MM-YYYY
+          const fechaBackend = convertirFechaParaBackend(selectedDate);
+
+          await backendClient.post("reservas/reservar", { 
+              cancha, 
+              horario: hora, 
+              fecha: fechaBackend // <--- Aquí estaba fallando
+          });
+          
           toast(<MiToast mensaje="Reserva confirmada" color="var(--color-green-400)" />);
-          const res = await backendClient.get("reservas/cantidad", { fecha: selectedDate });
+          
+          // Actualizar cantidades inmediatamente
+          const res = await backendClient.get("reservas/cantidad", { fecha: fechaBackend });
           const mapa = {}; (res || []).forEach((it) => { mapa[`${it.cancha}-${it.horario}`] = it.cantidad; });
           setCantidades(mapa);
+          
           setSelected({ cancha, hora });
-      } catch (e) { toast(<MiToast mensaje={e.message} color="var(--color-red-400)" />); } 
+      } catch (e) { 
+          toast(<MiToast mensaje={e.response?.data?.detail || e.message} color="var(--color-red-400)" />); 
+      } 
       finally { setReservaPendiente(null); setMensaje(""); }
   };
 
@@ -137,13 +171,12 @@ export default function ReservaTabla() {
     setMensaje(`¿Confirmar reserva en "${cancha}" a las ${hora}?`);
   };
 
-  const cancelar = async (reservaId) => { /* Tu lógica de cancelar */ };
   const handleViewCancha = (cancha) => {
       const id = cancha.id || cancha._id;
       if(id) navigate(`/canchas/${id}`, { state: { cancha } });
   };
 
-  // Filter canchas based on selected date
+  // Filtro visual
   const canchasVisibles = canchasOrdenadas.filter((c) =>
     isCanchaDisponibleEnFecha(c, selectedDate)
   );
@@ -195,7 +228,7 @@ export default function ReservaTabla() {
             Probá cambiar el día o el horario.
           </div>
         ) : (
-          // GRID RESPONSIVE: 1 col en celular, 2 cols en PC
+          // GRID RESPONSIVE
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 animate-fadeIn">
               {canchasVisibles.map((cancha) => (
                   <CourtCard
@@ -213,7 +246,7 @@ export default function ReservaTabla() {
           </div>
         )}
 
-        {/* MODALES IGUAL QUE SIEMPRE */}
+        {/* MODALES */}
         {modalOpen && detalleReserva && (
              <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm" onClick={() => setModalOpen(false)}>
                 <div className="w-full max-w-md bg-[#0F1524] border border-white/10 p-6 rounded-2xl shadow-2xl relative" onClick={e => e.stopPropagation()}>
@@ -222,7 +255,6 @@ export default function ReservaTabla() {
                         {detalleReserva.cancha} <span className="text-amber-400">|</span> {detalleReserva.horario}
                     </h3>
                     <div className="bg-slate-900/50 rounded-xl p-4 mb-4 max-h-40 overflow-y-auto custom-scrollbar border border-white/5">
-                       {/* ... contenido jugadores ... */}
                        {detalleReserva.usuarios.length === 0 ? <p className="text-slate-400 text-sm italic">Sin jugadores.</p> : 
                             detalleReserva.usuarios.map((u,i) => <div key={i} className="text-slate-300 text-sm">• {u.nombre}</div>)
                        }

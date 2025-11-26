@@ -1,9 +1,34 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { motion } from "framer-motion"; 
 import backendClient from "../../../../shared/services/backendClient";
 import Button from "../../../../shared/components/ui/Button/Button";
 import ListarCanchas from "../../../canchas/pages/ListarCanchas";
-import { MdAccessTime, MdAddCircleOutline } from "react-icons/md";
+import { MdAccessTime, MdAddCircleOutline, MdOutlineSportsTennis } from "react-icons/md"; 
+
+const containerVariants = {
+  hidden: { opacity: 0 },
+  visible: {
+    opacity: 1,
+    transition: {
+      staggerChildren: 0.05,
+    }
+  }
+};
+
+const itemVariants = {
+  hidden: { y: 10, opacity: 0, filter: "blur(2px)" }, 
+  visible: {
+    y: 0,
+    opacity: 1,
+    filter: "blur(0px)",
+    transition: {
+      type: "spring", 
+      stiffness: 260, 
+      damping: 20    
+    }
+  }
+};
 
 export default function GestionCanchas() {
   const navigate = useNavigate();
@@ -11,13 +36,8 @@ export default function GestionCanchas() {
   const [loading, setLoading] = useState(false);
   const [reloadKey, setReloadKey] = useState(0);
 
-  const irACrear = () => {
-    navigate("/panel-control/canchas/nueva");
-  };
-
-  const irAEditar = (cancha) => {
-    navigate(`/panel-control/canchas/editar/${cancha.id}`);
-  };
+  const irACrear = () => navigate("/panel-control/canchas/nueva");
+  const irAEditar = (cancha) => navigate(`/panel-control/canchas/editar/${cancha.id}`);
 
   const handleEliminarCancha = async (cancha) => {
     if (!window.confirm(`¿Seguro que querés eliminar "${cancha.nombre}"?`)) return;
@@ -27,19 +47,33 @@ export default function GestionCanchas() {
       await backendClient.delete(`canchas/eliminar/${cancha.id}`);
       setReloadKey((k) => k + 1);
     } catch (e) {
-      setMensajeError(e?.response?.data?.detail || "Error al eliminar. Verificá reservas.");
+      setMensajeError(e?.response?.data?.detail || "Error al eliminar.");
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <div className="space-y-6">
+    <motion.div 
+      className="space-y-8"
+      variants={containerVariants}
+      initial="hidden"
+      animate="visible"
+    >
       
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-slate-900/60 border border-slate-700/70 rounded-xl p-5 shadow-lg">
+      {/* ITEM 1: Header */}
+      <motion.div 
+        className="flex flex-col md:flex-row md:items-end justify-between gap-4 border-b border-slate-800 pb-5"
+        variants={itemVariants}
+      >
         <div>
-          <h2 className="text-base font-bold text-white tracking-wide">Gestión de Canchas</h2>
-          <p className="text-xs text-gray-500 mt-0.5">Espacios y horarios disponibles</p>
+          <h2 className="text-3xl font-bold text-white tracking-tight flex items-center gap-3">
+             <span className="text-yellow-400"><MdOutlineSportsTennis /></span>
+             Gestión de Canchas
+          </h2>
+          <p className="text-slate-400 mt-2 text-sm max-w-xl">
+            Aquí podés dar de alta nuevas canchas, modificar precios o ajustar los horarios de disponibilidad.
+          </p>
         </div>
 
         <div className="flex items-center gap-3">
@@ -47,31 +81,37 @@ export default function GestionCanchas() {
                 texto="Horarios"
                 onClick={() => navigate("/panel-control/canchas/horarios")}
                 variant="secondary"
-                size="md"
                 icon={<MdAccessTime size={18} />}
             />
             <Button
-                texto="Crear Cancha"
+                texto="Nueva Cancha"
                 variant="default"
-                size="md"
                 onClick={irACrear}
                 disabled={loading}
-                icon={<MdAddCircleOutline size={18} />}
+                icon={<MdAddCircleOutline size={20} />}
+                className="shadow-lg shadow-yellow-400/10"
             />
         </div>
-      </div>
+      </motion.div>
 
+      {/* ITEM 2: Error (Solo si existe) */}
       {mensajeError && (
-        <div className="p-4 bg-red-900/30 border border-red-800 rounded-lg text-red-300 text-sm">
-            {mensajeError}
-        </div>
+        <motion.div 
+          variants={itemVariants}
+          className="p-4 bg-red-500/10 border border-red-500/20 rounded-lg text-red-400 text-sm flex items-center"
+        >
+            <span className="mr-2 font-bold">Error:</span> {mensajeError}
+        </motion.div>
       )}
 
-      <ListarCanchas
-        reloadKey={reloadKey}
-        onSeleccionar={irAEditar}
-        onEliminar={handleEliminarCancha}
-      />
-    </div>
+      {/* ITEM 3: La Lista */}
+      <motion.div variants={itemVariants}>
+        <ListarCanchas
+          reloadKey={reloadKey}
+          onSeleccionar={irAEditar}
+          onEliminar={handleEliminarCancha}
+        />
+      </motion.div>
+    </motion.div>
   );
 }

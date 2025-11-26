@@ -1,10 +1,20 @@
 import { useEffect, useState, useCallback, useContext } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { motion } from "framer-motion"; // <---
 import { AuthContext } from '../../auth/context/AuthContext';
 import categoriasApi from '../../../shared/services/categoriasApi';
 import Button from '../../../shared/components/ui/Button/Button';
 import { successToast, errorToast } from '../../../shared/utils/apiHelpers';
 import { FiTrash2, FiEdit2, FiPlus, FiSave, FiX, FiArrowLeft } from "react-icons/fi";
+
+const containerVariants = {
+  hidden: { opacity: 0 },
+  visible: { opacity: 1, transition: { staggerChildren: 0.05 } }
+};
+const itemVariants = {
+  hidden: { y: 10, opacity: 0, filter: "blur(2px)" },
+  visible: { y: 0, opacity: 1, filter: "blur(0px)", transition: { type: "spring", stiffness: 260, damping: 20 } }
+};
 
 export default function PageCategorias() {
   const navigate = useNavigate();
@@ -45,17 +55,13 @@ export default function PageCategorias() {
     if (!newNombre.trim()) return;
     setCreating(true);
     try {
-      const nivelNum = Math.max(1, Number(newNivel || 1)); // nunca < 1
-      await categoriasApi.crear({
-        nombre: newNombre.trim(),
-        nivel: nivelNum,
-      });
+      const nivelNum = Math.max(1, Number(newNivel || 1));
+      await categoriasApi.crear({ nombre: newNombre.trim(), nivel: nivelNum });
       successToast('Categoría creada');
       setNewNombre('');
       setNewNivel(1);
       load();
     } catch (e) {
-      // mejor lectura del error
       const msg = e.response?.data?.detail || e.message || 'No se pudo crear';
       errorToast(msg);
     } finally {
@@ -79,10 +85,7 @@ export default function PageCategorias() {
     if (!editNombre.trim()) return;
     try {
       const nivelNum = Math.max(1, Number(editNivel || 1));
-      await categoriasApi.modificar(editingId, {
-        nombre: editNombre.trim(),
-        nivel: nivelNum,
-      });
+      await categoriasApi.modificar(editingId, { nombre: editNombre.trim(), nivel: nivelNum });
       successToast('Categoría modificada');
       cancelEdit();
       load();
@@ -104,10 +107,15 @@ export default function PageCategorias() {
   };
 
   return (
-    <div className="max-w-5xl mx-auto space-y-8 pb-12">
+    <motion.div 
+      className="max-w-5xl mx-auto space-y-8 pb-12"
+      variants={containerVariants}
+      initial="hidden"
+      animate="visible"
+    >
       
       {/* HEADER */}
-      <div className="flex items-center gap-4 border-b border-gray-700 pb-6">
+      <motion.div variants={itemVariants} className="flex items-center gap-4 border-b border-gray-700 pb-6">
         <button 
             onClick={() => navigate("/panel-control/usuarios")}
             className="p-2 text-gray-400 hover:text-white hover:bg-slate-800 rounded-full transition"
@@ -118,13 +126,13 @@ export default function PageCategorias() {
             <h2 className="text-2xl font-bold text-white">Gestión de Categorías</h2>
             <p className="text-gray-400 text-sm">Define los niveles y jerarquías de los usuarios.</p>
         </div>
-      </div>
+      </motion.div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
         
-        {/* COLUMNA IZQUIERDA: FORMULARIO CREAR */}
+        {/* COLUMNA IZQUIERDA */}
         {canAdmin && (
-            <div className="lg:col-span-1 space-y-6">
+            <motion.div variants={itemVariants} className="lg:col-span-1 space-y-6">
                 <div className="bg-slate-900/60 border border-slate-700/70 p-6 rounded-xl shadow-lg sticky top-6">
                     <h3 className="text-lg font-bold text-white mb-4 border-b border-slate-700 pb-2">Nueva Categoría</h3>
                     <div className="space-y-4">
@@ -162,11 +170,11 @@ export default function PageCategorias() {
                         </div>
                     </div>
                 </div>
-            </div>
+            </motion.div>
         )}
 
-        {/* COLUMNA DERECHA: LISTADO */}
-        <div className="lg:col-span-2">
+        {/* COLUMNA DERECHA */}
+        <motion.div variants={itemVariants} className="lg:col-span-2">
             <div className="bg-slate-900/60 border border-slate-700/70 rounded-xl shadow-lg overflow-hidden">
                 {loading ? (
                     <div className="p-12 text-center text-gray-400">Cargando categorías...</div>
@@ -220,8 +228,8 @@ export default function PageCategorias() {
                     </table>
                 )}
             </div>
-        </div>
+        </motion.div>
       </div>
-    </div>
+    </motion.div>
   );
 }

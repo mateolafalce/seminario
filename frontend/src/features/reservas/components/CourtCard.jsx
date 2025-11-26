@@ -15,7 +15,7 @@ export default function CourtCard({
   isPastSlot,
   capacity,
 }) {
-  // CONFIGURACIÓN DE COLORES
+
   const THEME = {
     cardBg: "bg-[#0F1524]", 
     cardBorder: "border border-white/10",

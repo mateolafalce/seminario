@@ -1,8 +1,6 @@
 import { useContext, useMemo, useState } from 'react';
 import { Navigate, NavLink, Outlet, useNavigate } from 'react-router-dom';
 import { AuthContext } from '../../auth/context/AuthContext';
-
-// Iconos
 import { HiUsers, HiMenu, HiX } from "react-icons/hi";
 import { IoStatsChartSharp } from "react-icons/io5";
 import { PiCourtBasketballFill } from "react-icons/pi";
