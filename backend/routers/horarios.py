@@ -49,9 +49,10 @@ async def eliminar_horario(horario_id: str):
     oid = ObjectId(horario_id)
 
     # 1. Eliminar todas las reservas que usan este horario
-    espacios_eliminados = db_client.reservas.delete_many({"hora_inicio": oid})
+    reservas_eliminadas = db_client.reservas.delete_many({"hora_inicio": oid})
     
     # 2. Eliminar el horario de todas las preferencias que lo referencien
+    # Primero, remover el horario del array
     db_client.preferencias.update_many(
         {"horarios": oid},
         {"$pull": {"horarios": oid}}
@@ -62,12 +63,6 @@ async def eliminar_horario(horario_id: str):
         {"horarios": {"$size": 0}}
     )
 
-    # 3b. Sacar el horario de todas las canchas que lo tengan configurado
-    canchas_actualizadas = db_client.canchas.update_many(
-        {"horarios": oid},
-        {"$pull": {"horarios": oid}}
-    )
-
     # 4. Finalmente, eliminar el horario
     res = db_client.horarios.delete_one({"_id": oid})
     if res.deleted_count == 0:
@@ -75,9 +70,8 @@ async def eliminar_horario(horario_id: str):
     
     return {
         "msg": "Horario eliminado con borrado en cascada",
-        "reservas_eliminadas": espacios_eliminados.deleted_count,
-        "preferencias_eliminadas": preferencias_eliminadas.deleted_count,
-        "canchas_actualizadas": canchas_actualizadas.modified_count,
+        "reservas_eliminadas": reservas_eliminadas.deleted_count,
+        "preferencias_eliminadas": preferencias_eliminadas.deleted_count
     }
 
 def ensure_horarios_indexes():
