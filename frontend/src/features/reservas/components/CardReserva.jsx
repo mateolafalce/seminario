@@ -42,13 +42,16 @@ export default function ReservaCard({
   selected,     // booleano para resaltar
   bottomActions,
   playersCountOverride,
-  onClick, // Nuevo: para hacer click en toda la card
+  onClick, // para hacer click en toda la card
 }) {
   const estado = reserva?.estado || "Reservada";
   const cantidad = reserva?.cantidad_usuarios ?? 1;
   const max = reserva?.max_usuarios ?? 6;
   const shownCantidad = typeof playersCountOverride === 'number' ? playersCountOverride : cantidad;
   const resultado = reserva?.resultado;
+
+  // 👉 nuevo: sólo mostramos "Ver jugadores" si hay más de 1
+  const hayOtrosJugadores = shownCantidad > 1;
 
   // Lógica de "Próxima"
   const ahora = new Date();
@@ -113,7 +116,7 @@ export default function ReservaCard({
         {/* Acciones (Botones) */}
         <div className="mt-4 flex flex-wrap gap-2 items-center justify-end">
             
-            {onVerJugadores && (
+            {onVerJugadores && hayOtrosJugadores && (
               <button 
                 onClick={(e) => { e.stopPropagation(); onVerJugadores(reserva); }}
                 className="px-3 py-1.5 rounded-lg text-xs font-medium text-slate-300 hover:text-white hover:bg-slate-800 transition-colors"
