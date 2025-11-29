@@ -118,6 +118,11 @@ const adminApi = {
       return await backendClient.post('/reservas/admin/crear', payload);
     },
   },
+
+  preferencias: {
+    adminSearch: (payload) =>
+      backendClient.post('/preferencias/admin/buscar', payload),
+  },
 };
 
 // --- Named exports para el admin modal (canchas/horarios) ---

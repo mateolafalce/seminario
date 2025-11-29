@@ -97,9 +97,11 @@ const ListaUsuarios = ({ usuarios, loading, error, onEditar, onEliminar, modoBus
             <tr>
               <th className="px-6 py-4">Usuario</th>
               <th className="px-6 py-4">DNI</th>
+              <th className="px-6 py-4 hidden md:table-cell">Teléfono</th>
+              <th className="px-6 py-4 hidden lg:table-cell">Registro</th>
+              <th className="px-6 py-4 hidden lg:table-cell">Última conexión</th>
               <th className="px-6 py-4 text-center">Estado</th>
               <th className="px-6 py-4 hidden sm:table-cell">Categoría</th>
-              <th className="px-6 py-4 hidden lg:table-cell">Contacto</th>
               <th className="px-6 py-4 text-right">Acciones</th>
             </tr>
           </thead>
@@ -166,6 +168,11 @@ const ListaUsuarios = ({ usuarios, loading, error, onEditar, onEliminar, modoBus
                         <span className="text-xs text-yellow-500/80 font-medium">
                           @{username}
                         </span>
+                        {email && (
+                          <span className="text-[11px] text-slate-400 mt-0.5">
+                            {email}
+                          </span>
+                        )}
                       </div>
                     </div>
                   </td>
@@ -175,14 +182,27 @@ const ListaUsuarios = ({ usuarios, loading, error, onEditar, onEliminar, modoBus
                     {dni || "—"}
                   </td>
 
+                  {/* Teléfono */}
+                  <td className="px-6 py-4 align-middle hidden md:table-cell text-slate-300 text-xs">
+                    {telefono || <span className="text-slate-500">—</span>}
+                  </td>
+
+                  {/* Fecha de registro */}
+                  <td className="px-6 py-4 align-middle hidden lg:table-cell text-slate-400 text-xs">
+                    {user.fecha_registro || "—"}
+                  </td>
+
+                  {/* Última conexión */}
+                  <td className="px-6 py-4 align-middle hidden lg:table-cell text-slate-400 text-xs">
+                    {user.ultima_conexion || "—"}
+                  </td>
+
                   {/* Estado */}
                   <td className="px-6 py-4 align-middle text-center">
                     <span
                       className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-medium border ${statusClass}`}
                     >
-                      <span
-                        className={`w-1.5 h-1.5 rounded-full ${dotClass}`}
-                      />
+                      <span className={`w-1.5 h-1.5 rounded-full ${dotClass}`} />
                       {isHabilitado ? "Activo" : "Inactivo"}
                     </span>
                   </td>
@@ -193,16 +213,6 @@ const ListaUsuarios = ({ usuarios, loading, error, onEditar, onEliminar, modoBus
                       <MdLayers className="text-slate-500" />
                       {categoria}
                     </span>
-                  </td>
-
-                  {/* Contacto */}
-                  <td className="px-6 py-4 align-middle hidden lg:table-cell text-slate-400 text-xs">
-                    <div className="flex flex-col gap-0.5">
-                      {email && <span>{email}</span>}
-                      {telefono && (
-                        <span className="text-slate-500">{telefono}</span>
-                      )}
-                    </div>
                   </td>
 
                   {/* Acciones */}

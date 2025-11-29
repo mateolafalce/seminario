@@ -21,7 +21,13 @@ def _only_digits(s: Any) -> str:
     return "".join(ch for ch in str(s) if ch.isdigit())
 
 
-def create_persona_for_user(nombre: str, apellido: str, email: str, dni: str) -> ObjectId:
+def create_persona_for_user(
+    nombre: str,
+    apellido: str,
+    email: str,
+    dni: str,
+    telefono: str | None = None,
+) -> ObjectId:
     """
     Crea un documento en 'personas' con validación laxa.
     Devuelve el ObjectId insertado. Lanza ValueError ante errores de negocio.
@@ -44,6 +50,12 @@ def create_persona_for_user(nombre: str, apellido: str, email: str, dni: str) ->
         "email": (email or "").strip(),
         "dni": ndni,
     }
+    if telefono:
+        tel = _only_digits(telefono)
+        if tel and len(tel) > 20:
+            tel = tel[:20]
+        doc["telefono"] = tel
+
     try:
         res = db_client.personas.insert_one(doc)
     except DuplicateKeyError:
@@ -74,6 +86,12 @@ def update_persona_fields(persona_id: ObjectId, data: Dict[str, Any]) -> Dict[st
         if len(ndni) < 1 or len(ndni) > 10:
             raise ValueError("DNI inválido: debe tener entre 1 y 10 dígitos")
         update["dni"] = ndni
+
+    if "telefono" in data and data["telefono"] is not None:
+        tel = _only_digits(data["telefono"])
+        if tel and len(tel) > 20:
+            tel = tel[:20]
+        update["telefono"] = tel
 
     if not update:
         # Nada que actualizar

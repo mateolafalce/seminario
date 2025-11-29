@@ -13,7 +13,9 @@ import {
   FiArrowLeft,
   FiArrowRight,
   FiLoader as SpinnerIcon,
+  FiPhone,
 } from "react-icons/fi";
+import { onlyDigits } from "../../../shared/utils/userValidation";
 
 /* ------------------------------------------
    Utils
@@ -203,7 +205,7 @@ const ReviewsSkeleton = () => (
 function MisDatos() {
   const [datos, setDatos] = useState(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [form, setForm] = useState({ nombre: "", apellido: "", email: "" });
+  const [form, setForm] = useState({ nombre: "", apellido: "", email: "", telefono: "" });
   const [loadingPerfil, setLoadingPerfil] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -260,21 +262,34 @@ function MisDatos() {
         nombre: datos.nombre || "",
         apellido: datos.apellido || "",
         email: datos.email || "",
+        telefono: datos.telefono || "",
       });
       setIsModalOpen(true);
     }
   };
 
-  const handleChange = (e) => setForm({ ...form, [e.target.name]: e.target.value });
+  const handleChange = (e) => {
+    const { name, value } = e.target;
+    if (name === "telefono") {
+      const clean = onlyDigits(value).slice(0, 20);
+      setForm((prev) => ({ ...prev, telefono: clean }));
+    } else {
+      setForm((prev) => ({ ...prev, [name]: value }));
+    }
+  };
 
   // EDITAR PERFIL (PUT)
   const handleSubmit = async (e) => {
     e.preventDefault();
     setIsSubmitting(true);
     try {
-      const updated = await backendClient.put('users_b/me/', form);
+      const payload = {
+        ...form,
+        telefono: form.telefono ? onlyDigits(form.telefono) : null,
+      };
+      const updated = await backendClient.put('users_b/me/', payload);
       toast.success("Datos actualizados correctamente");
-      setDatos(prev => ({ ...prev, ...form })); // o usa `updated` si backend devuelve el perfil completo
+      setDatos(prev => ({ ...prev, ...payload }));
       setIsModalOpen(false);
     } catch (err) {
       const msg = err?.data?.detail || err?.message || "Error al actualizar los datos";
@@ -333,7 +348,6 @@ function MisDatos() {
                 Gestiona tu información personal y de tu cuenta.
               </p>
             </div>
-      
           </div>
         </div>
       </div>
@@ -362,6 +376,12 @@ function MisDatos() {
                   icon={<FiMail className="text-amber-300" />}
                   label="Email"
                   value={datos.email || "—"}
+                />
+                <InfoRow
+                  icon={<FiPhone className="text-amber-300" />}
+                  label="Teléfono"
+                  value={datos.telefono || "—"}
+                  subtle
                 />
                 <InfoRow
                   icon={<FiCalendar className="text-amber-300" />}
@@ -476,13 +496,24 @@ function MisDatos() {
         onClose={() => setIsModalOpen(false)}
       >
         <form onSubmit={handleSubmit} className="flex flex-col gap-4 p-6">
-          {["nombre", "apellido", "email"].map((field) => {
-            const labels = { nombre: "Nombre", apellido: "Apellido", email: "Email" };
-            const types = { nombre: "text", apellido: "text", email: "email" };
+          {["nombre", "apellido", "email", "telefono"].map((field) => {
+            const labels = {
+              nombre: "Nombre",
+              apellido: "Apellido",
+              email: "Email",
+              telefono: "Teléfono",
+            };
+            const types = {
+              nombre: "text",
+              apellido: "text",
+              email: "email",
+              telefono: "text",
+            };
             const icons = {
               nombre: <FiUser className="w-5 h-5 text-slate-400" />,
               apellido: <FiUser className="w-5 h-5 text-slate-400" />,
               email: <FiMail className="w-5 h-5 text-slate-400" />,
+              telefono: <FiPhone className="w-5 h-5 text-slate-400" />,
             };
             return (
               <div key={field}>
@@ -503,7 +534,7 @@ function MisDatos() {
                     value={form[field]}
                     onChange={handleChange}
                     className="w-full pl-10 pr-3 py-2 rounded-xl bg-slate-900 text-white border border-white/10 placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-amber-300"
-                    required
+                    required={field !== "telefono"}   // 👈 teléfono opcional
                     autoComplete="off"
                     placeholder={labels[field]}
                   />

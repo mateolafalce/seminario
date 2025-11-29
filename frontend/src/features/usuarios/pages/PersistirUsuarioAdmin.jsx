@@ -31,6 +31,7 @@ export default function PersistirUsuarioAdmin() {
         dni: String(formValues.dni ?? "").trim(),
         username: formValues.username,
         password: formValues.password,
+        telefono: formValues.telefono || null,
         habilitado: false, 
       };
 

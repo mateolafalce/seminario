@@ -1,10 +1,11 @@
 import { useContext, useMemo, useState } from 'react';
 import { Navigate, NavLink, Outlet, useNavigate } from 'react-router-dom';
 import { AuthContext } from '../../auth/context/AuthContext';
+// ICONOS (solo estos, sin duplicados)
+import { FiLogOut } from "react-icons/fi";
 import { HiUsers, HiMenu, HiX } from "react-icons/hi";
 import { IoStatsChartSharp } from "react-icons/io5";
-import { PiCourtBasketballFill } from "react-icons/pi";
-import { FiLogOut } from 'react-icons/fi';
+import { PiCourtBasketballFill, PiFolderUserFill } from "react-icons/pi";
 import { FaProjectDiagram } from "react-icons/fa";
 
 import {
@@ -44,12 +45,13 @@ export default function PanelControl() {
     showReservas:     canManageReservas(me),
     showEstadisticas: canViewStatistics(me),
     showAlgoritmo:    canUseAlgoritmo(me),
+    showPreferencias: canManageReservas(me),
   }), [me]);
 
   if (loading) return <div className="bg-slate-950 min-h-screen flex items-center justify-center text-slate-500">Cargando...</div>;
   if (!isAuthenticated || !canManageReservas(me)) return <Navigate to="/" replace />;
 
-  const nothing = !flags.showUsuarios && !flags.showCanchas && !flags.showReservas && !flags.showEstadisticas && !flags.showAlgoritmo;
+  const nothing = !flags.showUsuarios && !flags.showCanchas && !flags.showReservas && !flags.showEstadisticas && !flags.showAlgoritmo && !flags.showPreferencias;
 
   return (
     // CAMBIO: bg-slate-950 para el fondo general (más oscuro)
@@ -78,10 +80,50 @@ export default function PanelControl() {
           </div>
 
           <nav className="flex flex-col gap-1">
-            {flags.showUsuarios   && <SidebarLink onClick={() => setMobileMenuOpen(false)} to="/panel-control/usuarios"   icon={<HiUsers />}                label="Usuarios" />}
-            {flags.showReservas   && <SidebarLink onClick={() => setMobileMenuOpen(false)} to="/panel-control/reservas"   icon={<IoStatsChartSharp />}      label="Reservas" />}
-            {flags.showCanchas    && <SidebarLink onClick={() => setMobileMenuOpen(false)} to="/panel-control/canchas"    icon={<PiCourtBasketballFill />}  label="Canchas" />}
-            {flags.showAlgoritmo  && <SidebarLink onClick={() => setMobileMenuOpen(false)} to="/panel-control/algoritmo"  icon={<FaProjectDiagram size={18} />} label="Algoritmo" />}
+            {flags.showUsuarios && (
+              <SidebarLink
+                to="/panel-control/usuarios"
+                icon={<HiUsers />}
+                label="Usuarios"
+                onClick={() => setMobileMenuOpen(false)}
+              />
+            )}
+
+            {flags.showCanchas && (
+              <SidebarLink
+                to="/panel-control/canchas"
+                icon={<PiCourtBasketballFill />}
+                label="Canchas"
+                onClick={() => setMobileMenuOpen(false)}
+              />
+            )}
+
+            {flags.showReservas && (
+              <SidebarLink
+                to="/panel-control/reservas"
+                icon={<IoStatsChartSharp />}
+                label="Reservas"
+                onClick={() => setMobileMenuOpen(false)}
+              />
+            )}
+
+            {flags.showPreferencias && (
+              <SidebarLink
+                to="/panel-control/preferencias"
+                icon={<PiFolderUserFill />}
+                label="Preferencias"
+                onClick={() => setMobileMenuOpen(false)}
+              />
+            )}
+
+            {flags.showAlgoritmo && (
+              <SidebarLink
+                to="/panel-control/algoritmo"
+                icon={<FaProjectDiagram size={18} />}
+                label="Algoritmo"
+                onClick={() => setMobileMenuOpen(false)}
+              />
+            )}
 
             {nothing && <div className="text-xs text-slate-500 px-4 py-4 text-center border border-slate-800 rounded border-dashed">Sin permisos</div>}
 
@@ -114,4 +156,5 @@ export default function PanelControl() {
 export { default as TabUsuarios }   from '../components/dashboard/GestionUsuarios';
 export { default as TabCanchas }    from '../components/dashboard/GestionCanchas';
 export { default as TabReservas }   from '../components/dashboard/GestionReservas';
+export { default as TabPreferencias } from '../components/dashboard/GestionPreferencias';
 export { default as TabAlgoritmo }  from './TabAlgoritmo';

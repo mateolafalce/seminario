@@ -188,6 +188,7 @@ async def modificar_usuario(data: AdminModificarUsuarioRequest):
             "nombre": data.nombre,
             "apellido": data.apellido,
             "email": data.email,
+            "telefono": getattr(data, "telefono", None),
         }
         udoc, pdoc = update_persona_by_user_id(user_id, persona_update)
 

@@ -6,3 +6,4 @@ class PersonaUpdate(BaseModel):
     apellido: Optional[str] = Field(None, min_length=1, max_length=60)
     email: Optional[EmailStr] = None
     dni: Optional[str] = Field(None, pattern=r"^\d{7,8}$")
+    telefono: Optional[str] = Field(None, min_length=5, max_length=20)

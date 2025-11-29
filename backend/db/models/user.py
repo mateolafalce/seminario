@@ -7,6 +7,7 @@ class RegisterUser(BaseModel):
     apellido: str
     email: EmailStr
     dni: str = Field(..., min_length=1, max_length=10)
+    telefono: Optional[str] = None
     # dni: str = Field(..., pattern=r"^\d{7,8}$")  # 7–8 dígitos, obligatorio
 
     # Cuenta

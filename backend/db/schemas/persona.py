@@ -5,6 +5,7 @@ def persona_schema(doc) -> dict:
         "apellido": doc.get("apellido"),
         "email": doc.get("email"),
         "dni": doc.get("dni"),
+        "telefono": doc.get("telefono"),
     }
 
 def personas_schema(docs) -> list:

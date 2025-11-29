@@ -18,6 +18,7 @@ export default function UsuarioForm({
     password: "",
     repeatPassword: "",
     dni: initialValues.dni || "",
+    telefono: initialValues.telefono || "",
   });
   const [localErrors, setLocalErrors] = useState({});
   const { nombres: categoriasNombres, loading: loadingCategorias } = useCategorias();
@@ -34,6 +35,7 @@ export default function UsuarioForm({
         password: "", // Al editar no precargamos password
         repeatPassword: "",
         dni: initialValues.dni || "",
+        telefono: initialValues.telefono || "",
       }));
       setLocalErrors({});
     }
@@ -47,6 +49,11 @@ export default function UsuarioForm({
   function handleDniChange(e) {
     const clean = onlyDigits(e.target.value).slice(0, 10);
     setV(prev => ({ ...prev, dni: clean }));
+  }
+
+  function handleTelefonoChange(e) {
+    const clean = onlyDigits(e.target.value).slice(0, 20);
+    setV(prev => ({ ...prev, telefono: clean }));
   }
 
   async function handleSubmit(e) {
@@ -134,6 +141,20 @@ export default function UsuarioForm({
                     className={inputClass}
                 />
                 {E.dni && <p className={errorClass}>{E.dni}</p>}
+            </div>
+
+            <div>
+                <label className={labelClass}>Teléfono</label>
+                <input
+                    name="telefono"
+                    type="text"
+                    value={v.telefono}
+                    onChange={handleTelefonoChange}
+                    placeholder="Solo números"
+                    inputMode="numeric"
+                    className={inputClass}
+                />
+                {E.telefono && <p className={errorClass}>{E.telefono}</p>}
             </div>
         </div>
 
