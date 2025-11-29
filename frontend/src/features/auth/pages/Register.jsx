@@ -39,51 +39,83 @@ function Register() {
   const params = new URLSearchParams(location.search);
   const esAdmin = params.get('admin') === '1';
 
+  // 👇 Layout: 2 columnas en desktop, 1 en mobile.
+  // Nombre / Apellido
+  // Email (full)
+  // Usuario / Teléfono
+  // Contraseña / Repetir
+  // DNI (full)
   const campos = [
-    { nombre: "nombre", etiqueta: "Nombre", tipo: "text", placeholder: "Tu nombre", required: true },
-    { nombre: "apellido", etiqueta: "Apellido", tipo: "text", placeholder: "Tu apellido", required: true },
-    { nombre: "email", etiqueta: "Email", tipo: "email", placeholder: "tu@email.com", required: true },
-    { 
-      nombre: "username", 
-      etiqueta: "Nombre de usuario", 
-      tipo: "text", 
-      placeholder: "Nombre de usuario", 
+    {
+      nombre: "nombre",
+      etiqueta: "Nombre",
+      tipo: "text",
+      placeholder: "Tu nombre",
+      required: true,
+    },
+    {
+      nombre: "apellido",
+      etiqueta: "Apellido",
+      tipo: "text",
+      placeholder: "Tu apellido",
+      required: true,
+    },
+    {
+      nombre: "email",
+      etiqueta: "Email",
+      tipo: "email",
+      placeholder: "tu@email.com",
+      required: true,
+      fullWidth: true,   // 👈 ocupa fila completa
+    },
+    {
+      nombre: "username",
+      etiqueta: "Nombre de usuario",
+      tipo: "text",
+      placeholder: "Nombre de usuario",
       autoComplete: "username",
       minLength: 1,
       maxLength: 30,
-      required: true
-      // minLength: 3,
+      required: true,
     },
-    { 
-      nombre: "password", 
-      etiqueta: "Contraseña", 
-      tipo: "password", 
-      placeholder: "Contraseña", 
+    {
+      nombre: "telefono",
+      etiqueta: "Teléfono",
+      tipo: "text",
+      placeholder: "Tu teléfono",
+      inputMode: "numeric",
+      maxLength: 20,
+      soloDigitos: true,
+      required: false,
+    },
+    {
+      nombre: "password",
+      etiqueta: "Contraseña",
+      tipo: "password",
+      placeholder: "Contraseña",
       autoComplete: "new-password",
       minLength: 1,
-      required: true
-      // minLength: 6,
+      required: true,
     },
-    { 
-      nombre: "repeatPassword", 
-      etiqueta: "Repetir Contraseña", 
-      tipo: "password", 
-      placeholder: "Repite tu contraseña", 
+    {
+      nombre: "repeatPassword",
+      etiqueta: "Repetir Contraseña",
+      tipo: "password",
+      placeholder: "Repite tu contraseña",
       autoComplete: "new-password",
       minLength: 1,
-      required: true
-      // minLength: 6,
+      required: true,
     },
-    { 
-      nombre: "dni", 
-      etiqueta: "DNI (1–10 dígitos)", 
-      tipo: "text", 
-      placeholder: "DNI", 
-      inputMode: "numeric", 
+    {
+      nombre: "dni",
+      etiqueta: "DNI (1–10 dígitos)",
+      tipo: "text",
+      placeholder: "DNI",
+      inputMode: "numeric",
       maxLength: 10,
-      required: true
-      // pattern: "\\d{7,8}", 
-      // maxLength: 8,
+      soloDigitos: true,
+      required: true,
+      fullWidth: true,   // 👈 también fila completa
     },
   ];
 
@@ -92,20 +124,28 @@ function Register() {
     setMensajeExito('');
     setCargando(true);
 
-    // Validación previa
     const dni = onlyDigits(valores.dni);
+    const telefono = onlyDigits(valores.telefono);
     const errs = {};
-    
+
     if (!valores.nombre?.trim()) errs.nombre = "Requerido";
     if (!valores.apellido?.trim()) errs.apellido = "Requerido";
     if (!valores.email?.trim()) errs.email = "Requerido";
-    if (!valores.username || valores.username.length < 1) errs.username = "Requerido";
-    // if (!valores.username || valores.username.length < 3) errs.username = "Mínimo 3 caracteres";
-    if (!valores.password || valores.password.length < 1) errs.password = "Requerido";
-    // if (!valores.password || valores.password.length < 6) errs.password = "Mínimo 6 caracteres";
-    if (valores.password !== valores.repeatPassword) errs.repeatPassword = "Las contraseñas no coinciden";
-    if (dni.length < 1 || dni.length > 10) errs.dni = "DNI inválido: 1 a 10 dígitos";
-    // if (dni.length < 7 || dni.length > 8) errs.dni = "DNI inválido: 7 u 8 dígitos";
+    if (!valores.username || valores.username.length < 1)
+      errs.username = "Requerido";
+    if (!valores.password || valores.password.length < 1)
+      errs.password = "Requerido";
+    if (valores.password !== valores.repeatPassword)
+      errs.repeatPassword = "Las contraseñas no coinciden";
+
+    if (dni.length < 1 || dni.length > 10) {
+      errs.dni = "DNI inválido: 1 a 10 dígitos";
+    }
+
+    // Teléfono: opcional, pero si lo completa validamos longitud
+    if (telefono && (telefono.length < 5 || telefono.length > 20)) {
+      errs.telefono = "Teléfono inválido";
+    }
 
     if (Object.keys(errs).length) {
       setErrores(errs);
@@ -114,29 +154,35 @@ function Register() {
     }
 
     try {
-      await backendClient.post('users_b/register', {
+      await backendClient.post("users_b/register", {
         nombre: valores.nombre,
         apellido: valores.apellido,
         email: valores.email,
         password: valores.password,
         username: valores.username,
         dni,
+        telefono: telefono || null,
       });
 
-      setMensajeExito('¡Usuario registrado! Revisa tu email para habilitar la cuenta.');
-      setTimeout(() => navigate('/login'), 1500);
+      setMensajeExito(
+        "¡Usuario registrado! Revisa tu email para habilitar la cuenta."
+      );
+      setTimeout(() => navigate("/login"), 1500);
     } catch (error) {
       const mappedErrors = await normalizeApiError(error);
       setErrores(mappedErrors);
-      errorToast(mappedErrors.general || 'Error al registrar usuario');
+      errorToast(mappedErrors.general || "Error al registrar usuario");
     } finally {
       setCargando(false);
     }
   };
 
   return (
-    <div className='mt-[3rem]'>
-      {mensajeExito && <MessageAlert tipo='success' mensaje={mensajeExito} />}
+    <div className="mt-8 px-4">
+      {mensajeExito && (
+        <MessageAlert tipo="success" mensaje={mensajeExito} />
+      )}
+
       <AuthForm
         titulo="Crear Usuario"
         campos={campos}
@@ -144,11 +190,15 @@ function Register() {
         textoBoton="Crear Usuario"
         cargando={cargando}
         errores={errores}
+        twoColumns={true}    
       >
         {!esAdmin && (
-          <p className='mt-4 text-center text-white'>
-            ¿Ya tienes cuenta?{' '}
-            <a href='/login' className='text-[#E5FF00] hover:underline'>
+          <p className="mt-4 text-center text-slate-200 text-sm">
+            ¿Ya tienes cuenta?{" "}
+            <a
+              href="/login"
+              className="text-yellow-300 hover:underline font-normal text-xs sm:text-sm"
+            >
               Inicia sesión
             </a>
           </p>

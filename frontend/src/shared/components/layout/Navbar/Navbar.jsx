@@ -96,18 +96,23 @@ function CustomNavbar() {
     if (!isAuthenticated) {
       return (
         <>
-          <Button
-            texto="Iniciar Sesión"
+          {/* Botón "Iniciar Sesión" - píldora simple sin borde */}
+          <button
+            type="button"
             onClick={() => (isMobile ? handleNavigate("/login") : navigate("/login"))}
-            variant="primary"
-            className={isMobile ? "mb-2" : ""}
-          />
-          <Button
-            texto="Registrarse"
+            className={`rounded-full font-medium text-white hover:text-yellow-400 transition-all duration-200 py-1.5 px-5 text-sm ${isMobile ? "w-full mb-3" : "mr-2"}`}
+          >
+            Iniciar Sesión
+          </button>
+
+          {/* Botón "Registrarse" - píldora amarilla sólida */}
+          <button
+            type="button"
             onClick={() => (isMobile ? handleNavigate("/register") : navigate("/register"))}
-            variant="primary"
-            className={isMobile ? "" : "ml-2"}
-          />
+            className={`rounded-full font-semibold bg-yellow-400 text-slate-900 hover:bg-yellow-300 transition-all duration-200 py-1.5 px-5 text-sm ${isMobile ? "w-full" : ""}`}
+          >
+            Registrarse
+          </button>
         </>
       );
     }
@@ -376,18 +381,8 @@ function CustomNavbar() {
                   <div className="mt-6">
                     {!isAuthenticated ? (
                       <div className="flex flex-col gap-3">
-                        <button
-                          onClick={() => handleNavigate("/login")}
-                          className="w-full text-white text-lg font-light py-3 rounded-full border border-white/20 hover:bg-white/5 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-yellow-400/60"
-                        >
-                          Iniciar Sesión
-                        </button>
-                        <button
-                          onClick={() => handleNavigate("/register")}
-                          className="w-full text-slate-900 text-lg font-medium py-3 rounded-full bg-yellow-400 hover:bg-yellow-300 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-yellow-400/60"
-                        >
-                          Registrarse
-                        </button>
+                          {/* MOBILE: Reusamos la lógica renderSessionButtons pero con clases mobile */}
+                          {renderSessionButtons(true)}
                       </div>
                     ) : (
                       <div className="flex flex-col">

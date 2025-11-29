@@ -60,5 +60,6 @@ def user_with_persona_schema(user: Dict[str, Any], persona: Optional[Dict[str, A
             "apellido": persona.get("apellido"),
             "email": persona.get("email"),
             "dni": persona.get("dni"),
+            "telefono": persona.get("telefono"),
         })
     return base

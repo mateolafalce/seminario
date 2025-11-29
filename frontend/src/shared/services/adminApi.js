@@ -118,6 +118,11 @@ const adminApi = {
       return await backendClient.post('/reservas/admin/crear', payload);
     },
   },
+
+  preferencias: {
+    adminSearch: (payload) =>
+      backendClient.post('/preferencias/admin/buscar', payload),
+  },
 };
 
 // --- Named exports para el admin modal (canchas/horarios) ---
@@ -154,14 +159,24 @@ export const buscarUsuariosAdmin = async (term) => {
   if (!term?.trim()) return [];
   const resp = await backendClient.post('users_b/buscar', { nombre: term.trim() });
   const rows = resp?.clientes ?? [];
-  return rows.map(u => ({
-    id: u.id,
-    username: u.username,
-    nombre: u.persona?.nombre || '',
-    apellido: u.persona?.apellido || '',
-    email: u.persona?.email || '',
-    label: `${u.persona?.nombre || ''} ${u.persona?.apellido || ''} (@${u.username})`.trim(),
-  }));
+
+  return rows.map(u => {
+    const p = u.persona || {};
+    const nombre   = p.nombre   || u.nombre   || '';
+    const apellido = p.apellido || u.apellido || '';
+    const email    = p.email    || u.email    || '';
+    const dni      = p.dni      || u.dni      || '';
+
+    return {
+      ...u,
+      persona: p,        // 👈 importante para ListaUsuarios
+      nombre,
+      apellido,
+      email,
+      dni,
+      label: `${nombre} ${apellido} (@${u.username})`.trim(),
+    };
+  });
 };
 
 export default adminApi;

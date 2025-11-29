@@ -39,6 +39,7 @@ import PanelControl, {
   TabUsuarios, 
   TabCanchas, 
   TabReservas, 
+  TabPreferencias,
   TabAlgoritmo 
 } from '../features/admin/pages/PanelControl';
 
@@ -190,6 +191,16 @@ function AppWithTimeout() {
             element={
               <PermissionRoute check={canManageReservas}>
                 <CargarResultados />
+              </PermissionRoute>
+            }
+          />
+
+          {/* 👇 NUEVO: Preferencias */}
+          <Route
+            path="preferencias"
+            element={
+              <PermissionRoute check={canManageReservas}>
+                <TabPreferencias />
               </PermissionRoute>
             }
           />

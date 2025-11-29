@@ -104,6 +104,7 @@ def register_new_user(payload) -> Tuple[ObjectId, ObjectId]:
         apellido=payload.apellido,
         email=payload.email,
         dni=payload.dni,
+        telefono=getattr(payload, "telefono", None),
     )
     
     #  GENERAR TOKEN DE VERIFICACIÓN
@@ -258,7 +259,8 @@ def list_users_with_personas(page: int = 1, limit: int = 10) -> List[Dict[str, A
                 "nombre": "$persona.nombre",
                 "apellido": "$persona.apellido",
                 "email": "$persona.email",
-                "dni": "$persona.dni"
+                "dni": "$persona.dni",
+                "telefono": "$persona.telefono",
             }
         }},
         {"$skip": skip},
@@ -305,7 +307,8 @@ def search_users_by_persona(term: str, limit: int = 50) -> List[Dict[str, Any]]:
                 "nombre": "$persona.nombre",
                 "apellido": "$persona.apellido",
                 "email": "$persona.email",
-                "dni": "$persona.dni"
+                "dni": "$persona.dni",
+                "telefono": "$persona.telefono",
             }
         }},
         {"$limit": int(limit or 50)}

@@ -18,10 +18,18 @@ const ModalesUsuario = ({ modales, onEditar, onEliminar, onUsuarioCreado }) => {
 
   // Defaults para crear (ref estable)
   const createDefaults = useMemo(() => ({
-    nombre: "", apellido: "", email: "", categoria: "", habilitado: false, username: "", dni: ""
+    nombre: "",
+    apellido: "",
+    email: "",
+    categoria: "",
+    habilitado: false,
+    username: "",
+    dni: "",
+    telefono: "",           // 👈 nuevo campo
   }), []);
 
   useCategorias(); // para precargar categorías (el form ya las lee)
+
   const mostrarMensaje = (tipo, titulo, texto) => {
     setMensaje({ tipo, titulo, texto });
     setModalMensajeAbierto(true);
@@ -43,6 +51,7 @@ const ModalesUsuario = ({ modales, onEditar, onEliminar, onUsuarioCreado }) => {
         habilitado: !!sel?.habilitado,
         dni: sel?.dni || '',
         username: sel?.username || '',
+        telefono: (p?.telefono ?? sel?.telefono) || '',   // 👈 prefill teléfono
       });
     }
   }, [modales.usuarioSeleccionado, modales.modalEditar]);
@@ -62,7 +71,9 @@ const ModalesUsuario = ({ modales, onEditar, onEliminar, onUsuarioCreado }) => {
         habilitado: !!vals.habilitado,
         categoria: vals.categoria || null,
         dni: onlyDigits(vals.dni),
+        telefono: vals.telefono ? onlyDigits(vals.telefono) : null, // 👈 enviar teléfono
       };
+
       await adminApi.users.create(payload);
 
       modales.cerrarCrear();
@@ -81,7 +92,7 @@ const ModalesUsuario = ({ modales, onEditar, onEliminar, onUsuarioCreado }) => {
     if (!onEditar) {
       return mostrarMensaje('error', 'Error', 'No se puede editar el usuario.');
     }
-    const resultado = await onEditar(vals);
+    const resultado = await onEditar(vals); // 👈 vals ahora incluye telefono
     if (resultado.success) {
       modales.cerrarEditar();
       mostrarMensaje('success', '¡Éxito!', 'Usuario actualizado correctamente');
@@ -144,7 +155,9 @@ const ModalesUsuario = ({ modales, onEditar, onEliminar, onUsuarioCreado }) => {
 
         <div className="px-6 py-6">
           <UsuarioForm
-            initialValues={usuarioEditar || { nombre:"", apellido:"", email:"", categoria:"", habilitado:false }}
+            initialValues={usuarioEditar || {
+              nombre:"", apellido:"", email:"", categoria:"", habilitado:false, telefono:""
+            }}
             onSubmit={handleEditar}
             onCancel={modales.cerrarEditar}
             submitText="Guardar Cambios"
@@ -162,7 +175,9 @@ const ModalesUsuario = ({ modales, onEditar, onEliminar, onUsuarioCreado }) => {
           <h5 className="text-xl font-bold text-white mb-4">¿Estás seguro?</h5>
           <p className="text-gray-300 text-lg mb-6">
             ¿Eliminar al usuario <br />
-            <span className="font-bold text-white">"{modales.usuarioSeleccionado?.nombre} {modales.usuarioSeleccionado?.apellido}"</span>?
+            <span className="font-bold text-white">
+              "{modales.usuarioSeleccionado?.nombre} {modales.usuarioSeleccionado?.apellido}"
+            </span>?
             <br /><br />
             <span className="text-red-400 text-sm">Esta acción no se puede deshacer.</span>
           </p>

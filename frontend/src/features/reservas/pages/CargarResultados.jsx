@@ -1,60 +1,52 @@
-import { useState, useEffect, useContext, useMemo } from "react";
+import { useState, useEffect, useContext } from "react";
 import { AuthContext } from "../../auth/context/AuthContext";
 import { toast } from "react-toastify";
+import { motion, AnimatePresence } from "framer-motion";
+import { useNavigate, Navigate } from 'react-router-dom'; // Importar useNavigate
 import MiToast from "../../../shared/components/ui/Toast/MiToast";
 import ReservaCard from "../components/CardReserva";
 import resultadosApi from "../../../shared/services/resultadosApi";
 import backendClient from "../../../shared/services/backendClient";
 import { canManageReservas } from '../../../shared/utils/permissions';
-import { Navigate } from 'react-router-dom';
+import { FiCalendar, FiEdit3, FiSave, FiArrowLeft } from "react-icons/fi"; // Nuevo icono
 
-// --- helpers
-const generarFechas = () => {
-  const fechas = [];
-  const hoy = new Date();
-  const options = { weekday: "long", day: "numeric", month: "long" };
-  for (let i = 0; i < 7; i++) {
-    const fecha = new Date(hoy);
-    fecha.setDate(hoy.getDate() - i);
-    const display = new Intl.DateTimeFormat("es-ES", options).format(fecha);
-    const value = `${String(fecha.getDate()).padStart(2, "0")}-${String(
-      fecha.getMonth() + 1
-    ).padStart(2, "0")}-${fecha.getFullYear()}`;
-    fechas.push({
-      display: display.charAt(0).toUpperCase() + display.slice(1),
-      value,
-    });
-  }
-  return fechas;
+// --- ANIMACIÓN ---
+const containerVariants = {
+  hidden: { opacity: 0 },
+  visible: { opacity: 1, transition: { staggerChildren: 0.05 } }
+};
+const itemVariants = {
+  hidden: { y: 10, opacity: 0 },
+  visible: { y: 0, opacity: 1, transition: { type: "spring", stiffness: 260, damping: 20 } }
 };
 
-// Derivar cantidad de jugadores
+// --- HELPERS ---
+const getTodayISO = () => new Date().toISOString().split('T')[0]; // "YYYY-MM-DD"
+
+// Convertir "YYYY-MM-DD" (input) -> "DD-MM-YYYY" (backend)
+const formatToBackend = (isoDate) => {
+  if (!isoDate) return "";
+  const [y, m, d] = isoDate.split("-");
+  return `${d}-${m}-${y}`;
+};
+
 const derivePlayersCount = (r) => {
   if (Array.isArray(r.usuarios)) {
     const confirmados = r.usuarios.filter(u => u?.confirmado === true).length;
     if (confirmados > 0) return confirmados;
     if (r.usuarios.length > 0) return r.usuarios.length;
   }
-  if (Array.isArray(r.jugadores)) {
-    const confirmados = r.jugadores.filter(u => u?.confirmado === true).length;
-    if (confirmados > 0) return confirmados;
-    if (r.jugadores.length > 0) return r.jugadores.length;
-  }
-  if (typeof r.usuario_nombre === "string" && r.usuario_nombre.trim()) {
-    const n = r.usuario_nombre.split(",").map(s => s.trim()).filter(Boolean).length;
-    if (n > 0) return n;
-  }
-  if (typeof r.cantidad_usuarios === "number") return r.cantidad_usuarios;
-  return 1;
+  return r.cantidad_usuarios || 1;
 };
 
 function CargarResultados() {
+  const navigate = useNavigate(); // Hook de navegación
   const { isAuthenticated, roles, permissions } = useContext(AuthContext);
   const me = { roles, permissions };
   const puedeCargar = canManageReservas(me) || permissions?.includes('reservas.resultado.cargar');
 
-  const fechas7 = useMemo(generarFechas, []);
-  const [selectedDate, setSelectedDate] = useState(fechas7[0].value);
+  // Estado del calendario (YYYY-MM-DD para el input)
+  const [fechaInput, setFechaInput] = useState(getTodayISO());
 
   const [reservas, setReservas] = useState([]);
   const [selectedReserva, setSelectedReserva] = useState(null);
@@ -62,25 +54,20 @@ function CargarResultados() {
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
 
-  // 🔧 Hook SIEMPRE llamado: el cuerpo se corta si no hay permisos
   useEffect(() => {
-    // si no tiene acceso, limpiar y salir
-    if (!isAuthenticated || !puedeCargar) {
-      setReservas([]);
-      setSelectedReserva(null);
-      setResultado("");
-      setLoading(false);
-      return;
-    }
+    if (!isAuthenticated || !puedeCargar) return;
 
     let cancelled = false;
     const fetchReservas = async () => {
       setLoading(true);
       setSelectedReserva(null);
       setResultado("");
+      
       try {
-        // backendClient.get devuelve JSON ya parseado
-        const data = await backendClient.get("reservas/listar", { fecha: selectedDate });
+        // Convertimos al formato que espera el backend
+        const fechaBackend = formatToBackend(fechaInput);
+        const data = await backendClient.get("reservas/listar", { fecha: fechaBackend });
+        
         const confirmadas = (data || []).filter(
           (r) => String(r.estado || "").toLowerCase() === "confirmada"
         );
@@ -93,13 +80,13 @@ function CargarResultados() {
     };
     fetchReservas();
     return () => { cancelled = true; };
-  }, [selectedDate, isAuthenticated, puedeCargar]);
+  }, [fechaInput, isAuthenticated, puedeCargar]);
 
   const handleSelectReserva = async (reserva) => {
     setSelectedReserva(reserva);
     setResultado("");
     try {
-      const data = await resultadosApi.ver(reserva._id); // <- JSON directo
+      const data = await resultadosApi.ver(reserva._id);
       const resTxt = data?.resultado || "";
       setResultado(resTxt);
       setSelectedReserva({ ...reserva, resultado: resTxt });
@@ -111,138 +98,179 @@ function CargarResultados() {
 
   const handleCargarResultado = async () => {
     if (!selectedReserva || !resultado.trim()) {
-      toast(<MiToast mensaje="Completa todos los campos" color="var(--color-red-400)" />);
+      toast(<MiToast mensaje="Completa el resultado" color="var(--color-red-400)" />);
       return;
     }
     setSaving(true);
     try {
-      await resultadosApi.cargar(selectedReserva._id, resultado.trim()); // <- success/throws
-      toast(<MiToast mensaje="Resultado guardado correctamente" color="var(--color-green-400)" />);
+      await resultadosApi.cargar(selectedReserva._id, resultado.trim());
+      toast(<MiToast mensaje="Guardado exitosamente" color="var(--color-green-400)" />);
+      
       setReservas((prev) =>
         prev.map((r) => (r._id === selectedReserva._id ? { ...r, resultado: resultado.trim() } : r))
       );
-      setSelectedReserva((prev) => (prev ? { ...prev, resultado: resultado.trim() } : prev));
+      setSelectedReserva(null);
     } catch (err) {
-      const msg = err?.message || "Error al guardar resultado";
-      toast(<MiToast mensaje={msg} color="var(--color-red-400)" />);
+      toast(<MiToast mensaje={err?.message || "Error al guardar"} color="var(--color-red-400)" />);
+    } finally {
+      setSaving(false);
     }
-    setSaving(false);
   };
 
   if (!isAuthenticated || !puedeCargar) return <Navigate to="/" replace />;
 
   return (
-    <div className="flex flex-col items-center mt-8 min-h-[70vh] w-full py-6">
-      <h2 className="text-xl font-bold text-white mb-4 text-center">
-        Cargar Resultados de Reservas
-      </h2>
-
-      {/* Selector de fecha */}
-      <div className="mb-6 w-full max-w-xs">
-        <label htmlFor="fecha-select" className="block text-sm font-medium text-gray-300 mb-2 text-center">
-          Selecciona una fecha:
-        </label>
-        <select
-          id="fecha-select"
-          value={selectedDate}
-          onChange={(e) => setSelectedDate(e.target.value)}
-          className="bg-gray-700 border border-gray-600 text-white text-sm rounded-lg block w-full p-2.5"
+    <div className="max-w-5xl mx-auto px-4 py-8 min-h-[80vh]">
+      
+      {/* HEADER CON BOTÓN VOLVER */}
+      <motion.div 
+        initial={{ opacity: 0, y: -10 }} 
+        animate={{ opacity: 1, y: 0 }} 
+        className="flex items-center gap-4 border-b border-gray-800 pb-6 mb-8"
+      >
+        <button 
+            onClick={() => navigate("/panel-control/reservas")}
+            className="p-2 text-slate-400 hover:text-white hover:bg-slate-800 rounded-full transition-colors"
+            title="Volver a Reservas"
         >
-          {fechas7.map((f) => (
-            <option key={f.value} value={f.value}>
-              {f.display}
-            </option>
-          ))}
-        </select>
-      </div>
-
-      {/* Listado de confirmadas */}
-      <div className="w-full max-w-3xl">
-        <h3 className="text-base font-semibold text-[#eaff00] mb-3 text-center">Reservas Confirmadas</h3>
-        {loading ? (
-          <div className="text-center text-gray-300">Cargando...</div>
-        ) : reservas.length === 0 ? (
-          <div className="text-center text-gray-400">No hay reservas confirmadas para esta fecha.</div>
-        ) : (
-          <ul className="space-y-3">
-            {reservas.map((reserva) => {
-              const isSelected = selectedReserva?._id === reserva._id;
-
-              const estadoUI =
-                String(reserva.estado || "").toLowerCase() === "confirmada" ? "Confirmada" : String(reserva.estado || "Reservada");
-
-              const fechaUI = reserva.fecha && reserva.fecha !== "--/--/----" ? reserva.fecha : selectedDate;
-
-              const reservaUI = { ...reserva, estado: estadoUI, fecha: fechaUI };
-              const playersCount = derivePlayersCount(reserva);
-
-              return (
-                <ReservaCard
-                  key={reserva._id}
-                  mode="historial"
-                  variant="empleado"
-                  selected={isSelected}
-                  reserva={reservaUI}
-                  playersCountOverride={playersCount}
-                  bottomActions={
-                    isSelected ? (
-                      <span className="inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[11px] font-semibold text-emerald-300 ring-emerald-400/30">
-                        ✓ Seleccionada
-                      </span>
-                    ) : (
-                      <button
-                        onClick={() => handleSelectReserva(reserva)}
-                        className="inline-flex items-center gap-2 rounded-md px-3 py-1.5 text-sm font-semibold text-amber-300 ring-1 ring-amber-400/30 hover:ring-amber-400/50 hover:bg-amber-400/10 transition"
-                      >
-                        Seleccionar
-                      </button>
-                    )
-                  }
-                />
-              );
-            })}
-          </ul>
-        )}
-      </div>
-
-      {/* Panel de edición del resultado */}
-      {selectedReserva && (
-        <div className="mt-6 w-full max-w-md bg-gray-900 rounded-lg p-6">
-          <h4 className="text-lg font-bold text-[#eaff00] mb-2 text-center">
-            {selectedReserva.resultado ? "Modificar resultado" : "Cargar resultado"} para la reserva
-          </h4>
-
-          <div className="mb-2 text-gray-200 text-sm">
-            <span className="font-semibold">Cancha:</span> {selectedReserva.cancha}
-            <br />
-            <span className="font-semibold">Horario:</span> {selectedReserva.horario}
-            <br />
-            <span className="font-semibold">Jugador/Grupo:</span> {selectedReserva.usuario_nombre || "—"}
-            <br />
-            {selectedReserva.resultado && (
-              <span>
-                <span className="font-semibold text-[#eaff00]">Resultado actual:</span> {selectedReserva.resultado}
-              </span>
-            )}
-          </div>
-
-          <textarea
-            className="w-full p-2 rounded bg-gray-800 text-white mb-4"
-            rows={3}
-            placeholder="Escribe el resultado..."
-            value={resultado}
-            onChange={(e) => setResultado(e.target.value)}
-          />
-
-          <button
-            className="bg-[#eaff00] text-[#0D1B2A] px-4 py-2 rounded font-bold w-full disabled:opacity-70"
-            onClick={handleCargarResultado}
-            disabled={saving}
-          >
-            {saving ? "Guardando..." : selectedReserva.resultado ? "Modificar Resultado" : "Cargar Resultado"}
-          </button>
+            <FiArrowLeft size={24} />
+        </button>
+        <div>
+            <h2 className="text-2xl font-bold text-white flex items-center gap-2">
+              <FiEdit3 className="text-yellow-400" /> Cargar Resultados
+            </h2>
+            <p className="text-slate-400 text-sm">Selecciona un partido confirmado para registrar el marcador.</p>
         </div>
-      )}
+      </motion.div>
+
+      {/* SELECTOR DE FECHA (CALENDARIO) */}
+      <motion.div 
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        className="mb-8 flex justify-center"
+      >
+        <div className="relative group">
+            <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                <FiCalendar className="text-slate-400 group-hover:text-yellow-400 transition-colors" />
+            </div>
+            <input
+              type="date"
+              max={getTodayISO()} // Bloquea fechas futuras
+              value={fechaInput}
+              onChange={(e) => setFechaInput(e.target.value)}
+              className="bg-slate-900 border border-slate-700 text-white text-sm rounded-xl pl-10 pr-4 py-2.5 focus:border-yellow-400 outline-none transition-colors cursor-pointer shadow-lg hover:bg-slate-800"
+            />
+        </div>
+      </motion.div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+        
+        {/* COLUMNA IZQUIERDA: LISTA */}
+        <motion.div 
+            className="lg:col-span-7 space-y-4"
+            variants={containerVariants}
+            initial="hidden"
+            animate="visible"
+        >
+            {loading ? (
+              <p className="text-center text-slate-500 py-10">Cargando partidos...</p>
+            ) : reservas.length === 0 ? (
+              <div className="text-center py-12 bg-slate-900/30 rounded-xl border border-dashed border-slate-800">
+                  <p className="text-slate-400">No hay partidos confirmados para esta fecha.</p>
+              </div>
+            ) : (
+              reservas.map((reserva) => {
+                const isSelected = selectedReserva?._id === reserva._id;
+                // Formateamos fecha visualmente si viene cruda
+                const fechaVisual = reserva.fecha || formatToBackend(fechaInput);
+                const reservaUI = { ...reserva, estado: "Confirmada", fecha: fechaVisual };
+                const playersCount = derivePlayersCount(reserva);
+
+                return (
+                  <motion.div key={reserva._id} variants={itemVariants}>
+                      <ReservaCard
+                        variant="empleado"
+                        selected={isSelected}
+                        reserva={reservaUI}
+                        playersCountOverride={playersCount}
+                        onClick={() => handleSelectReserva(reserva)}
+                        className={`cursor-pointer transition-all ${isSelected ? 'ring-1 ring-yellow-400 bg-slate-800' : 'hover:bg-slate-800/50'}`}
+                      />
+                  </motion.div>
+                );
+              })
+            )}
+        </motion.div>
+
+        {/* COLUMNA DERECHA: PANEL DE EDICIÓN (Sticky) */}
+        <div className="lg:col-span-5">
+            <AnimatePresence mode="wait">
+                {selectedReserva ? (
+                    <motion.div
+                        key="editor"
+                        initial={{ opacity: 0, x: 20 }}
+                        animate={{ opacity: 1, x: 0 }}
+                        exit={{ opacity: 0, x: 20 }}
+                        className="bg-slate-900 border border-slate-700 p-6 rounded-xl shadow-xl sticky top-6"
+                    >
+                        <h4 className="text-lg font-bold text-white mb-4 border-b border-slate-800 pb-2">
+                            {selectedReserva.resultado ? "Editar Resultado" : "Nuevo Resultado"}
+                        </h4>
+                        
+                        <div className="space-y-3 mb-6 text-sm">
+                            <div className="flex justify-between">
+                                <span className="text-slate-400">Cancha</span>
+                                <span className="text-white font-medium">{selectedReserva.cancha}</span>
+                            </div>
+                            <div className="flex justify-between">
+                                <span className="text-slate-400">Horario</span>
+                                <span className="text-white font-medium">{selectedReserva.horario}</span>
+                            </div>
+                            <div className="bg-slate-950/50 p-3 rounded-lg border border-slate-800 mt-2">
+                                <span className="text-xs text-slate-500 uppercase font-bold block mb-1">Jugadores</span>
+                                <p className="text-slate-300">{selectedReserva.usuario_nombre || "Sin nombres registrados"}</p>
+                            </div>
+                        </div>
+
+                        <label className="block text-xs font-bold text-yellow-400 uppercase mb-2">Marcador Final</label>
+                        <textarea
+                            className="w-full bg-slate-950 border border-slate-700 rounded-lg p-3 text-white focus:border-yellow-400 outline-none transition-colors resize-none text-lg font-mono placeholder:text-slate-700"
+                            rows={3}
+                            placeholder="Ej: 6-4 / 6-2"
+                            value={resultado}
+                            onChange={(e) => setResultado(e.target.value)}
+                            autoFocus
+                        />
+
+                        <div className="mt-6 flex gap-3">
+                            <button 
+                                onClick={() => setSelectedReserva(null)}
+                                className="flex-1 py-2.5 rounded-lg border border-slate-700 text-slate-400 hover:text-white hover:bg-slate-800 transition-colors font-medium text-sm"
+                            >
+                                Cancelar
+                            </button>
+                            <button
+                                onClick={handleCargarResultado}
+                                disabled={saving}
+                                className="flex-1 py-2.5 rounded-lg bg-yellow-400 text-slate-900 font-bold hover:bg-yellow-300 transition-colors text-sm flex items-center justify-center gap-2 shadow-lg shadow-yellow-400/20"
+                            >
+                                {saving ? "Guardando..." : <><FiSave /> Guardar</>}
+                            </button>
+                        </div>
+                    </motion.div>
+                ) : (
+                    <motion.div 
+                        initial={{ opacity: 0 }} animate={{ opacity: 1 }}
+                        className="hidden lg:flex flex-col items-center justify-center h-64 border-2 border-dashed border-slate-800 rounded-xl text-slate-600 bg-slate-900/30"
+                    >
+                        <FiEdit3 size={32} className="mb-2 opacity-50" />
+                        <p className="text-sm">Selecciona un partido de la lista.</p>
+                    </motion.div>
+                )}
+            </AnimatePresence>
+        </div>
+
+      </div>
     </div>
   );
 }

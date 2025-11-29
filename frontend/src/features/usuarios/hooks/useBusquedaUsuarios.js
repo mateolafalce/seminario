@@ -25,19 +25,34 @@ export const useBusquedaUsuarios = () => {
 
       const usuariosAdaptados = list.map((c) => {
         const p = c.persona || {};
+
+        const nombre   = p.nombre   ?? c.nombre   ?? '';
+        const apellido = p.apellido ?? c.apellido ?? '';
+        const email    = p.email    ?? c.email    ?? '';
+        const dni      = p.dni      ?? c.dni      ?? '';
+
+        const categoria =
+          (typeof c.categoria === 'string' && c.categoria.trim())
+            ? c.categoria
+            : (c.categoria_nombre && String(c.categoria_nombre).trim()
+                ? String(c.categoria_nombre).trim()
+                : 'Sin categoría');
+
         return {
+          ...c,
           id: c._id || c.id,
-          nombre:   p.nombre   ?? c.nombre   ?? '',
-          apellido: p.apellido ?? c.apellido ?? '',
-          username: c.username,
-          email:    p.email    ?? c.email    ?? '',
-          dni:      p.dni      ?? c.dni      ?? '',
-          categoria: c.categoria,
+          persona: p,
+          nombre,
+          apellido,
+          email,
+          dni,
+          categoria,
           habilitado: c.habilitado,
           fecha_registro: c.fecha_registro,
           ultima_conexion: c.ultima_conexion,
         };
       });
+
       setResultados(usuariosAdaptados);
     } catch (e) {
       if (e.status === 401) logout();
