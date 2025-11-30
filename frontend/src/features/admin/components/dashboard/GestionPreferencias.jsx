@@ -4,6 +4,8 @@ import adminApi from "../../../../shared/services/adminApi";
 import backendClient from "../../../../shared/services/backendClient";
 import Paginacion from "../../../../shared/components/ui/Paginacion";
 import Button from "../../../../shared/components/ui/Button/Button";
+import MiToast from "../../../../shared/components/ui/Toast/MiToast";
+import { toast } from "react-toastify";
 import { FiSearch, FiRefreshCw } from "react-icons/fi";
 import {
   MdPeopleAlt,
@@ -64,6 +66,10 @@ export default function GestionPreferencias() {
   const [loadingFiltros, setLoadingFiltros] = useState(false);
   const [error, setError] = useState(null);
 
+  //toast control
+  const [busquedaManual, setBusquedaManual] = useState(false);
+
+
   // cargar canchas y horarios
   useEffect(() => {
     const cargarFiltros = async () => {
@@ -116,6 +122,7 @@ export default function GestionPreferencias() {
       setRows(prefs);
       setPage(Number(data?.page) || pageToFetch);
       setTotal(Number(data?.total) || prefs.length);
+
     } catch (e) {
       console.error(e);
       setRows([]);
@@ -127,6 +134,33 @@ export default function GestionPreferencias() {
       setLoading(false);
     }
   };
+
+useEffect(() => {
+  if (!busquedaManual) return;  // ⬅️ evita que tire toast en la carga inicial
+
+  if (rows.length > 0) {
+    toast(
+      <MiToast 
+        mensaje={`Se encontraron ${rows.length} preferencias`} 
+        color="#10b981" 
+      />,
+      { autoClose: 1000 }
+    );
+  } else {
+    toast(
+      <MiToast 
+        mensaje="No se encontraron preferencias" 
+        color="#ef4444" 
+      />,
+      { autoClose: 1000 }
+    );
+  }
+
+  setBusquedaManual(false); // ⬅️ IMPORTANTÍSIMO para que no vuelva a disparar automáticamente
+}, [rows]);
+
+
+
 
   useEffect(() => {
     fetchData(1);
@@ -156,6 +190,7 @@ export default function GestionPreferencias() {
 
   const handleBuscar = (e) => {
     e.preventDefault();
+    setBusquedaManual(true);
     fetchData(1);
   };
 
