@@ -17,30 +17,68 @@ load_dotenv()
 # Config
 # ==========================
 
-def get_recommendation_split() -> Tuple[int, int]:
+def _env_to_float(name: str, default: float) -> float:
+    """Lee un env como float, aceptando '70', '70.5' o '70,5'. Fallback al default."""
+    val = os.getenv(name, "")
+    if not val:
+        return default
+    try:
+        return float(str(val).replace(",", "."))
+    except Exception:
+        return default
+
+def get_recommendation_split(total: int) -> Tuple[int, int]:
     """
-    TOP y RANDOM vienen del .env. Si no están, por defecto:
-      - TOP = USUARIOS_A_RECOMENDAR
-      - RANDOM = 0
-    Siempre aseguramos TOP + RANDOM = USUARIOS_A_RECOMENDAR
+    Calcula (top, random) a partir de:
+      - total: máximo de usuarios a notificar por slot
+      - USUARIOS_TOP_PCT, USUARIOS_RANDOM_PCT (porcentajes relativos, no tienen por qué sumar 100)
+
+    Regla:
+      - Si ambos son 0 => 100% top, 0% random
+      - Si la suma != 0 => normaliza para que representen proporciones de ese total
+      - Ajusta por redondeo para que top + rnd <= total siempre
     """
-    total = int(os.getenv("USUARIOS_A_RECOMENDAR", "10") or "10")
+    if total <= 0:
+        return 0, 0
 
-    # Defaults explícitos (sin 3/5)
-    top = int(os.getenv("USUARIOS_TOP", str(total)) or str(total))
-    # clamp
-    if top < 0:
-        top = 0
-    if top > total:
-        top = total
+    # 1) Leemos porcentajes brutos
+    top_pct = _env_to_float("USUARIOS_TOP_PCT", 100.0)
+    rnd_pct = _env_to_float("USUARIOS_RANDOM_PCT", 0.0)
 
-    rnd = int(os.getenv("USUARIOS_RANDOM", str(total - top)) or str(total - top))
-    if rnd < 0:
-        rnd = 0
+    # 2) Clampeamos cada uno a [0, 100]
+    top_pct = min(max(top_pct, 0.0), 100.0)
+    rnd_pct = min(max(rnd_pct, 0.0), 100.0)
 
-    # forzar suma exacta
-    if top + rnd != total:
-        rnd = total - top
+    suma = top_pct + rnd_pct
+
+    # 3) Fallback: si ambos son 0 => todo top
+    if suma == 0:
+        top_pct = 100.0
+        rnd_pct = 0.0
+        suma = 100.0
+
+    # 4) Normalizamos: usamos solo la proporción entre ellos
+    top_norm = top_pct / suma
+    rnd_norm = rnd_pct / suma
+
+    # 5) Calculamos cantidades iniciales
+    top = int(round(total * top_norm))
+    rnd = int(round(total * rnd_norm))
+
+    # 6) Ajuste final para no pasarse del total
+    if top + rnd > total:
+        # priorizamos restar del random primero
+        exceso = top + rnd - total
+        if rnd >= exceso:
+            rnd -= exceso
+        else:
+            # si random no alcanza, lo dejamos en 0 y ajustamos top
+            rnd = 0
+            top = min(total, top)
+    elif top + rnd < total:
+        # si falta gente, lo que falta se lo suma a top (más afinidad)
+        falta = total - (top + rnd)
+        top = min(total, top + falta)
 
     return top, rnd
 
@@ -51,18 +89,15 @@ def get_recommendation_split() -> Tuple[int, int]:
 def a_notificar(origen_user_id: str) -> List[str]:
     """Devuelve user_ids: primero mejores matches, luego aleatorios (dedupe y cap total)."""
     total = max(0, int(os.getenv("USUARIOS_A_RECOMENDAR", "10") or "10"))
-    top   = max(0, int(os.getenv("USUARIOS_TOP", "0") or "0"))
-    rnd   = max(0, int(os.getenv("USUARIOS_RANDOM", str(total - top)) or "0"))
 
-    # Si top+rnd supera total, recortamos random
-    if top + rnd > total:
-        rnd = max(0, total - top)
+    # Obtenemos split top/random a partir de porcentajes
+    top, rnd = get_recommendation_split(total)
 
-    # top por pesos
+    # TOP por pesos
     mejores = get_top_matches_from_db(origen_user_id, top_x=top) if top else []
     tops_sel = [u for (u, _) in mejores]
     
-    # aleatorios, excluyendo el user y los ya agregados
+    # Aleatorios, excluyendo el user y los ya agregados
     exclude = set(tops_sel) | {origen_user_id}
     rnd_sel = get_random_users(exclude_user_ids=list(exclude), count=rnd) if rnd else []
 

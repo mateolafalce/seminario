@@ -1,9 +1,9 @@
-import { useState, useEffect, useContext, useMemo, useCallback } from 'react';
+import { useState, useEffect, useContext, useCallback } from 'react';
 import { AuthContext } from '../../auth/context/AuthContext';
-import { motion, AnimatePresence } from "framer-motion"; // <---
+import { motion } from "framer-motion";
 import Button from '../../../shared/components/ui/Button/Button';
 import Modal from '../../../shared/components/ui/Modal/Modal';
-import { FiUsers, FiStar, FiCalendar, FiClock, FiList } from 'react-icons/fi';
+import { FiUsers, FiStar, FiCalendar, FiClock, FiList, FiCheckCircle } from 'react-icons/fi';
 import FormularioReseña from '../../resenias/components/FormularioResenias';
 import ReservaCard, { EmptyState } from '../components/CardReserva';
 import MessageConfirm from '../../../shared/components/ui/Confirm/MessageConfirm';
@@ -138,7 +138,7 @@ function MisReservas() {
             <EmptyState />
         ) : (
             <motion.ul 
-                key={vista} // Fuerza re-animación al cambiar tab
+                key={vista}
                 variants={listVariants} 
                 initial="hidden" 
                 animate="visible" 
@@ -162,7 +162,9 @@ function MisReservas() {
       {/* MODAL JUGADORES */}
       <Modal isOpen={modalJugadoresAbierto} onClose={() => setModalJugadoresAbierto(false)}>
         <div className="p-6 bg-slate-900 border border-slate-700 rounded-xl">
-          <h3 className="text-lg font-bold text-white mb-4 flex items-center gap-2"><FiUsers className="text-yellow-400"/> Jugadores del Partido</h3>
+          <h3 className="text-lg font-bold text-white mb-4 flex items-center gap-2">
+            <FiUsers className="text-yellow-400"/> Jugadores del Partido
+          </h3>
           
           {loadingJugadores ? (
             <p className="text-slate-500">Cargando...</p>
@@ -171,22 +173,40 @@ function MisReservas() {
           ) : (
             <ul className="space-y-3">
               {jugadoresReserva.map((j, i) => (
-                <li key={i} className="flex justify-between items-center bg-slate-800/50 p-3 rounded-lg border border-slate-700">
+                <li
+                  key={i}
+                  className="flex justify-between items-center bg-slate-800/50 p-3 rounded-lg border border-slate-700"
+                >
                   <div>
-                    <p className="text-slate-200 font-medium">{j.nombre} {j.apellido}</p>
+                    <p className="text-slate-200 font-medium">
+                      {j.nombre} {j.apellido}
+                    </p>
                     <p className="text-xs text-slate-500">Jugador</p>
                   </div>
-                  {j.calificado ? (
-                    <span className="text-xs text-emerald-400 flex items-center gap-1"><FiCheckCircle/> Calificado</span>
-                  ) : (
-                    <button onClick={() => handleCalificarJugador(j)} className="text-xs border border-yellow-400/30 text-yellow-400 px-3 py-1 rounded hover:bg-yellow-400/10">Calificar</button>
+
+                  {/* Solo permitir calificar desde HISTORIAL */}
+                  {vista === "historial" && (
+                    j.calificado ? (
+                      <span className="text-xs text-emerald-400 flex items-center gap-1">
+                        <FiCheckCircle /> Calificado
+                      </span>
+                    ) : (
+                      <button
+                        onClick={() => handleCalificarJugador(j)}
+                        className="text-xs border border-yellow-400/30 text-yellow-400 px-3 py-1 rounded hover:bg-yellow-400/10"
+                      >
+                        Calificar
+                      </button>
+                    )
                   )}
                 </li>
               ))}
             </ul>
           )}
           <div className="mt-6 flex justify-end">
-            <button onClick={() => setModalJugadoresAbierto(false)} className="text-slate-400 hover:text-white text-sm">Cerrar</button>
+            <button onClick={() => setModalJugadoresAbierto(false)} className="text-slate-400 hover:text-white text-sm">
+              Cerrar
+            </button>
           </div>
         </div>
       </Modal>

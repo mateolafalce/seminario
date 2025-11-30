@@ -231,9 +231,20 @@ def update_persona_by_user_id(user_id, data):
 def list_users_with_personas(page: int = 1, limit: int = 10) -> List[Dict[str, Any]]:
     """
     Lista users con join a personas y categorias. Devuelve 'categoria_nombre' además del id.
+    Pagina sobre la colección de users (con sort + skip + limit) y recién después hace los lookups.
     """
-    skip = max(page - 1, 0) * limit
+    page = max(int(page or 1), 1)
+    limit = max(int(limit or 10), 1)
+    skip = (page - 1) * limit
+
     pipeline = [
+        # Orden estable: últimos creados primero (cambiá a 1 si querés más viejos primero)
+        {"$sort": {"_id": -1}},
+
+        # Paginación sobre la colección de users
+        {"$skip": skip},
+        {"$limit": limit},
+
         # Join a personas
         {"$lookup": {
             "from": "personas",
@@ -260,7 +271,7 @@ def list_users_with_personas(page: int = 1, limit: int = 10) -> List[Dict[str, A
             "habilitado": 1,
             "fecha_registro": 1,
             "ultima_conexion": 1,
-            "categoria": 1,                          # deja el ObjectId por si hace falta
+            "categoria": 1,
             "categoria_nombre": "$categoria_doc.nombre",
             "persona": {
                 "id": {"$toString": "$persona._id"},
@@ -271,9 +282,8 @@ def list_users_with_personas(page: int = 1, limit: int = 10) -> List[Dict[str, A
                 "telefono": "$persona.telefono",
             }
         }},
-        {"$skip": skip},
-        {"$limit": limit},
     ]
+
     return list(db_client.users.aggregate(pipeline))
 
 

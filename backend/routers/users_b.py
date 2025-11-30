@@ -136,9 +136,18 @@ async def me(user: Dict[str, Any] = Depends(current_user)):
 # ---------------------------
 
 @router.get("/admin/users", dependencies=[Depends(require_roles("admin"))])
-async def get_all_users(page: int = 1, limit: int = 10):
+async def get_all_users(
+    page: int = Query(1, ge=1),
+    limit: int = Query(10, ge=1, le=100),
+):
+    # 1) Traer la página actual
     rows = await asyncio.to_thread(list_users_with_personas, page, limit)
-    return {"users": [
+
+    # 2) Contar el total de usuarios (sin paginación)
+    total = await asyncio.to_thread(lambda: db_client.users.count_documents({}))
+
+    # 3) Adaptar el shape al que ya usás en el front
+    users = [
         {
             "id": str(r["_id"]),
             "username": r["username"],
@@ -151,7 +160,15 @@ async def get_all_users(page: int = 1, limit: int = 10):
             "categoria_nombre": r.get("categoria_nombre") or None,
         }
         for r in rows
-    ]}
+    ]
+
+    # 4) Devolver metadata de paginación
+    return {
+        "users": users,
+        "total": total,
+        "page": page,
+        "limit": limit,
+    }
 
 @router.post("/buscar", dependencies=[Depends(verify_csrf), Depends(require_roles("admin"))])
 async def buscar_clientes(payload: AdminBuscarUsuariosRequest):

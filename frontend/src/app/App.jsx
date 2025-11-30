@@ -19,6 +19,7 @@ import DetalleCancha from '../features/canchas/pages/DetalleCancha';
 import PersistirCancha from '../features/canchas/pages/PersistirCancha';
 import PersistirReservaAdmin from '../features/reservas/pages/PersistirReservaAdmin';
 import PersistirUsuarioAdmin from '../features/usuarios/pages/PersistirUsuarioAdmin';
+import EditarUsuarioAdmin from '../features/usuarios/pages/EditarUsuarioAdmin';
 import PageCategorias from '../features/admin/pages/PageCategorias';
 import PageHorarios from '../features/admin/pages/PageHorarios';
 
@@ -175,6 +176,14 @@ function AppWithTimeout() {
           <Route index element={<AutoRedirectPanel />} />
           <Route path="usuarios" element={<PermissionRoute check={canManageUsers}><TabUsuarios /></PermissionRoute>} />
           <Route path="usuarios/nuevo" element={<PermissionRoute check={canManageUsers}><PersistirUsuarioAdmin /></PermissionRoute>} />
+          <Route
+            path="usuarios/editar/:id"
+            element={
+              <PermissionRoute check={canManageUsers}>
+                <EditarUsuarioAdmin />
+              </PermissionRoute>
+            }
+          />
           <Route path="usuarios/categorias" element={<PermissionRoute check={canManageUsers}><PageCategorias /></PermissionRoute>} />
           
           {/* RUTAS DE CANCHAS */}

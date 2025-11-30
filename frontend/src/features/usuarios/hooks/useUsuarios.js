@@ -48,14 +48,15 @@ export function useUsuarios() {
   const fetchUsers = async (page = 1) => {
     setLoading(true);
     setError(null);
+
     try {
       const data = await adminApi.users.list(page, 10);
       const rows = (data.users || []).map(normalizeUser);
 
-      // fallback si el back no manda total/limit/page
-      const pageNum  = Number(data.page)  || page || 1;
       const limitNum = Number(data.limit) || 10;
       const totalNum = Number(data.total) || rows.length;
+
+      const pageNum = Number(page) || 1; // 👈 la página es la que pedimos
 
       setUsers(rows);
       setTotalPages(Math.max(1, Math.ceil(totalNum / limitNum)));
@@ -74,6 +75,7 @@ export function useUsuarios() {
 
   const handlePageChange = (newPage) => {
     if (newPage > 0 && newPage <= totalPages) {
+      // este setCurrentPage es casi decorativo ahora, pero lo dejamos
       setCurrentPage(newPage);
       fetchUsers(newPage);
     }
