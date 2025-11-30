@@ -11,4 +11,5 @@ __pycache__/
 /backend/.env
 
 # Archivos subidos por usuarios
-/backend/static/images/
+/backend/static/images/*
+!/backend/static/images/.gitkeep
