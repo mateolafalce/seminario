@@ -8,38 +8,49 @@ import MiToast from "../../../shared/components/ui/Toast/MiToast";
 import { toast } from "react-toastify";
 import { AuthContext } from "../../auth/context/AuthContext";
 import { getFileUrl } from "../../../app/config";
+import { isCanchaDisponibleEnFecha } from "../../../shared/utils/disponibilidadCancha";
 
-// ===== helpers de fechas (mismo criterio que en Reserva) =====
+import { motion, AnimatePresence } from "framer-motion";
+
+// ===== Helpers de fechas =====
 const generarFechas = () => {
   const r = [];
   const hoy = new Date();
-  const opt = { weekday: "long", day: "numeric", month: "long" };
 
-  for (let i = 0; i < 7; i++) {
+  const optDia = { weekday: "short" };
+  const optNum = { day: "numeric" };
+  const optMes = { month: "short" };
+
+  for (let i = 0; i < 14; i++) {
     const f = new Date(hoy);
     f.setDate(hoy.getDate() + i);
+
+    const value = `${String(f.getDate()).padStart(2, "0")}-${String(
+      f.getMonth() + 1
+    ).padStart(2, "0")}-${f.getFullYear()}`;
+
+    const nombreDia = new Intl.DateTimeFormat("es-ES", optDia)
+      .format(f)
+      .replace(".", "");
+    const numeroDia = new Intl.DateTimeFormat("es-ES", optNum).format(f);
+    const nombreMes = new Intl.DateTimeFormat("es-ES", optMes)
+      .format(f)
+      .replace(".", "");
+
     r.push({
-      display: new Intl.DateTimeFormat("es-ES", opt)
-        .format(f)
-        .replace(/^\w/, (c) => c.toUpperCase()),
-      value: `${String(f.getDate()).padStart(2, "0")}-${String(
-        f.getMonth() + 1
-      ).padStart(2, "0")}-${f.getFullYear()}`,
+      value,
+      nombreDia: nombreDia.charAt(0).toUpperCase() + nombreDia.slice(1),
+      numeroDia,
+      nombreMes,
+      fullDate: f,
     });
   }
   return r;
 };
-const FECHAS = generarFechas();
 
-function SectionTitle({ children }) {
-  return (
-    <h2 className="text-lg font-semibold text-gray-100 mb-3 border-b border-gray-700 pb-1">
-      {children}
-    </h2>
-  );
-}
+const FECHAS_BASE = generarFechas();
 
-// slot pasado? (igual lógica que en reserva)
+// ¿El horario ya pasó?
 function esHorarioPasado(fechaStr, horarioStr) {
   try {
     const [dd, mm, yyyy] = fechaStr.split("-").map(Number);
@@ -59,7 +70,6 @@ export default function DetalleCancha() {
   const navigate = useNavigate();
   const { user } = useContext(AuthContext);
 
-  // Si venimos desde /reserva mando el objeto cancha por state
   const canchaFromState = location.state?.cancha || null;
 
   const [cancha, setCancha] = useState(canchaFromState);
@@ -68,20 +78,21 @@ export default function DetalleCancha() {
   const [loadingHorarios, setLoadingHorarios] = useState(true);
   const [error, setError] = useState("");
 
-  // reservas / ocupación
-  const [selectedDate, setSelectedDate] = useState(FECHAS[0].value);
-  const [ocupacion, setOcupacion] = useState({}); // key = "cancha|horario" → cantidad
+  // Reservas / ocupación
+  const [selectedDate, setSelectedDate] = useState("");
+  const [fechasDisponibles, setFechasDisponibles] = useState([]);
+  const [ocupacion, setOcupacion] = useState({});
   const [loadingOcupacion, setLoadingOcupacion] = useState(false);
 
   const [reservaPendiente, setReservaPendiente] = useState(null);
   const [mensajeConfirm, setMensajeConfirm] = useState("");
+
   const [imgIndex, setImgIndex] = useState(0);
+  const [direction, setDirection] = useState(0); // -1 izq, 1 der
 
   // =========================
-  // Carga de datos
+  // Carga de cancha
   // =========================
-
-  // Cargar info de la cancha si entramos directo por URL o recargamos la página
   useEffect(() => {
     if (canchaFromState || !id) return;
 
@@ -94,17 +105,12 @@ export default function DetalleCancha() {
         const found =
           arr.find((c) => String(c.id) === id) ||
           arr.find((c) => String(c._id) === id);
-
-        if (!alive) return;
-
-        if (found) {
-          setCancha(found);
-        } else {
-          setError("No se encontró la cancha.");
+        if (alive) {
+          if (found) setCancha(found);
+          else setError("No se encontró la cancha.");
         }
       } catch (e) {
-        if (!alive) return;
-        setError("Error al cargar la cancha.");
+        if (alive) setError("Error al cargar la cancha.");
       } finally {
         if (alive) setLoading(false);
       }
@@ -115,7 +121,27 @@ export default function DetalleCancha() {
     };
   }, [id, canchaFromState]);
 
-  // Cargar todos los horarios para poder traducir los ids a "HH:MM-HH:MM"
+  // Filtrar días según disponibilidad real de la cancha
+  useEffect(() => {
+    if (!cancha) return;
+
+    const filtradas = FECHAS_BASE.filter((f) => {
+      const y = f.fullDate.getFullYear();
+      const m = String(f.fullDate.getMonth() + 1).padStart(2, "0");
+      const d = String(f.fullDate.getDate()).padStart(2, "0");
+      const iso = `${y}-${m}-${d}`; // YYYY-MM-DD
+      return isCanchaDisponibleEnFecha(cancha, iso);
+    });
+
+    setFechasDisponibles(filtradas);
+
+    setSelectedDate((prev) => {
+      if (prev && filtradas.some((f) => f.value === prev)) return prev;
+      return filtradas[0]?.value || "";
+    });
+  }, [cancha]);
+
+  // Cargar horarios
   useEffect(() => {
     let alive = true;
     (async () => {
@@ -135,17 +161,16 @@ export default function DetalleCancha() {
         if (alive) setLoadingHorarios(false);
       }
     })();
-
     return () => {
       alive = false;
     };
   }, []);
 
-  // Cargar ocupación por horario para la fecha seleccionada
+  // Cargar ocupación por fecha
   useEffect(() => {
-    if (!cancha) return;
-    let alive = true;
+    if (!cancha || !selectedDate) return;
 
+    let alive = true;
     (async () => {
       try {
         setLoadingOcupacion(true);
@@ -174,13 +199,11 @@ export default function DetalleCancha() {
   // =========================
   // Handlers
   // =========================
-
   const handleBack = () => {
     if (window.history.length > 1) navigate(-1);
     else navigate("/reserva", { replace: true });
   };
 
-  // click en un horario dentro del detalle
   const handleClickHorario = (hora) => {
     if (!user) {
       toast(
@@ -193,10 +216,7 @@ export default function DetalleCancha() {
     }
     if (!cancha) return;
 
-    setReservaPendiente({
-      cancha: cancha.nombre,
-      horario: hora,
-    });
+    setReservaPendiente({ cancha: cancha.nombre, horario: hora });
     setMensajeConfirm(
       `¿Confirmás reservar "${cancha.nombre}" a las ${hora} para el ${selectedDate}?`
     );
@@ -210,7 +230,6 @@ export default function DetalleCancha() {
         horario: reservaPendiente.horario,
         fecha: selectedDate,
       });
-
       toast(
         <MiToast
           mensaje={`Reserva exitosa: ${resp?.msg || "OK"}`}
@@ -222,12 +241,7 @@ export default function DetalleCancha() {
         e?.response?.data?.detail ||
         e?.message ||
         "Error al intentar reservar.";
-      toast(
-        <MiToast
-          mensaje={msg}
-          color="var(--color-red-400)"
-        />
-      );
+      toast(<MiToast mensaje={msg} color="var(--color-red-400)" />);
     } finally {
       setReservaPendiente(null);
       setMensajeConfirm("");
@@ -239,51 +253,46 @@ export default function DetalleCancha() {
     setMensajeConfirm("");
   };
 
+  const paginate = (newDirection) => {
+    setDirection(newDirection);
+    setImgIndex((prev) => {
+      if (newDirection === 1) return prev === totalImagenes - 1 ? 0 : prev + 1;
+      return prev === 0 ? totalImagenes - 1 : prev - 1;
+    });
+  };
+
   // =========================
   // Render
   // =========================
-
   if (loading || !cancha) {
     return (
-      <div className="min-h-[70vh] bg-slate-950 text-gray-100 flex flex-col items-center justify-center px-4">
-        {error ? (
-          <>
-            <p className="mb-4 text-red-400">{error}</p>
-            <Button texto="Volver" onClick={handleBack} variant="crear" />
-          </>
-        ) : (
-          <p>Cargando cancha...</p>
-        )}
+      <div className="min-h-screen bg-slate-950 flex flex-col items-center justify-center">
+        <div className="w-10 h-10 border-4 border-slate-700 border-t-yellow-400 rounded-full animate-spin mb-4"></div>
+        <p className="text-gray-400">Cargando cancha...</p>
       </div>
     );
   }
 
-  // Armamos el array de imágenes: principal + secundarias
   const imagenesSecundarias = Array.isArray(cancha.imagenes)
     ? cancha.imagenes
     : [];
-
   const imagenesTotal = [
     cancha.imagen_url ? getFileUrl(cancha.imagen_url) : null,
-    ...imagenesSecundarias.map((img) =>
-      img ? getFileUrl(img) : null
-    ),
+    ...imagenesSecundarias.map((img) => (img ? getFileUrl(img) : null)),
   ].filter(Boolean);
 
   const totalImagenes = imagenesTotal.length;
-
   const safeIndex =
     totalImagenes > 0 && imgIndex >= 0 && imgIndex < totalImagenes
       ? imgIndex
       : 0;
-
   const imageSrc =
     totalImagenes > 0 ? imagenesTotal[safeIndex] : homeHeroPadel;
 
   const descripcion =
     cancha.descripcion && cancha.descripcion.trim().length
       ? cancha.descripcion
-      : "Esta cancha aún no tiene una descripción cargada.";
+      : "Sin descripción disponible.";
 
   const horariosHabilitados =
     Array.isArray(cancha.horarios) && cancha.horarios.length > 0
@@ -292,175 +301,366 @@ export default function DetalleCancha() {
           .filter(Boolean)
       : [];
 
+  const variants = {
+    enter: (direction) => ({
+      x: direction > 0 ? "100%" : "-100%",
+      opacity: 0,
+    }),
+    center: { x: 0, opacity: 1 },
+    exit: (direction) => ({
+      x: direction < 0 ? "100%" : "-100%",
+      opacity: 0,
+    }),
+  };
+
+  const mesLabel = (() => {
+    if (!fechasDisponibles.length) return "";
+    const primero = fechasDisponibles[0].nombreMes;
+    const ultimo = fechasDisponibles[fechasDisponibles.length - 1].nombreMes;
+    return primero === ultimo ? primero : `${primero} - ${ultimo}`;
+  })();
+
+  // Días disponibles (solo para mostrar info de la cancha)
+  const diasResumen = (() => {
+    if (!fechasDisponibles.length) return [];
+
+    const mapCompleto = {
+      Lun: "Lunes",
+      Mar: "Martes",
+      Mié: "Miércoles",
+      Jue: "Jueves",
+      Vie: "Viernes",
+      Sáb: "Sábado",
+      Dom: "Domingo",
+    };
+
+    const set = new Set();
+    for (const f of fechasDisponibles) {
+      if (!f?.nombreDia) continue;
+      const clave = f.nombreDia; // "Lun", "Mar", etc
+      set.add(mapCompleto[clave] || clave);
+    }
+    return Array.from(set);
+  })();
+
+  // Helpers para manejar el input type="date"
+  const formatDateLocal = (d) => {
+    const y = d.getFullYear();
+    const m = String(d.getMonth() + 1).padStart(2, "0");
+    const day = String(d.getDate()).padStart(2, "0");
+    return `${y}-${m}-${day}`; // YYYY-MM-DD
+  };
+
+  const toISODate = (ddmmyyyy) => {
+    if (!ddmmyyyy) return "";
+    const [dd, mm, yyyy] = ddmmyyyy.split("-").map(Number);
+    if (!dd || !mm || !yyyy) return "";
+    return `${yyyy}-${String(mm).padStart(2, "0")}-${String(dd).padStart(2, "0")}`;
+  };
+
+  const fromISODate = (iso) => {
+    if (!iso) return "";
+    const [yyyy, mm, dd] = iso.split("-");
+    if (!yyyy || !mm || !dd) return "";
+    return `${dd}-${mm}-${yyyy}`; // vuelve a tu formato DD-MM-YYYY
+  };
+
+  const dateInputValue = toISODate(selectedDate);
+
+  const minDate = fechasDisponibles[0]
+    ? formatDateLocal(fechasDisponibles[0].fullDate)
+    : "";
+
+  const maxDate = fechasDisponibles[fechasDisponibles.length - 1]
+    ? formatDateLocal(
+        fechasDisponibles[fechasDisponibles.length - 1].fullDate
+      )
+    : "";
+
+  const diaSeleccionValido = selectedDate
+    ? fechasDisponibles.some((f) => f.value === selectedDate)
+    : false;
+
   return (
-    <div className="min-h-screen bg-slate-950 text-gray-100">
-      <div className="max-w-6xl mx-auto px-4 md:pt-8 pb-8">
-        {/* Volver atrás (solo desktop/tablet) */}
+    <div className="min-h-screen bg-slate-950 pb-20 md:pb-10 relative">
+      {/* HERO */}
+      <div className="relative w-full h-[45vh] md:h-[60vh] md:max-w-6xl md:mx-auto md:mt-6 md:rounded-3xl overflow-hidden bg-slate-900 shadow-2xl group">
         <button
           onClick={handleBack}
-          className="hidden md:inline-flex items-center gap-2 mb-4 text-sm text-yellow-400 hover:text-yellow-300 transition-colors"
+          className="absolute top-4 left-4 z-20 flex items-center gap-2 bg-black/40 hover:bg-black/60 backdrop-blur-md text-white px-3 py-1.5 rounded-full border border-white/10 transition-all"
         >
-          <span className="text-lg">‹</span>
-          <span>Volver</span>
+          <span className="text-lg leading-none pb-0.5">‹</span>
+          <span className="text-sm font-medium">Volver</span>
         </button>
 
-        {/* Hero imagen como carrusel */}
-        <div className="relative overflow-hidden border border-slate-800 shadow-lg mb-6 -mx-4 sm:mx-0 rounded-none sm:rounded-2xl">
-          {/* Botón volver flotando sobre la imagen en mobile */}
-          <button
-            type="button"
-            onClick={handleBack}
-            className="md:hidden absolute top-3 left-3 z-10 bg-black/50 hover:bg-black/70 text-yellow-300 rounded-full px-3 py-1 text-xs flex items-center gap-1"
-          >
-            <span className="text-base leading-none">‹</span>
-          
-          </button>
-
-          <img
+        <AnimatePresence initial={false} custom={direction}>
+          <motion.img
+            key={imgIndex}
             src={imageSrc}
-            alt={cancha.nombre}
-            className="w-full max-h-[380px] object-cover"
+            custom={direction}
+            variants={variants}
+            initial="enter"
+            animate="center"
+            exit="exit"
+            transition={{
+              x: { type: "spring", stiffness: 300, damping: 30 },
+              opacity: { duration: 0.2 },
+            }}
+            className="absolute w-full h-full object-cover"
+            drag="x"
+            dragConstraints={{ left: 0, right: 0 }}
+            dragElastic={1}
+            onDragEnd={(e, { offset, velocity }) => {
+              const swipe = Math.abs(offset.x) * velocity.x;
+              if (swipe < -10000) paginate(1);
+              else if (swipe > 10000) paginate(-1);
+            }}
           />
+        </AnimatePresence>
 
-          {totalImagenes > 1 && (
-            <>
-              {/* Flecha izquierda */}
-              <button
-                type="button"
-                onClick={() =>
-                  setImgIndex((prev) =>
-                    prev === 0 ? totalImagenes - 1 : prev - 1
-                  )
-                }
-                className="absolute left-3 top-1/2 -translate-y-1/2 bg-black/40 hover:bg-black/60 text-white rounded-full w-9 h-9 flex items-center justify-center border border-white/30"
-                aria-label="Imagen anterior"
-              >
-                ‹
-              </button>
+        <div className="absolute inset-0 bg-gradient-to-t from-slate-950 via-transparent to-transparent opacity-90 md:opacity-60 pointer-events-none" />
 
-              {/* Flecha derecha */}
-              <button
-                type="button"
-                onClick={() =>
-                  setImgIndex((prev) =>
-                    prev === totalImagenes - 1 ? 0 : prev + 1
-                  )
-                }
-                className="absolute right-3 top-1/2 -translate-y-1/2 bg-black/40 hover:bg-black/60 text-white rounded-full w-9 h-9 flex items-center justify-center border border-white/30"
-                aria-label="Imagen siguiente"
-              >
-                ›
-              </button>
-
-              {/* Indicadores (puntitos) */}
-              <div className="absolute bottom-3 left-1/2 -translate-x-1/2 flex gap-2">
-                {imagenesTotal.map((_, i) => (
-                  <span
-                    key={i}
-                    className={`h-2.5 w-2.5 rounded-full ${
-                      i === safeIndex ? "bg-amber-400" : "bg-white/40"
-                    }`}
-                  />
-                ))}
-              </div>
-            </>
-          )}
-        </div>
-
-        {/* Cabecera cancha */}
-        <div className="mb-8">
-          <div>
-            <h1 className="text-2xl md:text-3xl font-bold text-white mb-2">
-              {cancha.nombre}
-            </h1>
-            <p className="text-sm text-gray-400">
-              Cancha disponible para reservas en Boulevard 81
-            </p>
+        <div className="absolute bottom-6 left-4 right-4 z-10 md:bottom-10 md:left-10">
+          <motion.h1
+            initial={{ y: 20, opacity: 0 }}
+            animate={{ y: 0, opacity: 1 }}
+            className="text-3xl md:text-5xl font-bold text-white drop-shadow-md mb-1"
+          >
+            {cancha.nombre}
+          </motion.h1>
+          <div className="flex items-center gap-2">
+            <span className="bg-yellow-400 text-slate-950 text-xs font-bold px-2 py-0.5 rounded shadow-sm">
+              PROFESIONAL
+            </span>
+            <span className="text-gray-300 text-sm drop-shadow-md">
+              Boulevard 81
+            </span>
           </div>
         </div>
 
-        {/* Contenido */}
-        <div className="grid grid-cols-1 md:grid-cols-[2fr,1.2fr] gap-8">
-          {/* Columna izquierda: descripción */}
+        {totalImagenes > 1 && (
+          <>
+            <button
+              onClick={() => paginate(-1)}
+              className="hidden md:flex absolute left-4 top-1/2 -translate-y-1/2 w-10 h-10 items-center justify-center rounded-full bg-white/10 hover:bg-yellow-400 hover:text-black text-white backdrop-blur transition-all"
+            >
+              ‹
+            </button>
+            <button
+              onClick={() => paginate(1)}
+              className="hidden md:flex absolute right-4 top-1/2 -translate-y-1/2 w-10 h-10 items-center justify-center rounded-full bg-white/10 hover:bg-yellow-400 hover:text-black text-white backdrop-blur transition-all"
+            >
+              ›
+            </button>
+
+            <div className="absolute bottom-4 right-4 flex gap-1.5 z-20">
+              {imagenesTotal.map((_, i) => (
+                <div
+                  key={i}
+                  className={`h-1.5 rounded-full transition-all duration-300 shadow-sm ${
+                    i === safeIndex ? "bg-yellow-400 w-6" : "bg-white/50 w-1.5"
+                  }`}
+                />
+              ))}
+            </div>
+          </>
+        )}
+      </div>
+
+      {/* CONTENIDO */}
+      <div className="relative z-10 -mt-4 md:mt-8 px-0 md:px-4 max-w-6xl mx-auto">
+        <div className="bg-slate-950 md:bg-transparent rounded-t-3xl md:rounded-none px-5 pt-8 md:pt-0 pb-10 grid grid-cols-1 md:grid-cols-[1.5fr,1fr] gap-10">
+          {/* Descripción */}
           <div>
-            <SectionTitle>Descripción de la cancha</SectionTitle>
-            <p className="text-sm md:text-base text-gray-200 leading-relaxed whitespace-pre-line">
+            <h3 className="text-xl font-bold text-white mb-4 flex items-center gap-2">
+              <span className="w-1 h-6 bg-yellow-400 rounded-full"></span>
+              Sobre la cancha
+            </h3>
+            <p className="text-gray-300 leading-relaxed text-sm md:text-base whitespace-pre-line">
               {descripcion}
             </p>
           </div>
 
-          {/* Columna derecha: horarios habilitados con ocupación */}
-          <div>
-            <SectionTitle>Horarios disponibles</SectionTitle>
+          {/* COLUMNA DERECHA: info de disponibilidad + reserva */}
+          <div className="md:sticky md:top-4 space-y-4">
+            {/* 1) Resumen simple de la cancha */}
+            <div className="bg-slate-900/60 border border-slate-800 rounded-2xl p-4 md:p-5">
+              <h3 className="text-sm font-bold text-white uppercase tracking-wider mb-3">
+                Disponibilidad de la cancha
+              </h3>
 
-            {/* selector de fecha para la reserva */}
-            <div className="mb-3 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-              <span className="text-xs text-gray-400">
-                Elegí una fecha y luego un horario para reservar:
-              </span>
-              <select
-                value={selectedDate}
-                onChange={(e) => setSelectedDate(e.target.value)}
-                className="w-full sm:w-auto bg-slate-900 border border-slate-700 text-xs text-gray-100 rounded-lg px-2 py-1 focus:outline-none focus:border-amber-400 focus:ring-1 focus:ring-amber-400/70"
-              >
-                {FECHAS.map((f) => (
-                  <option key={f.value} value={f.value}>
-                    {f.display}
-                  </option>
-                ))}
-              </select>
+              <div className="space-y-4 text-xs md:text-sm">
+                {/* DÍAS DISPONIBLES */}
+                <div>
+                  <p className="text-slate-400 mb-1 font-semibold">
+                    Días disponibles
+                  </p>
+                  {diasResumen.length ? (
+                    <div className="flex flex-wrap gap-2">
+                      {diasResumen.map((dia) => (
+                        <span
+                          key={dia}
+                          className="px-2.5 py-1 rounded-full bg-slate-800 text-slate-100 border border-slate-700 text-xs"
+                        >
+                          {dia}
+                        </span>
+                      ))}
+                    </div>
+                  ) : (
+                    <p className="text-slate-500 text-xs">
+                      Esta cancha todavía no tiene días configurados.
+                    </p>
+                  )}
+                </div>
+
+                {/* HORARIOS DISPONIBLES */}
+                <div className="pt-1 border-t border-slate-800/60">
+                  <p className="text-slate-400 mb-1 font-semibold mt-2">
+                    Horarios disponibles
+                  </p>
+                  {horariosHabilitados.length ? (
+                    <div className="flex flex-wrap gap-2">
+                      {horariosHabilitados.map((h) => (
+                        <span
+                          key={h}
+                          className="px-2.5 py-1 rounded-full bg-slate-800 text-slate-100 border border-slate-700 text-xs"
+                        >
+                          {h}
+                        </span>
+                      ))}
+                    </div>
+                  ) : (
+                    <p className="text-slate-500 text-xs">
+                      No hay horarios configurados para esta cancha.
+                    </p>
+                  )}
+                </div>
+              </div>
             </div>
 
-            {(loadingHorarios || loadingOcupacion) && (
-              <p className="text-sm text-gray-400 mb-2">
-                Cargando horarios disponibles…
-              </p>
-            )}
-
-            {horariosHabilitados.length === 0 && !loadingHorarios ? (
-              <p className="text-sm text-gray-400">
-                Esta cancha todavía no tiene horarios habilitados.
-              </p>
-            ) : (
-              <div className="flex flex-wrap gap-3">
-                {horariosHabilitados.map((h) => {
-                  const key = `${cancha.nombre}__${h}`;
-                  const cantidad = ocupacion[key] ?? 0;
-                  const past = esHorarioPasado(selectedDate, h);
-                  const labelBottom = past ? "Pasado" : `${cantidad}/6`;
-
-                  return (
-                    <button
-                      key={h}
-                      type="button"
-                      disabled={past}
-                      onClick={() => !past && handleClickHorario(h)}
-                      className={`flex flex-col items-center justify-center px-4 py-1.5 rounded-full border text-xs min-w-[110px] transition-colors ${
-                        past
-                          ? "border-slate-700 bg-slate-800/70 text-gray-500 cursor-not-allowed"
-                          : "border-slate-600 bg-slate-800/80 text-gray-100 hover:border-amber-400 hover:bg-amber-400/15 cursor-pointer"
-                      }`}
-                    >
-                      <span className="text-sm font-medium">{h}</span>
-                      <span className="text-[11px] mt-0.5 text-gray-400">
-                        {labelBottom}
-                      </span>
-                    </button>
-                  );
-                })}
+            {/* 2) Tarjeta de reserva: calendario + horarios del día */}
+            <div className="bg-slate-900/60 border border-slate-800 rounded-2xl p-4 md:p-5">
+              {/* Encabezado */}
+              <div className="flex justify-between items-end mb-3">
+                <div>
+                  <h3 className="text-sm font-bold text-white uppercase tracking-wider">
+                    Reservar un turno
+                  </h3>
+                  <p className="text-xs text-slate-500 mt-0.5">
+                    Elegí una fecha y luego un horario disponible.
+                  </p>
+                </div>
+                <span className="hidden md:inline text-xs text-yellow-400">
+                  {mesLabel}
+                </span>
               </div>
-            )}
 
-            <p className="text-[11px] text-gray-500 mt-3">
-              Estos horarios y cupos son los mismos que ves en la pantalla de
-              reservas. Los que figuran como <strong>Pasado</strong> no se
-              pueden reservar.
-            </p>
+              {/* Selector de fecha (input type="date") */}
+              <div className="mb-4">
+                <label className="block text-xs font-semibold text-slate-400 mb-1">
+                  Fecha
+                </label>
+                <div className="relative">
+                  <input
+                    type="date"
+                    value={dateInputValue}
+                    min={minDate}
+                    max={maxDate}
+                    onChange={(e) => {
+                      const iso = e.target.value; // YYYY-MM-DD
+                      const ddmmyyyy = fromISODate(iso);
+                      setSelectedDate(ddmmyyyy);
+                    }}
+                    className="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2.5 text-sm text-slate-100 focus:outline-none focus:ring-2 focus:ring-yellow-400 focus:border-yellow-400 [color-scheme:dark]"
+                  />
+                </div>
+                {!fechasDisponibles.length && (
+                  <p className="text-[11px] text-slate-500 mt-1">
+                    No hay días habilitados para reservar en las próximas semanas.
+                  </p>
+                )}
+              </div>
+
+              {/* Horarios para la fecha seleccionada */}
+              <div>
+                <div className="flex justify-between items-center mb-2">
+                  <p className="text-xs text-slate-400 font-semibold uppercase">
+                    Horarios para el día seleccionado
+                  </p>
+                  {loadingOcupacion && (
+                    <span className="text-[11px] text-gray-500 animate-pulse">
+                      Actualizando cupos...
+                    </span>
+                  )}
+                </div>
+
+                {!selectedDate && (
+                  <div className="text-center py-6 border border-dashed border-slate-700 rounded-xl">
+                    <p className="text-gray-500 text-sm">
+                      Elegí primero una fecha.
+                    </p>
+                  </div>
+                )}
+
+                {selectedDate && !diaSeleccionValido && (
+                  <div className="text-center py-6 border border-dashed border-slate-700 rounded-xl">
+                    <p className="text-gray-500 text-sm">
+                      La cancha no está habilitada para la fecha seleccionada.
+                    </p>
+                  </div>
+                )}
+
+                {selectedDate &&
+                  diaSeleccionValido &&
+                  horariosHabilitados.length === 0 &&
+                  !loadingHorarios && (
+                    <div className="text-center py-6 border border-dashed border-slate-700 rounded-xl">
+                      <p className="text-gray-500 text-sm">
+                        No hay horarios disponibles para ese día.
+                      </p>
+                    </div>
+                  )}
+
+                {selectedDate && diaSeleccionValido && horariosHabilitados.length > 0 && (
+                  <div className="grid grid-cols-3 sm:grid-cols-4 gap-2">
+                    {horariosHabilitados.map((h) => {
+                      const key = `${cancha.nombre}__${h}`;
+                      const cantidad = ocupacion[key] ?? 0;
+                      const past = esHorarioPasado(selectedDate, h);
+
+                      const base =
+                        "relative py-2.5 rounded-lg border text-center text-xs md:text-sm transition-all";
+                      const pastStyle =
+                        "border-slate-800 bg-slate-800/30 text-slate-600 cursor-not-allowed";
+                      const availStyle =
+                        "border-slate-600 bg-slate-800 hover:border-yellow-400 hover:text-yellow-400 text-gray-200 cursor-pointer active:scale-95";
+
+                      return (
+                        <button
+                          key={h}
+                          disabled={past}
+                          onClick={() => !past && handleClickHorario(h)}
+                          className={`${base} ${past ? pastStyle : availStyle}`}
+                        >
+                          <span className="font-bold block">{h}</span>
+                          <span
+                            className={`text-[10px] ${
+                              past ? "text-slate-700" : "text-green-500"
+                            }`}
+                          >
+                            {past ? "Cerrado" : `${cantidad}/6`}
+                          </span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+            </div>
           </div>
         </div>
       </div>
 
-      {/* Modal de confirmación de reserva (mismo que usás en reservas) */}
       <MessageConfirm
         mensaje={mensajeConfirm}
         onClose={handleCancelReserva}

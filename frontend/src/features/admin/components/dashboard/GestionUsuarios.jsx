@@ -1,12 +1,9 @@
-import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { motion } from "framer-motion"; // <--- Importamos Motion
 import { useUsuarios } from "../../../usuarios/hooks/useUsuarios";
 import { useBusquedaUsuarios } from "../../../usuarios/hooks/useBusquedaUsuarios";
-import { useModales } from "../../../../shared/hooks/useModales";
 import BarraBusqueda from "../../../../shared/components/ui/SearchBar/BarraBusqueda";
 import ListaUsuarios from "../../../usuarios/pages/ListaUsuarios";
-import ModalesUsuario from "../../../usuarios/pages/ModalesUsuario";
 import Paginacion from "../../../../shared/components/ui/Paginacion";
 import Button from "../../../../shared/components/ui/Button/Button";
 import { MdLayers, MdPersonAdd, MdPeopleAlt } from "react-icons/md";
@@ -33,47 +30,44 @@ function GestionUsuarios() {
   const navigate = useNavigate();
   const {
     users, loading, error, currentPage, totalPages,
-    fetchUsers, handlePageChange, editarUsuario, eliminarUsuario
+    fetchUsers, handlePageChange, eliminarUsuario
   } = useUsuarios();
 
   const {
     resultados, loading: loadingBusqueda, error: errorBusqueda,
-    modoBusqueda, terminoBusqueda, buscar, limpiar, eliminarDeResultados
+    modoBusqueda, buscar, limpiar, eliminarDeResultados
   } = useBusquedaUsuarios();
-
-  const modales = useModales();
-  const [usuariosKey, setUsuariosKey] = useState(0);
 
   const usuariosParaMostrar = modoBusqueda ? resultados : users;
   const estasCargando = modoBusqueda ? loadingBusqueda : loading;
   const errorActual = modoBusqueda ? errorBusqueda : error;
 
-  const handleEditar = async (usuarioData) => {
-    const resultado = await editarUsuario(usuarioData);
-    if (resultado.success) {
-      if (modoBusqueda) buscar(terminoBusqueda);
-      else fetchUsers(currentPage);
-    }
-    return resultado;
+  const handleEditar = (usuario) => {
+    navigate(`/panel-control/usuarios/editar/${usuario.id}`, {
+      state: { usuario },
+    });
   };
 
-  const handleEliminar = async (usuarioId) => {
-    const resultado = await eliminarUsuario(usuarioId);
+  const handleEliminar = async (usuario) => {
+    const nombre = (usuario.nombre || usuario.persona?.nombre || "").trim();
+    const apellido = (usuario.apellido || usuario.persona?.apellido || "").trim();
+  
+    const etiqueta = `${nombre} ${apellido}`.trim() || `ID ${usuario.id}`;
+  
+    const ok = window.confirm(
+      `¿Seguro que querés eliminar al usuario "${etiqueta}"?`
+    );
+    if (!ok) return { success: false };
+  
+    const resultado = await eliminarUsuario(usuario.id);
     if (resultado.success) {
-      if (modoBusqueda) eliminarDeResultados(usuarioId);
-      else fetchUsers(currentPage);
+      if (modoBusqueda) {
+        eliminarDeResultados(usuario.id);
+      } else {
+        fetchUsers(currentPage);
+      }
     }
     return resultado;
-  };
-
-  const handleUsuarioCreado = () => {
-    modales.cerrarCrear();
-    if (modoBusqueda && terminoBusqueda) {
-      buscar(terminoBusqueda);
-    } else {
-      fetchUsers(currentPage);
-      setUsuariosKey(k => k + 1);
-    }
   };
 
   return (
@@ -125,12 +119,11 @@ function GestionUsuarios() {
       {/* ITEM 3: LISTA Y MODALES */}
       <motion.div variants={itemVariants} className="w-full space-y-4">
         <ListaUsuarios
-          key={usuariosKey}
           usuarios={usuariosParaMostrar}
           loading={estasCargando}
           error={errorActual}
-          onEditar={modales.abrirEditar}
-          onEliminar={modales.abrirEliminar}
+          onEditar={handleEditar}
+          onEliminar={handleEliminar}
           modoBusqueda={modoBusqueda}
         />
 
@@ -144,13 +137,6 @@ function GestionUsuarios() {
             />
           </div>
         )}
-
-        <ModalesUsuario
-           modales={modales}
-           onEditar={handleEditar}
-           onEliminar={handleEliminar}
-           onUsuarioCreado={handleUsuarioCreado}
-        />
       </motion.div>
     </motion.section>
   );

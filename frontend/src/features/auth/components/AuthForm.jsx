@@ -76,7 +76,7 @@ function AuthForm({
                 : "mb-5 relative"
             }
           >
-            <input
+<input
               id={campo.nombre}
               name={campo.nombre}
               type={campo.tipo}
@@ -94,6 +94,20 @@ function AuthForm({
                 text-sm
                 peer
                 placeholder-transparent
+
+                /* --- OPCIÓN NUCLEAR PARA AUTOCOMPLETE --- */
+                
+                /* 1. Sombra interna FORZADA (!) para tapar el color del navegador */
+                [&:-webkit-autofill]:!shadow-[0_0_0_1000px_#1e293b_inset]
+                
+                /* 2. Color de texto FORZADO (!) */
+                [&:-webkit-autofill]:!text-white
+                [&:-webkit-autofill]:!-webkit-text-fill-color-white
+                
+                /* 3. EL TRUCO DEL TIEMPO: Retrasa el cambio de fondo 600000s */
+                [&:-webkit-autofill]:transition-colors
+                [&:-webkit-autofill]:duration-[600000s]
+                [&:-webkit-autofill]:ease-in-out
               "
               autoComplete={campo.autoComplete || "off"}
               disabled={cargando}

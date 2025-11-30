@@ -39,7 +39,7 @@ export default function PersistirUsuarioAdmin() {
 
       toast(
         <MiToast
-          mensaje="Usuario creado exitosamente. Debe confirmar su email para habilitarse."
+          mensaje="Usuario creado exitosamente."
           color="#10b981"
         />
       );
