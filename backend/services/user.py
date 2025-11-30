@@ -165,9 +165,13 @@ def get_user_and_persona(user_id: ObjectId | str) -> Tuple[Optional[Dict], Optio
 def delete_user_cascade(user_id: ObjectId | str) -> bool:
     """
     Borra el usuario y TODO lo asociado (preferencias, pesos, notif_logs, reseñas,
-    roles, reservas –elimina o saca al usuario–, y colecciones legacy admins/empleados).
+    roles, reservas elimina o saca al usuario, y colecciones legacy admins/empleados).
     """
     oid = ObjectId(user_id) if not isinstance(user_id, ObjectId) else user_id
+
+    u = db_client.users.find_one({"_id": oid})
+    if not u:
+        return False
 
     # preferencias
     db_client.preferencias.delete_many({"usuario_id": oid})
@@ -175,7 +179,7 @@ def delete_user_cascade(user_id: ObjectId | str) -> bool:
     # pesos
     db_client.pesos.delete_many({"$or": [{"i": oid}, {"j": oid}]})
 
-    # notificaciones logs
+    # notif_logs
     db_client.notif_logs.delete_many({"$or": [{"origen": oid}, {"usuario": oid}]})
 
     # reseñas
@@ -205,8 +209,12 @@ def delete_user_cascade(user_id: ObjectId | str) -> bool:
     db_client.admins.delete_one({"user": oid})
     db_client.empleados.delete_one({"user": oid})
 
-    # Por último, el usuario
+    # Por último, el usuario y su persona
     res = db_client.users.delete_one({"_id": oid})
+    
+    if u.get("persona"):
+        db_client.personas.delete_one({"_id": u["persona"]})
+
     return res.deleted_count > 0
 
 

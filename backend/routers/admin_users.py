@@ -5,7 +5,8 @@ from typing import Optional, Dict, Any
 
 from db.client import db_client
 from routers.Security.auth import require_roles, verify_csrf
-from db.schemas.user import user_schema  # <- directo del schema
+from db.schemas.user import user_schema
+from services.user import delete_user_cascade
 
 router_admin = APIRouter(prefix="/admin", tags=["admin"])
 
@@ -126,10 +127,10 @@ def delete_user(
     if not ObjectId.is_valid(id):
         raise HTTPException(status_code=400, detail="ID inválido")
 
-    # Eliminar asignaciones de rol del usuario
-    db_client.user_roles.delete_many({"user": ObjectId(id)})
-
-    res = db_client.users.delete_one({"_id": ObjectId(id)})
-    if res.deleted_count == 0:
-        raise HTTPException(status_code=404, detail="No encontrado")
+    # Usar la eliminación en cascada del servicio
+    success = delete_user_cascade(id)
+    
+    if not success:
+        raise HTTPException(status_code=404, detail="No encontrado o no se pudo eliminar")
+        
     return Response(status_code=204)
