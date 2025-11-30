@@ -108,6 +108,11 @@ def update_user(
     if not ObjectId.is_valid(id):
         raise HTTPException(status_code=400, detail="ID inválido")
     updates = {k: v for k, v in payload.dict(exclude_unset=True).items()}
+
+    # Si se habilita al usuario, borrar el token de validación
+    if updates.get("habilitado") is True:
+        updates["habilitacion_token"] = None
+
     if not updates:
         return {"msg": "Sin cambios"}
 
