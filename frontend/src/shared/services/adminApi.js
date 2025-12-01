@@ -120,8 +120,18 @@ const adminApi = {
   },
 
   preferencias: {
-    adminSearch: (payload) =>
-      backendClient.post('/preferencias/admin/buscar', payload),
+    /**
+     * Búsqueda admin de preferencias con paginación.
+     * @param {Object} filters - { canchas?: string[], dias?: string[], horarios?: string[] }
+     * @param {number} page
+     * @param {number} limit
+     */
+    adminSearch: (filters = {}, page = 1, limit = 10) =>
+      backendClient.post('/preferencias/admin/buscar', {
+        ...filters,
+        page,
+        limit,
+      }),
   },
 };
 
