@@ -1,5 +1,6 @@
 import os
 import time
+import re
 from pathlib import Path
 from typing import List, Dict, Any
 
@@ -66,12 +67,72 @@ async def listar_canchas(
     simple: bool = Query(
         False,
         description="True => [{id,nombre}] (ligero). False => cancha completa.",
-    )
+    ),
+    page: int = Query(
+        0,
+        ge=0,
+        description="Página (1 = primera). Si es 0, devuelve la lista completa sin paginar.",
+    ),
+    limit: int = Query(
+        10,
+        ge=1,
+        le=100,
+        description="Cantidad de canchas por página cuando page >= 1.",
+    ),
+    search: str | None = Query(
+        None,
+        description="Filtro por nombre de cancha (prefijo, case-insensitive). Solo si lo necesitás.",
+    ),
 ):
     """
-    Lista canchas. Si simple=True, devuelve solo id/nombre.
+    Lista canchas.
+
+    - Si page == 0 -> comportamiento original (devuelve lista completa).
+    - Si page >= 1 -> devuelve objeto paginado { canchas, total, page, limit }.
+    - search (opcional) filtra por nombre usando prefijo, case-insensitive.
     """
-    canchas = list(db_client.canchas.find({}).sort("nombre", 1))
+    filtro: Dict[str, Any] = {}
+
+    # Filtro por nombre de cancha (prefijo, insensitive)
+    if search:
+        term = search.strip()
+        if term:
+            filtro["nombre"] = {
+                "$regex": f"^{re.escape(term)}",
+                "$options": "i",
+            }
+
+    # 🔹 MODO PAGINADO (para el panel de admin)
+    if page >= 1:
+        total = db_client.canchas.count_documents(filtro)
+        skip = (page - 1) * limit
+
+        cursor = (
+            db_client.canchas
+            .find(filtro)
+            .sort("nombre", 1)
+            .skip(skip)
+            .limit(limit)
+        )
+        rows = list(cursor)
+
+        if simple:
+            items = [
+                {"id": str(c["_id"]), "nombre": c.get("nombre", "")}
+                for c in rows
+            ]
+        else:
+            items = canchas_schema(rows)
+
+        return {
+            "canchas": items,
+            "total": total,
+            "page": page,
+            "limit": limit,
+        }
+
+    # 🔹 MODO ORIGINAL (sin paginación, compat con lo que ya tenías)
+    canchas = list(db_client.canchas.find(filtro).sort("nombre", 1))
 
     if simple:
         # modo liviano
