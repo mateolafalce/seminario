@@ -285,7 +285,7 @@ export default function GestionReservas() {
                       <td className="px-6 py-4 text-slate-300">
                         <div className="flex items-center gap-2">
                           <MdAccessTime className="text-slate-500" />
-                          {r.hora_inicio || r.horario}
+                          {r.horario || r.hora_inicio}
                         </div>
                       </td>
                       <td className="px-6 py-4">
