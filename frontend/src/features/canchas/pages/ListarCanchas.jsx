@@ -284,7 +284,7 @@ export default function ListarCanchas({ reloadKey = 0, onSeleccionar, onEliminar
                       <MdAccessTime />
                       <span className="text-xs font-medium">
                         {countHorarios > 0
-                          ? `${countHorarios} turnos activos`
+                          ? `${countHorarios} Horarios`
                           : "Sin horarios"}
                       </span>
                     </div>

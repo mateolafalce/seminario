@@ -124,7 +124,9 @@ export default function UsuarioForm({
                     value={v.email}
                     onChange={handleChange}
                     placeholder="correo@ejemplo.com"
-                    className={inputClass}
+                    className={`${inputClass} opacity-50 cursor-not-allowed`}
+                    disabled
+                    readOnly
                 />
                 {E.email && <p className={errorClass}>{E.email}</p>}
             </div>

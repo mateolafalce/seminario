@@ -307,6 +307,7 @@ async def obtener_perfil(user: Dict[str, Any] = Depends(current_user)):
         "apellido": p.get("apellido"),
         "username": u.get("username"),
         "email": p.get("email"),
+        "telefono": p.get("telefono"),
         "habilitado": u.get("habilitado"),
         "fecha_registro": u.get("fecha_registro"),
         "ultima_conexion": u.get("ultima_conexion"),
