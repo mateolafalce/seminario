@@ -1,9 +1,15 @@
+import { useContext } from "react";
 import { FiEdit2, FiTrash2, FiAlertCircle } from "react-icons/fi";
 import { HiUsers } from "react-icons/hi";
 import { MdLayers } from "react-icons/md";
 import IconoAvatar from "../../../assets/icons/iconoAvatar";
+import { AuthContext } from "../../auth/context/AuthContext";
 
 const ListaUsuarios = ({ usuarios, loading, error, onEditar, onEliminar, modoBusqueda }) => {
+  const { roles } = useContext(AuthContext);
+  // Helper local si no viene del contexto, o asumimos que roles es array
+  const isAdmin = roles?.includes("admin");
+
   const usuariosMostrados = usuarios || [];
 
   const total = usuariosMostrados.length;
@@ -218,18 +224,22 @@ const ListaUsuarios = ({ usuarios, loading, error, onEditar, onEliminar, modoBus
                   {/* Acciones */}
                   <td className="px-6 py-4 align-middle text-right">
                     <div className="flex items-center justify-end gap-2 opacity-100 lg:opacity-60 lg:group-hover:opacity-100 transition-all">
-                      <button
-                        onClick={() => onEditar(user)}
-                        className="p-2 text-slate-400 hover:text-yellow-400 hover:bg-yellow-400/10 rounded-lg transition-colors"
-                      >
-                        <FiEdit2 size={18} />
-                      </button>
-                      <button
-                        onClick={() => onEliminar(user)}
-                        className="p-2 text-slate-400 hover:text-red-400 hover:bg-red-400/10 rounded-lg transition-colors"
-                      >
-                        <FiTrash2 size={18} />
-                      </button>
+                      {isAdmin && (
+                        <>
+                          <button
+                            onClick={() => onEditar?.(user)}
+                            className="p-2 text-slate-400 hover:text-yellow-400 hover:bg-yellow-400/10 rounded-lg transition-colors"
+                          >
+                            <FiEdit2 size={18} />
+                          </button>
+                          <button
+                            onClick={() => onEliminar?.(user)}
+                            className="p-2 text-slate-400 hover:text-red-400 hover:bg-red-400/10 rounded-lg transition-colors"
+                          >
+                            <FiTrash2 size={18} />
+                          </button>
+                        </>
+                      )}
                     </div>
                   </td>
                 </tr>

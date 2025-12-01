@@ -21,7 +21,7 @@ class UserUpdate(BaseModel):
 def list_users(
     page: int = Query(1, ge=1),
     limit: int = Query(10, ge=1, le=100),
-    _: Dict[str, Any] = Depends(require_roles("admin")),
+    _: Dict[str, Any] = Depends(require_roles("admin", "empleado")),
 ):
     skip = (page - 1) * limit
     total = db_client.users.count_documents({})
@@ -52,7 +52,7 @@ def list_users(
 @router_admin.post("/users/buscar")
 def search_users(
     payload: dict = Body(...),
-    _: Dict[str, Any] = Depends(require_roles("admin")),
+    _: Dict[str, Any] = Depends(require_roles("admin", "empleado")),
 ):
     nombre = (payload.get("nombre") or "").strip()
     if not nombre:
@@ -90,7 +90,7 @@ def search_users(
     return {"users": users}
 
 @router_admin.get("/users/{id}")
-def get_user(id: str, _: Dict[str, Any] = Depends(require_roles("admin"))):
+def get_user(id: str, _: Dict[str, Any] = Depends(require_roles("admin", "empleado"))):
     if not ObjectId.is_valid(id):
         raise HTTPException(status_code=400, detail="ID inválido")
     u = db_client.users.find_one({"_id": ObjectId(id)})

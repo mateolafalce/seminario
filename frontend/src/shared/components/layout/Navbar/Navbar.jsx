@@ -130,7 +130,7 @@ function CustomNavbar() {
     { label: "Preferencias", path: "/preferencias", desktop: false, show: () => isAuthenticated },
     { label: "Datos", path: "/mis-datos", desktop: false, show: () => isAuthenticated },
     { label: "Resultados", path: "/cargar-resultados", desktop: false, show: () => isAuthenticated && (canManageReservas(me) || permissions.includes('reservas.resultado.cargar')) },
-    { label: "Panel", path: "/admin/dashboard", desktop: false, show: () => isAuthenticated && canManageUsers(me) },
+    { label: "Panel", path: "/admin/dashboard", desktop: false, show: () => isAuthenticated && canManageReservas(me) },
   ];
 
   // Links visibles según permisos
@@ -247,7 +247,7 @@ function CustomNavbar() {
                         Reseñas
                       </button>
 
-                      {canManageUsers(me) && (
+                      {canManageReservas(me) && (
                         <button
                           type="button"
                           onClick={() => { navigate("/panel-control"); setShowUserMenu(false); }}
