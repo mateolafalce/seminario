@@ -1,11 +1,11 @@
 import { useEffect, useState, useCallback, useContext } from "react";
 import { useNavigate } from "react-router-dom";
-import { motion } from "framer-motion"; // <---
+import { motion, AnimatePresence } from "framer-motion"; // <--- Added AnimatePresence
 import { AuthContext } from "../../auth/context/AuthContext";
 import backendClient from "../../../shared/services/backendClient";
 import Button from "../../../shared/components/ui/Button/Button";
-import { successToast, errorToast } from "../../../shared/utils/apiHelpers";
-import MessageConfirm from "../../../shared/components/ui/Confirm/MessageConfirm";
+import { toast } from "react-toastify"; // <--- Added toast
+import MiToast from "../../../shared/components/ui/Toast/MiToast"; // <--- Added MiToast
 import {
   FiTrash2,
   FiEdit2,
@@ -15,6 +15,7 @@ import {
   FiArrowLeft,
   FiClock,
 } from "react-icons/fi";
+import { MdWarning } from "react-icons/md"; // <--- Added MdWarning
 
 const containerVariants = {
   hidden: { opacity: 0 },
@@ -108,11 +109,7 @@ export default function PageHorarios() {
   const [newHora, setNewHora] = useState("");
   const [editingId, setEditingId] = useState(null);
   const [editHora, setEditHora] = useState("");
-  const [confirmData, setConfirmData] = useState({
-    open: false,
-    id: null,
-    mensaje: "",
-  });
+  const [horarioAEliminar, setHorarioAEliminar] = useState(null); // <--- New state
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -120,7 +117,7 @@ export default function PageHorarios() {
       const data = await backendClient.get("horarios/listar");
       setRows(data);
     } catch (e) {
-      errorToast(e?.message || "Error cargando horarios");
+      toast(<MiToast mensaje={e?.message || "Error cargando horarios"} color="#ef4444" />);
     } finally {
       setLoading(false);
     }
@@ -133,28 +130,24 @@ export default function PageHorarios() {
   const createHorario = async () => {
     const check = validarHoraRango(newHora);
     if (!check.ok) {
-      errorToast(check.mensaje);
+      toast(<MiToast mensaje={check.mensaje} color="#ef4444" />);
       return;
     }
 
     const solapado = detectarSolapamiento(newHora, rows);
     if (solapado) {
-      errorToast(
-        `El horario ${newHora.trim()} se superpone con el horario existente ${solapado}.`
-      );
+      toast(<MiToast mensaje={`El horario ${newHora.trim()} se superpone con ${solapado}.`} color="#ef4444" />);
       return;
     }
 
     setCreating(true);
     try {
       await backendClient.post("horarios/crear", { hora: newHora.trim() });
-      successToast("Horario creado");
+      toast(<MiToast mensaje="Horario creado" color="#10b981" />);
       setNewHora("");
       load();
     } catch (e) {
-      errorToast(
-        e?.data?.detail || e?.message || "Error al crear"
-      );
+      toast(<MiToast mensaje={e?.data?.detail || e?.message || "Error al crear"} color="#ef4444" />);
     } finally {
       setCreating(false);
     }
@@ -173,15 +166,13 @@ export default function PageHorarios() {
   const saveEdit = async () => {
     const check = validarHoraRango(editHora);
     if (!check.ok) {
-      errorToast(check.mensaje);
+      toast(<MiToast mensaje={check.mensaje} color="#ef4444" />);
       return;
     }
 
     const solapado = detectarSolapamiento(editHora, rows, editingId);
     if (solapado) {
-      errorToast(
-        `El horario ${editHora.trim()} se superpone con el horario existente ${solapado}.`
-      );
+      toast(<MiToast mensaje={`El horario ${editHora.trim()} se superpone con ${solapado}.`} color="#ef4444" />);
       return;
     }
 
@@ -189,35 +180,27 @@ export default function PageHorarios() {
       await backendClient.put(`horarios/modificar/${editingId}`, {
         hora: editHora.trim(),
       });
-      successToast("Horario modificado");
+      toast(<MiToast mensaje="Horario modificado" color="#10b981" />);
       cancelEdit();
       load();
     } catch (e) {
-      errorToast(
-        e?.data?.detail || e?.message || "Error al modificar"
-      );
+      toast(<MiToast mensaje={e?.data?.detail || e?.message || "Error al modificar"} color="#ef4444" />);
     }
   };
 
-  const deleteHorario = (id, hora) => {
-    setConfirmData({
-      open: true,
-      id,
-      mensaje: `¿Eliminar el horario "${hora}"?`,
-    });
+  const handleDeleteClick = (row) => {
+    setHorarioAEliminar(row);
   };
 
-  const ejecutarEliminacion = async () => {
-    const id = confirmData.id;
-    setConfirmData({ open: false, id: null, mensaje: "" });
+  const confirmarEliminacion = async () => {
+    if (!horarioAEliminar) return;
     try {
-      await backendClient.delete(`horarios/eliminar/${id}`);
-      successToast("Horario eliminado");
+      await backendClient.delete(`horarios/eliminar/${horarioAEliminar.id}`);
+      toast(<MiToast mensaje="Horario eliminado" color="#10b981" />);
       load();
+      setHorarioAEliminar(null);
     } catch (e) {
-      errorToast(
-        e?.data?.detail || e?.message || "No se pudo eliminar"
-      );
+      toast(<MiToast mensaje={e?.data?.detail || e?.message || "No se pudo eliminar"} color="#ef4444" />);
     }
   };
 
@@ -357,9 +340,7 @@ export default function PageHorarios() {
                                 <FiEdit2 size={18} />
                               </button>
                               <button
-                                onClick={() =>
-                                  deleteHorario(r.id, r.hora)
-                                }
+                                onClick={() => handleDeleteClick(r)}
                                 className="text-slate-400 hover:text-red-400 transition"
                               >
                                 <FiTrash2 size={18} />
@@ -377,18 +358,51 @@ export default function PageHorarios() {
         </motion.div>
       </div>
 
-      {confirmData.open && (
-        <MessageConfirm
-          mensaje={confirmData.mensaje}
-          onClose={() =>
-            setConfirmData({ ...confirmData, open: false })
-          }
-          onConfirm={ejecutarEliminacion}
-          onCancel={() =>
-            setConfirmData({ ...confirmData, open: false })
-          }
-        />
-      )}
+      {/* MODAL DE CONFIRMACIÓN */}
+      <AnimatePresence>
+        {horarioAEliminar && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4"
+            onClick={() => setHorarioAEliminar(null)}
+          >
+            <motion.div
+              initial={{ scale: 0.95, opacity: 0, y: 20 }}
+              animate={{ scale: 1, opacity: 1, y: 0 }}
+              exit={{ scale: 0.95, opacity: 0, y: 20 }}
+              onClick={(e) => e.stopPropagation()}
+              className="bg-slate-900 border border-slate-700 rounded-xl shadow-2xl max-w-md w-full overflow-hidden"
+            >
+              <div className="p-6 flex flex-col items-center text-center">
+                <div className="w-14 h-14 bg-red-500/10 rounded-full flex items-center justify-center mb-4 text-red-500">
+                  <MdWarning size={28} />
+                </div>
+                <h3 className="text-xl font-bold text-white mb-2">¿Eliminar horario?</h3>
+                <p className="text-slate-400 mb-6 text-sm leading-relaxed">
+                  Estás a punto de eliminar el horario <strong className="text-white">{horarioAEliminar.hora}</strong>.
+                  <br/>Esta acción podría afectar a las canchas que lo utilicen.
+                </p>
+                
+                <div className="flex gap-3 w-full">
+                  <Button 
+                    texto="Cancelar" 
+                    onClick={() => setHorarioAEliminar(null)}
+                    variant="secondary"
+                    className="flex-1 justify-center"
+                  />
+                  <Button 
+                    texto="Sí, eliminar" 
+                    onClick={confirmarEliminacion}
+                    className="flex-1 justify-center bg-red-600 hover:bg-red-700 text-white shadow-lg shadow-red-900/20 border-transparent"
+                  />
+                </div>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </motion.div>
   );
 }

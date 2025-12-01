@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { motion } from "framer-motion";
+import { motion, AnimatePresence } from "framer-motion";
 import adminApi from "../../../../shared/services/adminApi";
 import backendClient from "../../../../shared/services/backendClient";
 import Paginacion from "../../../../shared/components/ui/Paginacion";
@@ -19,6 +19,7 @@ import {
   MdAccessTime,
   MdCalendarToday,
   MdOutlineBookmarkAdded,
+  MdWarning,
 } from "react-icons/md";
 import useReservasAdmin from "../../../reservas/hooks/useReservasAdmin";
 
@@ -61,6 +62,7 @@ export default function GestionReservas() {
   } = useReservasAdmin();
 
   const [detalle, setDetalle] = useState(null);
+  const [reservaACancelar, setReservaACancelar] = useState(null);
 
   // Diccionario de nombres para arreglar IDs de canchas
   const [nombresCanchas, setNombresCanchas] = useState({});
@@ -94,31 +96,61 @@ export default function GestionReservas() {
       });
       setDetalle(data);
     } catch (e) {
+      let msg = e.message || "Error cargando detalle";
+      const data = e?.response?.data;
+      const detail = data?.detail;
+      const message = data?.message;
+
+      if (detail) {
+        if (typeof detail === "string") msg = detail;
+        else if (Array.isArray(detail)) msg = detail.map((x) => x.msg || JSON.stringify(x)).join(", ");
+        else if (typeof detail === "object") msg = JSON.stringify(detail);
+      } else if (message) {
+        msg = typeof message === "string" ? message : JSON.stringify(message);
+      } else if (typeof data === "string") {
+        msg = data;
+      }
+
       toast(
         <MiToast
-          mensaje={e.message || "Error cargando detalle"}
+          mensaje={msg}
           color="#ef4444"
         />
       );
     }
   };
 
-  const cancelarReserva = async (r) => {
-    if (
-      !window.confirm(
-        "¿Cancelar esta reserva? Se notificará a los usuarios."
-      )
-    )
-      return;
+  const handleCancelar = (r) => {
+    setReservaACancelar(r);
+  };
+
+  const confirmarCancelacion = async () => {
+    if (!reservaACancelar) return;
     try {
-      await adminApi.reservas.cancelarReserva(r._id || r.id);
+      await adminApi.reservas.cancelarReserva(reservaACancelar._id || reservaACancelar.id);
       toast(<MiToast mensaje="Reserva cancelada" color="#10b981" />);
       await fetchData(page);
       setDetalle(null);
+      setReservaACancelar(null);
     } catch (e) {
+      let msg = e.message || "No se pudo cancelar";
+      const data = e?.response?.data;
+      const detail = data?.detail;
+      const message = data?.message;
+
+      if (detail) {
+        if (typeof detail === "string") msg = detail;
+        else if (Array.isArray(detail)) msg = detail.map((x) => x.msg || JSON.stringify(x)).join(", ");
+        else if (typeof detail === "object") msg = JSON.stringify(detail);
+      } else if (message) {
+        msg = typeof message === "string" ? message : JSON.stringify(message);
+      } else if (typeof data === "string") {
+        msg = data;
+      }
+
       toast(
         <MiToast
-          mensaje={e.message || "No se pudo cancelar"}
+          mensaje={msg}
           color="#ef4444"
         />
       );
@@ -333,7 +365,7 @@ export default function GestionReservas() {
                           </button>
                           {!deshabilitarCancelar && (
                             <button
-                              onClick={() => cancelarReserva(r)}
+                              onClick={() => handleCancelar(r)}
                               className="p-2 text-slate-400 hover:text-red-400 hover:bg-red-400/10 rounded-lg transition-all"
                               title="Cancelar reserva"
                             >
@@ -437,6 +469,52 @@ export default function GestionReservas() {
           </div>
         </div>
       )}
+
+      {/* MODAL DE CONFIRMACIÓN DE CANCELACIÓN */}
+      <AnimatePresence>
+        {reservaACancelar && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4"
+            onClick={() => setReservaACancelar(null)}
+          >
+            <motion.div
+              initial={{ scale: 0.95, opacity: 0, y: 20 }}
+              animate={{ scale: 1, opacity: 1, y: 0 }}
+              exit={{ scale: 0.95, opacity: 0, y: 20 }}
+              onClick={(e) => e.stopPropagation()}
+              className="bg-slate-900 border border-slate-700 rounded-xl shadow-2xl max-w-md w-full overflow-hidden"
+            >
+              <div className="p-6 flex flex-col items-center text-center">
+                <div className="w-14 h-14 bg-red-500/10 rounded-full flex items-center justify-center mb-4 text-red-500">
+                  <MdWarning size={28} />
+                </div>
+                <h3 className="text-xl font-bold text-white mb-2">¿Cancelar reserva?</h3>
+                <p className="text-slate-400 mb-6 text-sm leading-relaxed">
+                  Estás a punto de cancelar la reserva del <strong className="text-white">{reservaACancelar.fecha}</strong> a las <strong className="text-white">{reservaACancelar.horario || reservaACancelar.hora_inicio}</strong>.
+                  <br/>Se notificará a los usuarios involucrados.
+                </p>
+                
+                <div className="flex gap-3 w-full">
+                  <Button 
+                    texto="Volver" 
+                    onClick={() => setReservaACancelar(null)}
+                    variant="secondary"
+                    className="flex-1 justify-center"
+                  />
+                  <Button 
+                    texto="Sí, cancelar" 
+                    onClick={confirmarCancelacion}
+                    className="flex-1 justify-center bg-red-600 hover:bg-red-700 text-white shadow-lg shadow-red-900/20 border-transparent"
+                  />
+                </div>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </motion.div>
   );
 }
