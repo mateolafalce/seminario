@@ -38,7 +38,7 @@ def set_auth_cookies(response: Response, access_token: str):
     """
     SAME_SITE = os.getenv("COOKIE_SAMESITE", "lax")  # "lax" | "none" | "strict"
     SECURE = os.getenv("COOKIE_SECURE", "false").lower() == "true"
-    DOMAIN = os.getenv("COOKIE_DOMAIN")  # ej. ".tudominio.com" si compartís subdominios
+    DOMAIN = os.getenv("COOKIE_DOMAIN")  
 
     # JWT HttpOnly
     response.set_cookie(

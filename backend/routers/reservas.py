@@ -258,10 +258,10 @@ async def reservar(reserva: Reserva, user: dict = Depends(current_user)):
         fecha_reserva_dt = datetime.strptime(reserva.fecha, "%d-%m-%Y").date()
         ahora_dt = datetime.now(argentina_tz)
         hoy_dt = ahora_dt.date()
-        limite_dt = hoy_dt + timedelta(days=7)
+        limite_dt = hoy_dt + timedelta(days=30)
 
         if not (hoy_dt <= fecha_reserva_dt < limite_dt):
-            raise ValueError("La fecha de reserva debe ser entre hoy y los próximos 6 días.")
+            raise ValueError("La fecha de reserva debe ser entre hoy y los próximos 30 días.")
 
         # --- Validación de horarios pasados (solo para el día de hoy) ---
         if fecha_reserva_dt == hoy_dt:
