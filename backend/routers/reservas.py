@@ -16,7 +16,7 @@ from db.models.reserva import ReservaCreate as Reserva, ReservaUsuarioRef
 from db.schemas.reserva import reserva_schema_db
 
 from routers.Security.auth import current_user, verify_csrf, require_perms, require_roles
-from services.authz import user_has_any_role
+from services.authz import user_has_any_role, user_has_permission
 from services.matcheo import a_notificar, optimize_weights
 from services.email import notificar_posible_matcheo, notificar_recordatorio, notificar_confirmacion_reserva
 
@@ -572,15 +572,15 @@ async def cancelar_reserva(
 
     user_oid = ObjectId(user_id)
 
-    # RBAC admin
-    es_admin = await asyncio.to_thread(lambda: user_has_any_role(user_oid, "admin"))
+    # RBAC admin o permiso de cancelar
+    es_admin = await asyncio.to_thread(lambda: user_has_any_role(user_oid, "admin") or user_has_permission(user_oid, "reservas.admin.cancelar"))
 
     # Obtener reserva
     reserva = await asyncio.to_thread(lambda: db_client.reservas.find_one({"_id": reserva_oid}))
     if not reserva:
         raise HTTPException(status_code=404, detail="Reserva no encontrada")
 
-    # El usuario debe estar en la reserva (salvo admin)
+    # El usuario debe estar en la reserva (salvo admin/empleado)
     usuario_en_reserva = any(str(u.get("id")) == user_id for u in reserva.get("usuarios", []))
     if not usuario_en_reserva and not es_admin:
         raise HTTPException(status_code=403, detail="No tienes permiso para cancelar esta reserva")
@@ -611,7 +611,7 @@ async def cancelar_reserva(
                 except Exception as e:
                     print(f"Error cancelando recordatorio: {e}")
         else:
-            # Admin: eliminar reserva entera
+            # Admin/Empleado: eliminar reserva entera
             await asyncio.to_thread(lambda: db_client.notif_logs.delete_many({"reserva": reserva_oid}))
             await asyncio.to_thread(lambda: db_client.reservas.delete_one({"_id": reserva_oid}))
             try:
@@ -1013,7 +1013,7 @@ async def listar_reservas_por_fecha(
 # busqueda admin paginada + filtros
 @router.post(
     "/admin/buscar",
-    dependencies=[Depends(verify_csrf), Depends(require_roles("admin"))]
+    dependencies=[Depends(verify_csrf), Depends(require_perms("reservas.admin.buscar"))]
 )
 async def admin_buscar_reservas(payload: AdminBuscarReservasRequest):
     """
@@ -1190,7 +1190,7 @@ async def admin_buscar_reservas(payload: AdminBuscarReservasRequest):
         "total": total
     }
 
-@router.post("/admin/crear", dependencies=[Depends(verify_csrf), Depends(require_roles("admin"))])
+@router.post("/admin/crear", dependencies=[Depends(verify_csrf), Depends(require_perms("reservas.admin.crear"))])
 async def admin_crear_reserva(data: CrearReservaAdminRequest, user: dict = Depends(current_user)):
     """
     Crea una reserva en nombre de los usuarios seleccionados.

@@ -14,13 +14,24 @@ def ensure_rbac_indexes_and_seed():
         "reservas.resultado.cargar",
         "reservas.resultado.ver",
         "reservas.dashboard.ver",
+        # Nuevos permisos para gestión
+        "reservas.admin.buscar",
+        "reservas.admin.crear",
+        "reservas.admin.cancelar",
+        "usuarios.listar",
+        "usuarios.buscar",
+        "usuarios.ver",
+        # Permisos auxiliares (lectura de categorías para filtros/forms)
+        "categorias.listar",
+        "categorias.ver",
     ])
     _seed_role("usuario",   permissions=[])
 
 def _seed_role(name: str, permissions: List[str]):
+    # Usamos $set para permissions para que se actualicen si ya existe el rol
     db_client.roles.update_one(
         {"name": name},
-        {"$setOnInsert": {"name": name, "permissions": permissions}},
+        {"$set": {"permissions": permissions}, "$setOnInsert": {"name": name}},
         upsert=True
     )
 

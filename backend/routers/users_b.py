@@ -211,8 +211,6 @@ async def modificar_usuario(data: AdminModificarUsuarioRequest):
 
         # 2) Cambios en users: habilitado / categoria
         set_users = {"habilitado": data.habilitado}
-        if data.habilitado:
-            set_users["habilitacion_token"] = None
 
         # Resolver categoría (opcional)
         if data.categoria and data.categoria not in ["Sin categoría", ""]:
@@ -309,7 +307,6 @@ async def obtener_perfil(user: Dict[str, Any] = Depends(current_user)):
         "apellido": p.get("apellido"),
         "username": u.get("username"),
         "email": p.get("email"),
-        "telefono": p.get("telefono"),
         "habilitado": u.get("habilitado"),
         "fecha_registro": u.get("fecha_registro"),
         "ultima_conexion": u.get("ultima_conexion"),
