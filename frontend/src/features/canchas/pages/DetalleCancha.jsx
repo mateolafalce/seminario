@@ -9,6 +9,7 @@ import { toast } from "react-toastify";
 import { AuthContext } from "../../auth/context/AuthContext";
 import { getFileUrl } from "../../../app/config";
 import { isCanchaDisponibleEnFecha } from "../../../shared/utils/disponibilidadCancha";
+import { ordenarHorarios } from "../../../shared/utils/ordenarHorarios";
 
 import { motion, AnimatePresence } from "framer-motion";
 
@@ -296,9 +297,11 @@ export default function DetalleCancha() {
 
   const horariosHabilitados =
     Array.isArray(cancha.horarios) && cancha.horarios.length > 0
-      ? cancha.horarios
-          .map((hid) => horariosMap[String(hid)] || null)
-          .filter(Boolean)
+      ? ordenarHorarios(
+          cancha.horarios
+            .map((hid) => horariosMap[String(hid)] || null)
+            .filter(Boolean)
+        )
       : [];
 
   const variants = {
