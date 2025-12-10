@@ -241,6 +241,14 @@ def start_scheduler():
         replace_existing=True,
     )
 
+    # 👇 Restaurar recordatorios al inicio (por si se reinició el server)
+    _scheduler.add_job(
+        restore_reminders, "date",
+        run_date=datetime.now(pytz.utc) + timedelta(seconds=5),
+        id="restore_reminders",
+        replace_existing=True,
+    )
+
     print(f"[scheduler] iniciado. CLOSE:{close_m}m REL:{rel_m}m OPT:{opt_m}m")
     return _scheduler
 
@@ -291,20 +299,29 @@ def programar_recordatorio_nueva_reserva(reserva_id: str, fecha: str, hora_inici
     fecha: 'DD-MM-YYYY'
     hora_inicio_str: 'HH:MM'
     """
-    dt_slot = ARG_TZ.localize(datetime.strptime(f"{fecha} {hora_inicio_str}", "%d-%m-%Y %H:%M"))
-    run_at = dt_slot - timedelta(minutes=REMINDER_OFFSET_MIN)
+    try:
+        dt_slot = ARG_TZ.localize(datetime.strptime(f"{fecha} {hora_inicio_str}", "%d-%m-%Y %H:%M"))
+    except ValueError:
+        print(f"[reminder] Error fecha/hora inválida: {fecha} {hora_inicio_str}")
+        return
 
-    # Si ya pasó la hora (por ejemplo, reserva creada dentro del offset),
-    # movemos a 10s en el futuro o podés directamente no programar.
+    run_at = dt_slot - timedelta(minutes=REMINDER_OFFSET_MIN)
     now = datetime.now(ARG_TZ)
+
+    # Lógica mejorada para restauración / reservas tardías
     if run_at < now:
-        run_at = now + timedelta(seconds=10)
+        if dt_slot > now:
+            # El partido es en el futuro, pero ya pasó el tiempo de aviso.
+            # Avisar en 10s (recordatorio tardío).
+            run_at = now + timedelta(seconds=10)
+        else:
+            # El partido ya pasó o está empezando. No programar.
+            # print(f"[reminder] Skip reserva={reserva_id} (ya pasó fecha de juego)")
+            return
 
     if not _scheduler:
         start_scheduler()  # por si acaso
 
-    print(f"[reminder] programado reserva={reserva_id} run_at={run_at.isoformat()}")
-    
     _scheduler.add_job(
         func=recordatorio_job,
         trigger="date",
@@ -315,6 +332,37 @@ def programar_recordatorio_nueva_reserva(reserva_id: str, fecha: str, hora_inici
         misfire_grace_time=int(os.getenv("SCH_MISFIRE_GRACE", "60")),
     )
     print(f"[scheduler] Recordatorio programado para {reserva_id} a las {run_at}")
+
+def restore_reminders():
+    """Restaura recordatorios de reservas futuras al iniciar."""
+    print("[scheduler] Restaurando recordatorios...")
+    try:
+        est_res = db_client.estadoreserva.find_one({"nombre": "Reservada"})
+        est_conf = db_client.estadoreserva.find_one({"nombre": "Confirmada"})
+        if not est_res or not est_conf:
+            return
+
+        # Traer reservas activas
+        cursor = db_client.reservas.find(
+            {"estado": {"$in": [est_res["_id"], est_conf["_id"]]}},
+            {"fecha": 1, "hora_inicio": 1}
+        )
+        
+        count = 0
+        for r in cursor:
+            try:
+                h_doc = db_client.horarios.find_one({"_id": r["hora_inicio"]}, {"hora": 1})
+                if not h_doc: continue
+                hora_inicio_str = h_doc["hora"].split("-")[0]
+                
+                programar_recordatorio_nueva_reserva(str(r["_id"]), r["fecha"], hora_inicio_str)
+                count += 1
+            except Exception:
+                continue
+        
+        print(f"[scheduler] {count} recordatorios procesados/restaurados.")
+    except Exception as e:
+        print(f"[scheduler] Error restaurando recordatorios: {e}")
 
 def cancelar_recordatorio_reserva(reserva_id: str):
     """Cancela el recordatorio de una reserva."""

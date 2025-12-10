@@ -16,7 +16,7 @@ from db.models.reserva import ReservaCreate as Reserva, ReservaUsuarioRef
 from db.schemas.reserva import reserva_schema_db
 
 from routers.Security.auth import current_user, verify_csrf, require_perms, require_roles
-from services.authz import user_has_any_role
+from services.authz import user_has_any_role, user_has_permission
 from services.matcheo import a_notificar, optimize_weights
 from services.email import notificar_posible_matcheo, notificar_recordatorio, notificar_confirmacion_reserva
 
@@ -258,10 +258,10 @@ async def reservar(reserva: Reserva, user: dict = Depends(current_user)):
         fecha_reserva_dt = datetime.strptime(reserva.fecha, "%d-%m-%Y").date()
         ahora_dt = datetime.now(argentina_tz)
         hoy_dt = ahora_dt.date()
-        limite_dt = hoy_dt + timedelta(days=7)
+        limite_dt = hoy_dt + timedelta(days=30)
 
         if not (hoy_dt <= fecha_reserva_dt < limite_dt):
-            raise ValueError("La fecha de reserva debe ser entre hoy y los próximos 6 días.")
+            raise ValueError("La fecha de reserva debe ser entre hoy y los próximos 30 días.")
 
         # --- Validación de horarios pasados (solo para el día de hoy) ---
         if fecha_reserva_dt == hoy_dt:
@@ -513,7 +513,8 @@ async def get_mis_reservas(
             "cancha": "$cancha_info.nombre",
             "horario": "$horario_info.hora",
             "usuarios": 1,
-            "estado": "$estado_info.nombre"
+            "estado": "$estado_info.nombre",
+            "capacidad_maxima": {"$ifNull": ["$cancha_info.capacidad_maxima", 6]},
         }},
         {"$sort": {"fecha": 1, "horario": 1}}
     ]
@@ -534,6 +535,14 @@ async def get_mis_reservas(
                 for usuario in r.get("usuarios", [])
             )
 
+            # capacidad defensiva
+            cap_raw = r.get("capacidad_maxima", 6)
+            try:
+                max_usuarios = int(cap_raw)
+            except (TypeError, ValueError):
+                max_usuarios = 6
+            max_usuarios = max(1, min(max_usuarios, 50))
+
             r_limpia = {
                 "_id": str(r["_id"]),
                 "fecha": r["fecha"],
@@ -541,6 +550,7 @@ async def get_mis_reservas(
                 "horario": r["horario"],
                 "asistenciaConfirmada": confirmado,
                 "cantidad_usuarios": len(r.get("usuarios", [])),
+                "max_usuarios": max_usuarios,
                 "estado": r["estado"],
                 "resultado": r.get("resultado")
             }
@@ -562,15 +572,15 @@ async def cancelar_reserva(
 
     user_oid = ObjectId(user_id)
 
-    # RBAC admin
-    es_admin = await asyncio.to_thread(lambda: user_has_any_role(user_oid, "admin"))
+    # RBAC admin o permiso de cancelar
+    es_admin = await asyncio.to_thread(lambda: user_has_any_role(user_oid, "admin") or user_has_permission(user_oid, "reservas.admin.cancelar"))
 
     # Obtener reserva
     reserva = await asyncio.to_thread(lambda: db_client.reservas.find_one({"_id": reserva_oid}))
     if not reserva:
         raise HTTPException(status_code=404, detail="Reserva no encontrada")
 
-    # El usuario debe estar en la reserva (salvo admin)
+    # El usuario debe estar en la reserva (salvo admin/empleado)
     usuario_en_reserva = any(str(u.get("id")) == user_id for u in reserva.get("usuarios", []))
     if not usuario_en_reserva and not es_admin:
         raise HTTPException(status_code=403, detail="No tienes permiso para cancelar esta reserva")
@@ -601,7 +611,7 @@ async def cancelar_reserva(
                 except Exception as e:
                     print(f"Error cancelando recordatorio: {e}")
         else:
-            # Admin: eliminar reserva entera
+            # Admin/Empleado: eliminar reserva entera
             await asyncio.to_thread(lambda: db_client.notif_logs.delete_many({"reserva": reserva_oid}))
             await asyncio.to_thread(lambda: db_client.reservas.delete_one({"_id": reserva_oid}))
             try:
@@ -890,6 +900,8 @@ async def listar_reservas_por_fecha(
     - usuario_nombre (nombres unidos por coma) — desde PERSONAS
     - estado (lowercase: 'confirmada')
     - resultado (si existe)
+    - cantidad_usuarios (int)
+    - max_usuarios (int, desde capacidad_maxima de la cancha)
     """
     try:
         datetime.strptime(fecha, "%d-%m-%Y")
@@ -939,13 +951,15 @@ async def listar_reservas_por_fecha(
             "as": "personas_info"
         }},
 
-        # Proyecto todo lo necesario; los nombres saldrán de personas_info
+        # 👉 acá agregamos capacidad_maxima y cantidad_usuarios
         {"$project": {
             "_id": 1,
             "fecha": 1,
             "resultado": 1,
             "cancha": "$cancha_info.nombre",
             "horario": "$horario_info.hora",
+            "capacidad_maxima": {"$ifNull": ["$cancha_info.capacidad_maxima", 6]},
+            "cantidad_usuarios": {"$size": "$usuarios"},
             "personas_info": {
                 "$map": {
                     "input": "$personas_info",
@@ -973,13 +987,25 @@ async def listar_reservas_por_fecha(
                 nombres.append(full)
         usuario_nombre = ", ".join(nombres) if nombres else ""
 
+        # capacidad máxima defensiva
+        cap_raw = d.get("capacidad_maxima", 6)
+        try:
+            max_usuarios = int(cap_raw)
+        except (TypeError, ValueError):
+            max_usuarios = 6
+        max_usuarios = max(1, min(max_usuarios, 50))
+
+        cantidad_usuarios = int(d.get("cantidad_usuarios", 0) or 0)
+
         salida.append({
             "_id": str(d["_id"]),
             "cancha": d.get("cancha", ""),
             "horario": d.get("horario", ""),
             "usuario_nombre": usuario_nombre,
             "estado": "confirmada",
-            "resultado": d.get("resultado", "")
+            "resultado": d.get("resultado", ""),
+            "cantidad_usuarios": cantidad_usuarios,
+            "max_usuarios": max_usuarios,
         })
 
     return salida
@@ -987,7 +1013,7 @@ async def listar_reservas_por_fecha(
 # busqueda admin paginada + filtros
 @router.post(
     "/admin/buscar",
-    dependencies=[Depends(verify_csrf), Depends(require_roles("admin"))]
+    dependencies=[Depends(verify_csrf), Depends(require_perms("reservas.admin.buscar"))]
 )
 async def admin_buscar_reservas(payload: AdminBuscarReservasRequest):
     """
@@ -1164,7 +1190,7 @@ async def admin_buscar_reservas(payload: AdminBuscarReservasRequest):
         "total": total
     }
 
-@router.post("/admin/crear", dependencies=[Depends(verify_csrf), Depends(require_roles("admin"))])
+@router.post("/admin/crear", dependencies=[Depends(verify_csrf), Depends(require_perms("reservas.admin.crear"))])
 async def admin_crear_reserva(data: CrearReservaAdminRequest, user: dict = Depends(current_user)):
     """
     Crea una reserva en nombre de los usuarios seleccionados.
@@ -1225,7 +1251,7 @@ async def admin_crear_reserva(data: CrearReservaAdminRequest, user: dict = Depen
 
         # Fechas bloqueadas exactas
         fechas_bloq = cancha.get("fechas_bloqueadas") or []
-        if any(isinstance(f, str) and f.strip() == fecha_guardar for f in fechas_bloq):
+        if any(isinstance(f, str) and f.strip() == fecha_guardar for f in fechas_bloqueadas):
             raise ValueError("La cancha está bloqueada para reservas en esa fecha")
 
         # Estado 'Reservada'

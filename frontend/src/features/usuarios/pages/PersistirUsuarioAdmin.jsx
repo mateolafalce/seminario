@@ -45,7 +45,29 @@ export default function PersistirUsuarioAdmin() {
       );
       navigate("/panel-control/usuarios");
     } catch (e) {
-      const msg = e?.response?.data?.detail || e?.response?.data?.message || e.message || "Error al crear usuario";
+      console.error("Error creando usuario:", e);
+      let msg = "Error al crear usuario";
+
+      const data = e?.response?.data;
+      const detail = data?.detail;
+      const message = data?.message;
+
+      if (detail) {
+        if (typeof detail === "string") {
+          msg = detail;
+        } else if (Array.isArray(detail)) {
+          msg = detail.map((err) => err.msg || JSON.stringify(err)).join(", ");
+        } else if (typeof detail === "object") {
+          msg = JSON.stringify(detail);
+        }
+      } else if (message) {
+        msg = typeof message === "string" ? message : JSON.stringify(message);
+      } else if (typeof data === "string") {
+        msg = data;
+      } else if (e.message) {
+        msg = e.message;
+      }
+
       toast(<MiToast mensaje={msg} color="#ef4444" />);
     } finally {
       setLoading(false);

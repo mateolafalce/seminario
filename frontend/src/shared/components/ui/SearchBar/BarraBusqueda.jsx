@@ -1,7 +1,16 @@
 import { useState } from 'react';
 import Button from "../Button/Button";
 
-const BarraBusqueda = ({ onBuscar, onLimpiar, modoBusqueda, resultados, loading }) => {
+const BarraBusqueda = ({
+  onBuscar,
+  onLimpiar,
+  modoBusqueda,
+  resultados,
+  loading,
+  // 👇 nuevos props opcionales para reutilizar el mismo componente
+  placeholder = "Buscar por nombre o usuario…",
+  ariaLabel = "Buscar usuarios",
+}) => {
   const [termino, setTermino] = useState('');
 
   const handleSubmit = (e) => {
@@ -11,7 +20,7 @@ const BarraBusqueda = ({ onBuscar, onLimpiar, modoBusqueda, resultados, loading 
 
   const handleLimpiar = () => {
     setTermino('');
-    onLimpiar();
+    if (onLimpiar) onLimpiar();
   };
 
   return (
@@ -20,12 +29,12 @@ const BarraBusqueda = ({ onBuscar, onLimpiar, modoBusqueda, resultados, loading 
         onSubmit={handleSubmit}
         className="flex flex-col sm:flex-row gap-2 sm:gap-3 w-full items-stretch sm:items-center"
         role="search"
-        aria-label="Buscar usuarios"
+        aria-label={ariaLabel}
       >
         <div className="relative flex-1">
           <input
             type="text"
-            placeholder="Buscar por nombre o usuario…"
+            placeholder={placeholder}
             value={termino}
             onChange={(e) => setTermino(e.target.value)}
             className="w-full rounded-lg border border-slate-600 bg-slate-800 pr-24 pl-10 py-2 text-slate-100 placeholder:text-slate-400
@@ -64,9 +73,21 @@ const BarraBusqueda = ({ onBuscar, onLimpiar, modoBusqueda, resultados, loading 
         </div>
 
         <div className="flex gap-2 sm:gap-3 w-full sm:w-auto">
-          <Button type="submit" texto="Buscar" variant="default" disabled={loading} className="w-full sm:w-auto"/>
+          <Button
+            type="submit"
+            texto="Buscar"
+            variant="default"
+            disabled={loading}
+            className="w-full sm:w-auto"
+          />
           {modoBusqueda && (
-            <Button type="button" texto="Restablecer" onClick={handleLimpiar} variant="cancelar" className="w-full sm:w-auto"/>
+            <Button
+              type="button"
+              texto="Restablecer"
+              onClick={handleLimpiar}
+              variant="cancelar"
+              className="w-full sm:w-auto"
+            />
           )}
         </div>
       </form>

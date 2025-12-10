@@ -283,8 +283,10 @@ function MisDatos() {
     e.preventDefault();
     setIsSubmitting(true);
     try {
+      // Extraemos email para no enviarlo (ya que no se edita)
+      const { email, ...restForm } = form;
       const payload = {
-        ...form,
+        ...restForm,
         telefono: form.telefono ? onlyDigits(form.telefono) : null,
       };
       const updated = await backendClient.put('users_b/me/', payload);
@@ -496,23 +498,21 @@ function MisDatos() {
         onClose={() => setIsModalOpen(false)}
       >
         <form onSubmit={handleSubmit} className="flex flex-col gap-4 p-6">
-          {["nombre", "apellido", "email", "telefono"].map((field) => {
+          {/* Quitamos "email" de la lista para que no aparezca */}
+          {["nombre", "apellido", "telefono"].map((field) => {
             const labels = {
               nombre: "Nombre",
               apellido: "Apellido",
-              email: "Email",
               telefono: "Teléfono",
             };
             const types = {
               nombre: "text",
               apellido: "text",
-              email: "email",
               telefono: "text",
             };
             const icons = {
               nombre: <FiUser className="w-5 h-5 text-slate-400" />,
               apellido: <FiUser className="w-5 h-5 text-slate-400" />,
-              email: <FiMail className="w-5 h-5 text-slate-400" />,
               telefono: <FiPhone className="w-5 h-5 text-slate-400" />,
             };
             return (
@@ -534,7 +534,7 @@ function MisDatos() {
                     value={form[field]}
                     onChange={handleChange}
                     className="w-full pl-10 pr-3 py-2 rounded-xl bg-slate-900 text-white border border-white/10 placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-amber-300"
-                    required={field !== "telefono"}   // 👈 teléfono opcional
+                    required={field !== "telefono"}  
                     autoComplete="off"
                     placeholder={labels[field]}
                   />

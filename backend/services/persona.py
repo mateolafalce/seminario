@@ -7,13 +7,22 @@ from pymongo.errors import DuplicateKeyError
 def ensure_persona_indexes() -> None:
     """
     DNI único; email indexado (no único).
+    (La unicidad de email la validamos a nivel aplicación.)
     """
     try:
-        db_client.personas.create_index([("dni", 1)], unique=True, name="personas_dni_unique")
+        db_client.personas.create_index(
+            [("dni", 1)],
+            unique=True,
+            name="personas_dni_unique"
+        )
     except Exception:
         pass
     try:
-        db_client.personas.create_index([("email", 1)], name="personas_email_1")
+        # Índice normal sobre email para acelerar búsquedas
+        db_client.personas.create_index(
+            [("email", 1)],
+            name="personas_email_1"
+        )
     except Exception:
         pass
 
@@ -44,10 +53,17 @@ def create_persona_for_user(
 
     ensure_persona_indexes()
 
-    doc = {
+    email_clean = (email or "").strip()
+
+    # 🚫 Chequear que no exista otra persona con el mismo email
+    existing = db_client.personas.find_one({"email": email_clean})
+    if existing:
+        raise ValueError("Email ya registrado")
+
+    doc: Dict[str, Any] = {
         "nombre": (nombre or "").strip(),
         "apellido": (apellido or "").strip(),
-        "email": (email or "").strip(),
+        "email": email_clean,
         "dni": ndni,
     }
     if telefono:
@@ -77,8 +93,18 @@ def update_persona_fields(persona_id: ObjectId, data: Dict[str, Any]) -> Dict[st
         update["nombre"] = _clean(data["nombre"])
     if "apellido" in data and data["apellido"] is not None:
         update["apellido"] = _clean(data["apellido"])
+    
+    # 🚫 Validar email único en update
     if "email" in data and data["email"] is not None:
-        update["email"] = _clean(data["email"])
+        new_email = _clean(data["email"])
+        if new_email:
+            existing = db_client.personas.find_one({
+                "email": new_email,
+                "_id": {"$ne": persona_id},  # otra persona, no yo mismo
+            })
+            if existing:
+                raise ValueError("Email ya registrado")
+            update["email"] = new_email
 
     if "dni" in data and data["dni"] is not None:
         ndni = _only_digits(data["dni"])

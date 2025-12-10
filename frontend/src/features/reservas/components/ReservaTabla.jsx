@@ -9,6 +9,7 @@ import CourtCard from "./CourtCard";
 import ConfigurarPartidoModal from "./ConfigurarPartidoModal";
 import { FiCalendar, FiFilter } from "react-icons/fi";
 import { isCanchaDisponibleEnFecha } from "../../../shared/utils/disponibilidadCancha";
+import { ordenarHorarios } from "../../../shared/utils/ordenarHorarios";
 
 // Helper para el input (YYYY-MM-DD)
 const formatDate = (date) => {
@@ -88,7 +89,13 @@ export default function ReservaTabla() {
     const map = {};
     canchasRaw.forEach((c) => {
       const ids = Array.isArray(c.horarios) ? c.horarios : [];
-      map[c.nombre] = ids.map((id) => horariosById[id]).filter(Boolean);
+      
+      const listaHorarios = ids
+        .map((id) => horariosById[id])
+        .filter(Boolean);
+
+      // Ordenamos por hora de inicio
+      map[c.nombre] = ordenarHorarios(listaHorarios);
     });
     setHorariosPorCancha(map);
   }, [canchasRaw, horariosById]);

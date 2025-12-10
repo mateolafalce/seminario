@@ -1,10 +1,12 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { motion } from "framer-motion"; 
+import { motion, AnimatePresence } from "framer-motion"; 
 import backendClient from "../../../../shared/services/backendClient";
 import Button from "../../../../shared/components/ui/Button/Button";
 import ListarCanchas from "../../../canchas/pages/ListarCanchas";
-import { MdAccessTime, MdAddCircleOutline, MdOutlineSportsTennis } from "react-icons/md"; 
+import { MdAccessTime, MdAddCircleOutline, MdOutlineSportsTennis, MdWarning } from "react-icons/md"; 
+import { toast } from "react-toastify";
+import MiToast from "../../../../shared/components/ui/Toast/MiToast";
 
 const containerVariants = {
   hidden: { opacity: 0 },
@@ -35,19 +37,28 @@ export default function GestionCanchas() {
   const [mensajeError, setMensajeError] = useState("");
   const [loading, setLoading] = useState(false);
   const [reloadKey, setReloadKey] = useState(0);
+  const [canchaAEliminar, setCanchaAEliminar] = useState(null);
 
   const irACrear = () => navigate("/panel-control/canchas/nueva");
   const irAEditar = (cancha) => navigate(`/panel-control/canchas/editar/${cancha.id}`);
 
-  const handleEliminarCancha = async (cancha) => {
-    if (!window.confirm(`¿Seguro que querés eliminar "${cancha.nombre}"?`)) return;
+  const handleEliminarCancha = (cancha) => {
+    setCanchaAEliminar(cancha);
+  };
+
+  const confirmarEliminacion = async () => {
+    if (!canchaAEliminar) return;
     try {
       setLoading(true);
       setMensajeError("");
-      await backendClient.delete(`canchas/eliminar/${cancha.id}`);
+      await backendClient.delete(`canchas/eliminar/${canchaAEliminar.id}`);
+      toast(<MiToast mensaje="Cancha eliminada correctamente" color="#10b981" />);
       setReloadKey((k) => k + 1);
+      setCanchaAEliminar(null);
     } catch (e) {
-      setMensajeError(e?.response?.data?.detail || "Error al eliminar.");
+      const msg = e?.response?.data?.detail || "Error al eliminar.";
+      setMensajeError(msg);
+      toast(<MiToast mensaje={msg} color="#ef4444" />);
     } finally {
       setLoading(false);
     }
@@ -112,6 +123,53 @@ export default function GestionCanchas() {
           onEliminar={handleEliminarCancha}
         />
       </motion.div>
+
+      {/* MODAL DE CONFIRMACIÓN */}
+      <AnimatePresence>
+        {canchaAEliminar && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4"
+            onClick={() => setCanchaAEliminar(null)}
+          >
+            <motion.div
+              initial={{ scale: 0.95, opacity: 0, y: 20 }}
+              animate={{ scale: 1, opacity: 1, y: 0 }}
+              exit={{ scale: 0.95, opacity: 0, y: 20 }}
+              onClick={(e) => e.stopPropagation()}
+              className="bg-slate-900 border border-slate-700 rounded-xl shadow-2xl max-w-md w-full overflow-hidden"
+            >
+              <div className="p-6 flex flex-col items-center text-center">
+                <div className="w-14 h-14 bg-red-500/10 rounded-full flex items-center justify-center mb-4 text-red-500">
+                  <MdWarning size={28} />
+                </div>
+                <h3 className="text-xl font-bold text-white mb-2">¿Eliminar cancha?</h3>
+                <p className="text-slate-400 mb-6 text-sm leading-relaxed">
+                  Estás a punto de eliminar la cancha <strong className="text-white">{canchaAEliminar.nombre}</strong>.
+                  <br/>Esta acción no se puede deshacer.
+                </p>
+                
+                <div className="flex gap-3 w-full">
+                  <Button 
+                    texto="Cancelar" 
+                    onClick={() => setCanchaAEliminar(null)}
+                    variant="secondary"
+                    className="flex-1 justify-center"
+                  />
+                  <Button 
+                    texto="Sí, eliminar" 
+                    onClick={confirmarEliminacion}
+                    className="flex-1 justify-center bg-red-600 hover:bg-red-700 text-white shadow-lg shadow-red-900/20 border-transparent"
+                    disabled={loading}
+                  />
+                </div>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </motion.div>
   );
 }

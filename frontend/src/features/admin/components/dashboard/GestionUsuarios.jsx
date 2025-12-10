@@ -1,12 +1,15 @@
+import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { motion } from "framer-motion"; // <--- Importamos Motion
+import { motion, AnimatePresence } from "framer-motion"; 
+import { toast } from "react-toastify"; // Import toast
+import MiToast from "../../../../shared/components/ui/Toast/MiToast"; // Import MiToast
 import { useUsuarios } from "../../../usuarios/hooks/useUsuarios";
 import { useBusquedaUsuarios } from "../../../usuarios/hooks/useBusquedaUsuarios";
 import BarraBusqueda from "../../../../shared/components/ui/SearchBar/BarraBusqueda";
 import ListaUsuarios from "../../../usuarios/pages/ListaUsuarios";
 import Paginacion from "../../../../shared/components/ui/Paginacion";
 import Button from "../../../../shared/components/ui/Button/Button";
-import { MdLayers, MdPersonAdd, MdPeopleAlt } from "react-icons/md";
+import { MdLayers, MdPersonAdd, MdPeopleAlt, MdWarning } from "react-icons/md";
 
 const containerVariants = {
   hidden: { opacity: 0 },
@@ -28,6 +31,7 @@ const itemVariants = {
 
 function GestionUsuarios() {
   const navigate = useNavigate();
+  const [usuarioAEliminar, setUsuarioAEliminar] = useState(null);
   const {
     users, loading, error, currentPage, totalPages,
     fetchUsers, handlePageChange, eliminarUsuario
@@ -48,26 +52,25 @@ function GestionUsuarios() {
     });
   };
 
-  const handleEliminar = async (usuario) => {
-    const nombre = (usuario.nombre || usuario.persona?.nombre || "").trim();
-    const apellido = (usuario.apellido || usuario.persona?.apellido || "").trim();
-  
-    const etiqueta = `${nombre} ${apellido}`.trim() || `ID ${usuario.id}`;
-  
-    const ok = window.confirm(
-      `¿Seguro que querés eliminar al usuario "${etiqueta}"?`
-    );
-    if (!ok) return { success: false };
-  
-    const resultado = await eliminarUsuario(usuario.id);
+  const handleEliminar = (usuario) => {
+    setUsuarioAEliminar(usuario);
+  };
+
+  const confirmarEliminacion = async () => {
+    if (!usuarioAEliminar) return;
+
+    const resultado = await eliminarUsuario(usuarioAEliminar.id);
     if (resultado.success) {
+      toast(<MiToast mensaje="Usuario eliminado correctamente" color="#10b981" />); // Add toast
       if (modoBusqueda) {
-        eliminarDeResultados(usuario.id);
+        eliminarDeResultados(usuarioAEliminar.id);
       } else {
         fetchUsers(currentPage);
       }
+      setUsuarioAEliminar(null);
+    } else {
+      toast(<MiToast mensaje={resultado.error || "Error al eliminar usuario"} color="#ef4444" />); // Add error toast
     }
-    return resultado;
   };
 
   return (
@@ -138,6 +141,54 @@ function GestionUsuarios() {
           </div>
         )}
       </motion.div>
+
+      {/* MODAL DE CONFIRMACIÓN */}
+      <AnimatePresence>
+        {usuarioAEliminar && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4"
+            onClick={() => setUsuarioAEliminar(null)}
+          >
+            <motion.div
+              initial={{ scale: 0.95, opacity: 0, y: 20 }}
+              animate={{ scale: 1, opacity: 1, y: 0 }}
+              exit={{ scale: 0.95, opacity: 0, y: 20 }}
+              onClick={(e) => e.stopPropagation()}
+              className="bg-slate-900 border border-slate-700 rounded-xl shadow-2xl max-w-md w-full overflow-hidden"
+            >
+              <div className="p-6 flex flex-col items-center text-center">
+                <div className="w-14 h-14 bg-red-500/10 rounded-full flex items-center justify-center mb-4 text-red-500">
+                  <MdWarning size={28} />
+                </div>
+                <h3 className="text-xl font-bold text-white mb-2">¿Eliminar usuario?</h3>
+                <p className="text-slate-400 mb-6 text-sm leading-relaxed">
+                  Estás a punto de eliminar a <strong className="text-white">
+                    {(usuarioAEliminar.nombre || usuarioAEliminar.persona?.nombre || "").trim()} {(usuarioAEliminar.apellido || usuarioAEliminar.persona?.apellido || "").trim() || `ID ${usuarioAEliminar.id}`}
+                  </strong>. 
+                  <br/>Esta acción es irreversible y eliminará todos los datos asociados.
+                </p>
+                
+                <div className="flex gap-3 w-full">
+                  <Button 
+                    texto="Cancelar" 
+                    onClick={() => setUsuarioAEliminar(null)}
+                    variant="secondary"
+                    className="flex-1 justify-center"
+                  />
+                  <Button 
+                    texto="Sí, eliminar" 
+                    onClick={confirmarEliminacion}
+                    className="flex-1 justify-center bg-red-600 hover:bg-red-700 text-white shadow-lg shadow-red-900/20 border-transparent"
+                  />
+                </div>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </motion.section>
   );
 }

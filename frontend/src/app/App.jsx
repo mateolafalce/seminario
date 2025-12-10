@@ -30,6 +30,7 @@ import AuthProvider, { AuthContext } from '../features/auth/context/AuthContext'
 
 import {
   canManageUsers,
+  canViewUsers,
   canManageCanchas,
   canManageReservas,
   canViewStatistics,
@@ -97,11 +98,16 @@ function AutoRedirectPanel() {
   if (loading) return <div className="p-6 text-gray-200">Cargando…</div>;
   if (!isAuthenticated) return <Navigate to="/login" replace />;
 
-  if (canManageUsers(me))     return <Navigate to="/panel-control/usuarios" replace />;
-  if (canManageCanchas(me))   return <Navigate to="/panel-control/canchas" replace />;
-  if (canManageReservas(me))  return <Navigate to="/panel-control/reservas" replace />;
-  if (canViewStatistics(me))  return <Navigate to="/panel-control/estadisticas" replace />;
-  if (canUseAlgoritmo(me))    return <Navigate to="/panel-control/algoritmo" replace />;
+  // Admin: primero a gestión de usuarios
+  if (canManageUsers(me)) return <Navigate to="/panel-control/usuarios" replace />;
+
+  // Empleado: va directo a Reservas
+  if (canManageReservas(me)) return <Navigate to="/panel-control/reservas" replace />;
+
+  // Otros roles con permisos específicos
+  if (canManageCanchas(me)) return <Navigate to="/panel-control/canchas" replace />;
+  if (canViewStatistics(me)) return <Navigate to="/panel-control/estadisticas" replace />;
+  if (canUseAlgoritmo(me)) return <Navigate to="/panel-control/algoritmo" replace />;
 
   return <Navigate to="/" replace />;
 }
@@ -174,7 +180,7 @@ function AppWithTimeout() {
 
         <Route path="/panel-control" element={<PanelControl />}>
           <Route index element={<AutoRedirectPanel />} />
-          <Route path="usuarios" element={<PermissionRoute check={canManageUsers}><TabUsuarios /></PermissionRoute>} />
+          <Route path="usuarios" element={<PermissionRoute check={canViewUsers}><TabUsuarios /></PermissionRoute>} />
           <Route path="usuarios/nuevo" element={<PermissionRoute check={canManageUsers}><PersistirUsuarioAdmin /></PermissionRoute>} />
           <Route
             path="usuarios/editar/:id"

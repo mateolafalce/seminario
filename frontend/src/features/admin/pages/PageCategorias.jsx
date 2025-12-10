@@ -1,11 +1,14 @@
 import { useEffect, useState, useCallback, useContext } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { motion } from "framer-motion"; // <---
+import { motion, AnimatePresence } from "framer-motion"; // <--- Added AnimatePresence
 import { AuthContext } from '../../auth/context/AuthContext';
 import categoriasApi from '../../../shared/services/categoriasApi';
 import Button from '../../../shared/components/ui/Button/Button';
 import { successToast, errorToast } from '../../../shared/utils/apiHelpers';
+import { toast } from "react-toastify"; // <--- Added toast
+import MiToast from "../../../shared/components/ui/Toast/MiToast"; // <--- Added MiToast
 import { FiTrash2, FiEdit2, FiPlus, FiSave, FiX, FiArrowLeft } from "react-icons/fi";
+import { MdWarning } from "react-icons/md"; // <--- Added MdWarning
 
 const containerVariants = {
   hidden: { opacity: 0 },
@@ -24,6 +27,7 @@ export default function PageCategorias() {
   const [rows, setRows] = useState([]);
   const [loading, setLoading] = useState(true);
   const [creating, setCreating] = useState(false);
+  const [categoriaAEliminar, setCategoriaAEliminar] = useState(null); // <--- New state
   
   const [newNombre, setNewNombre] = useState('');
   const [newNivel, setNewNivel] = useState(1);
@@ -95,14 +99,20 @@ export default function PageCategorias() {
     }
   };
 
-  const deleteCategoria = async (id) => {
-    if (!window.confirm('¿Eliminar esta categoría?')) return;
+  const handleDeleteClick = (row) => {
+    setCategoriaAEliminar(row);
+  };
+
+  const confirmarEliminacion = async () => {
+    if (!categoriaAEliminar) return;
     try {
-      await categoriasApi.eliminar(id);
-      successToast('Categoría eliminada');
+      await categoriasApi.eliminar(categoriaAEliminar.id);
+      toast(<MiToast mensaje="Categoría eliminada" color="#10b981" />);
       load();
+      setCategoriaAEliminar(null);
     } catch (e) {
-      errorToast(e?.data?.detail || e?.message || 'No se pudo eliminar');
+      const msg = e?.data?.detail || e?.message || 'No se pudo eliminar';
+      toast(<MiToast mensaje={msg} color="#ef4444" />);
     }
   };
 
@@ -218,7 +228,7 @@ export default function PageCategorias() {
                                         ) : canAdmin && (
                                             <div className="flex justify-end gap-3">
                                                 <button onClick={() => startEdit(r)} className="text-slate-400 hover:text-yellow-400 transition"><FiEdit2 size={18} /></button>
-                                                <button onClick={() => deleteCategoria(r.id)} className="text-slate-400 hover:text-red-400 transition"><FiTrash2 size={18} /></button>
+                                                <button onClick={() => handleDeleteClick(r)} className="text-slate-400 hover:text-red-400 transition"><FiTrash2 size={18} /></button>
                                             </div>
                                         )}
                                     </td>
@@ -230,6 +240,52 @@ export default function PageCategorias() {
             </div>
         </motion.div>
       </div>
+
+      {/* MODAL DE CONFIRMACIÓN */}
+      <AnimatePresence>
+        {categoriaAEliminar && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4"
+            onClick={() => setCategoriaAEliminar(null)}
+          >
+            <motion.div
+              initial={{ scale: 0.95, opacity: 0, y: 20 }}
+              animate={{ scale: 1, opacity: 1, y: 0 }}
+              exit={{ scale: 0.95, opacity: 0, y: 20 }}
+              onClick={(e) => e.stopPropagation()}
+              className="bg-slate-900 border border-slate-700 rounded-xl shadow-2xl max-w-md w-full overflow-hidden"
+            >
+              <div className="p-6 flex flex-col items-center text-center">
+                <div className="w-14 h-14 bg-red-500/10 rounded-full flex items-center justify-center mb-4 text-red-500">
+                  <MdWarning size={28} />
+                </div>
+                <h3 className="text-xl font-bold text-white mb-2">¿Eliminar categoría?</h3>
+                <p className="text-slate-400 mb-6 text-sm leading-relaxed">
+                  Estás a punto de eliminar la categoría <strong className="text-white">{categoriaAEliminar.nombre}</strong>.
+                  <br/>Esta acción podría afectar a los usuarios asignados a ella.
+                </p>
+                
+                <div className="flex gap-3 w-full">
+                  <Button 
+                    texto="Cancelar" 
+                    onClick={() => setCategoriaAEliminar(null)}
+                    variant="secondary"
+                    className="flex-1 justify-center"
+                  />
+                  <Button 
+                    texto="Sí, eliminar" 
+                    onClick={confirmarEliminacion}
+                    className="flex-1 justify-center bg-red-600 hover:bg-red-700 text-white shadow-lg shadow-red-900/20 border-transparent"
+                  />
+                </div>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </motion.div>
   );
 }

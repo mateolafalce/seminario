@@ -211,8 +211,6 @@ async def modificar_usuario(data: AdminModificarUsuarioRequest):
 
         # 2) Cambios en users: habilitado / categoria
         set_users = {"habilitado": data.habilitado}
-        if data.habilitado:
-            set_users["habilitacion_token"] = None
 
         # Resolver categoría (opcional)
         if data.categoria and data.categoria not in ["Sin categoría", ""]:

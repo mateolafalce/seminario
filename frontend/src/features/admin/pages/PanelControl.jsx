@@ -9,7 +9,7 @@ import { PiCourtBasketballFill, PiFolderUserFill } from "react-icons/pi";
 import { FaProjectDiagram } from "react-icons/fa";
 
 import {
-  canManageUsers, canManageCanchas, canManageReservas, canViewStatistics, canUseAlgoritmo,
+  canManageUsers, canViewUsers, canManageCanchas, canManageReservas, canViewStatistics, canUseAlgoritmo,
 } from '../../../shared/utils/permissions';
 
 // SidebarLink mejorado con indicador visual activo (borde izquierdo)
@@ -40,12 +40,12 @@ export default function PanelControl() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   const flags = useMemo(() => ({
-    showUsuarios:     canManageUsers(me),
+    showUsuarios:     canViewUsers(me),
     showCanchas:      canManageCanchas(me),
     showReservas:     canManageReservas(me),
     showEstadisticas: canViewStatistics(me),
     showAlgoritmo:    canUseAlgoritmo(me),
-    showPreferencias: canManageReservas(me),
+    showPreferencias: canManageReservas(me) && canManageUsers(me),
   }), [me]);
 
   if (loading) return <div className="bg-slate-950 min-h-screen flex items-center justify-center text-slate-500">Cargando...</div>;

@@ -7,7 +7,7 @@ import os
 import logging
 import uuid
 from routers import users_b, admin_users, reservas, preferencias, canchas, horarios, resenias, resenias_publicas
-from routers import reservas_resultados  # <- nuevo
+from routers import reservas_resultados
 from routers import categorias
 from routers import algoritmo
 from routers import invitaciones

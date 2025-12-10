@@ -100,19 +100,19 @@ const adminApi = {
     cantidades: (fecha) => backendClient.get('reservas/cantidad', { fecha }),
     detalle: (cancha, horario, fecha, usuario_id) =>
       backendClient.get('reservas/detalle', { cancha, horario, fecha, usuario_id }),
-    cancelar: (reservaId) => backendClient.delete(`reservas/cancelar/${reservaId}`),
-    
-    // Búsqueda admin con filtros y paginación
+
+    // ✅ Esta ya apuntaba bien al backend
+    cancelar: (reservaId) =>
+      backendClient.delete(`reservas/cancelar/${reservaId}`),
+
+    // ✅ Hacemos que la versión “admin” use LA MISMA ruta real
+    cancelarReserva: (reservaId) =>
+      backendClient.delete(`reservas/cancelar/${reservaId}`),
+
     adminSearch: async (filters) => {
       return await backendClient.post('/reservas/admin/buscar', filters);
     },
 
-    // Cancelar reserva (admin) - usa DELETE
-    cancelarReserva: async (reservaId) => {
-      return await backendClient.delete(`/reservas/admin/cancelar/${reservaId}`);
-    },
-    
-    // Crear reserva admin - convierte fecha a DD-MM-YYYY
     crearReservaAdmin: async (data) => {
       const payload = { ...data, fecha: toDMY(data.fecha) };
       return await backendClient.post('/reservas/admin/crear', payload);
@@ -120,8 +120,18 @@ const adminApi = {
   },
 
   preferencias: {
-    adminSearch: (payload) =>
-      backendClient.post('/preferencias/admin/buscar', payload),
+    /**
+     * Búsqueda admin de preferencias con paginación.
+     * @param {Object} filters - { canchas?: string[], dias?: string[], horarios?: string[] }
+     * @param {number} page
+     * @param {number} limit
+     */
+    adminSearch: (filters = {}, page = 1, limit = 10) =>
+      backendClient.post('/preferencias/admin/buscar', {
+        ...filters,
+        page,
+        limit,
+      }),
   },
 };
 

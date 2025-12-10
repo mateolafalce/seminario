@@ -36,10 +36,11 @@ export const hasPerm = (me, ...perms) => {
 
 // Políticas de UI (ajusta a gusto)
 export const canManageUsers       = (me) => hasRole(me, 'admin');
-export const canManageCanchas     = (me) => hasRole(me, 'admin', 'empleado') || hasPerm(me, 'canchas.*');
+export const canViewUsers         = (me) => hasRole(me, 'admin', 'empleado') || hasPerm(me, 'usuarios.ver');
+export const canManageCanchas     = (me) => hasRole(me, 'admin') || hasPerm(me, 'canchas.*');
 export const canManageReservas    = (me) => hasRole(me, 'admin', 'empleado') || hasPerm(me, 'reservas.*');
-export const canManageHorarios    = (me) => hasRole(me, 'admin', 'empleado') || hasPerm(me, 'horarios.*');
-export const canManageCategorias  = (me) => hasRole(me, 'admin', 'empleado') || hasPerm(me, 'categorias.*');
+export const canManageHorarios    = (me) => hasRole(me, 'admin') || hasPerm(me, 'horarios.*');
+export const canManageCategorias  = (me) => hasRole(me, 'admin') || hasPerm(me, 'categorias.*');
 export const canViewStatistics    = (me) => hasRole(me, 'admin') || hasPerm(me, 'stats.ver');
 export const canUseAlgoritmo      = (me) => hasRole(me, 'admin') || hasPerm(me, 'algoritmo.*');
 
