@@ -209,3 +209,56 @@ def notificar_cancelacion_por_admin(to: str, day: str, hora: str, cancha: str):
     except Exception as e:
         print(f"Error enviando email de cancelación admin: {e}")
         return False
+
+
+def notificar_invitacion_partido(
+    to: str, 
+    nombre_destinatario: str, 
+    invitante: str, 
+    fecha: str, 
+    hora: str, 
+    cancha: str
+) -> bool:
+    """
+    Envía una invitación a un jugador para unirse a un partido.
+    """
+    if not to:
+        return False
+    
+    dominio = os.getenv("DOMINIO", "")
+    url = f"https://{dominio}/reserva?fecha={quote(fecha)}&cancha={quote(cancha)}&horario={quote(hora)}"
+    
+    subject = f"¡{invitante} te invita a jugar el {fecha}!"
+    html = f"""
+    <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+        <div style="background-color: #000; text-align: center; padding: 20px;">
+            <h2 style="color: #eaff00; margin: 0;">¡Tenés una invitación para jugar!</h2>
+        </div>
+        <div style="padding: 20px;">
+            <p style="font-size: 16px;">Hola <strong>{nombre_destinatario}</strong>,</p>
+            <p style="font-size: 16px;"><strong>{invitante}</strong> te invita a jugar un partido:</p>
+            <div style="background-color: #f5f5f5; padding: 20px; border-radius: 8px; margin: 20px 0;">
+                <ul style="list-style: none; padding: 0; margin: 0;">
+                    <li style="margin: 12px 0; font-size: 15px;"><b>📅 Fecha:</b> {fecha}</li>
+                    <li style="margin: 12px 0; font-size: 15px;"><b>⏰ Hora:</b> {hora}</li>
+                    <li style="margin: 12px 0; font-size: 15px;"><b>🎾 Cancha:</b> {cancha}</li>
+                </ul>
+            </div>
+            <div style="text-align: center; margin: 25px 0;">
+                <a href="{url}" style="display: inline-block; background-color: #eaff00; color: #000; padding: 15px 30px; text-decoration: none; border-radius: 8px; font-weight: bold; font-size: 16px;">
+                    Ver reserva y unirme
+                </a>
+            </div>
+            <p style="color: #666; font-size: 14px;">Si no podés asistir, simplemente ignorá este correo.</p>
+        </div>
+        <div style="background-color: #f5f5f5; padding: 15px; text-align: center; color: #666; font-size: 12px;">
+            <p style="margin: 0;">¡Te esperamos en la cancha! 🎾</p>
+        </div>
+    </div>
+    """
+    
+    try:
+        return enviar_email(to=to, subject=subject, html=html)
+    except Exception as e:
+        print(f"Error enviando invitación a partido: {e}")
+        return False
