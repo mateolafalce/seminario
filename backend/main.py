@@ -10,6 +10,7 @@ from routers import users_b, admin_users, reservas, preferencias, canchas, horar
 from routers import reservas_resultados  # <- nuevo
 from routers import categorias
 from routers import algoritmo
+from routers import invitaciones
 from services.scheduler import start_scheduler, shutdown_scheduler
 from services.notifs import ensure_notif_indexes, ensure_unique_slot_index
 from routers.reservas import cerrar_reservas_vencidas
@@ -83,6 +84,7 @@ app.include_router(resenias_publicas.router, prefix="/api")
 app.include_router(reservas_resultados.router, prefix="/api")
 app.include_router(categorias.router, prefix="/api")
 app.include_router(algoritmo.router, prefix="/api")
+app.include_router(invitaciones.router, prefix="/api")
 
 
 # Static
