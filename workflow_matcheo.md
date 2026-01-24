@@ -11,7 +11,7 @@ flowchart TD
         ReservarCancha -.- Nota1["- Cancha<br>- Horario<br>- Fecha"]
         
         ReservarCancha --> DefinirCantidad[/"Definir Cantidad de<br>Jugadores"/]
-        DefinirCantidad -.- Nota2["- Buscar por username / nombre<br>- Mostrar matcheos del algoritmo"]
+        DefinirCantidad -.- Nota2["- Buscar por username / nombre"]
         
         DefinirCantidad --> Decision{"¿Invitas a otros Jugadores<br>Manualmente?"}
         
