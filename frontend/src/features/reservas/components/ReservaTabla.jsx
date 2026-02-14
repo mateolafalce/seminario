@@ -1,5 +1,5 @@
-import { useState, useContext, useEffect, useMemo } from "react";
-import { useNavigate } from "react-router-dom";
+import { useState, useContext, useEffect, useMemo, useRef } from "react";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { AuthContext } from "../../auth/context/AuthContext";
 import { toast } from "react-toastify";
 import MiToast from "../../../shared/components/ui/Toast/MiToast";
@@ -33,11 +33,27 @@ const normalizarTexto = (t) => t.trim().replace(/\s+/g, " ");
 export default function ReservaTabla() {
   const { user } = useContext(AuthContext);
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
+  const invitacionProcesada = useRef(false);
+
+  // --- Invitación: leer fecha de query params al montar ---
+  const fechaInicial = useMemo(() => {
+    const fechaParam = searchParams.get("fecha");
+    if (fechaParam) {
+      const parts = fechaParam.split("-");
+      if (parts.length === 3) {
+        const [day, month, year] = parts;
+        return `${year}-${month}-${day}`;
+      }
+    }
+    return formatDate(new Date());
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // Estados
   const [mensaje, setMensaje] = useState("");
   const [reservaPendiente, setReservaPendiente] = useState(null);
-  const [selectedDate, setSelectedDate] = useState(formatDate(new Date())); // Esto guarda YYYY-MM-DD
+  const [selectedDate, setSelectedDate] = useState(fechaInicial);
   const [selected, setSelected] = useState(null);
 
   // Datos
@@ -83,6 +99,24 @@ export default function ReservaTabla() {
     fetchData();
     return () => { alive = false; };
   }, []);
+
+  // --- Invitación: abrir detalle automáticamente cuando cargan las canchas ---
+  useEffect(() => {
+    if (invitacionProcesada.current) return;
+    const canchaParam = searchParams.get("cancha");
+    const horarioParam = searchParams.get("horario");
+
+    if (canchaParam && horarioParam && canchasRaw.length > 0) {
+      invitacionProcesada.current = true;
+      // Pequeño delay para asegurar que selectedDate ya se actualizó
+      setTimeout(() => {
+        abrirDetalle(canchaParam, horarioParam);
+      }, 100);
+      // Limpiar query params de la URL
+      setSearchParams({}, { replace: true });
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [canchasRaw]);
 
   // Mapeo de horarios por cancha
   useEffect(() => {

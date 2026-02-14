@@ -490,7 +490,7 @@ export default function ConfigurarPartidoModal({
                                             disabled={buscandoMatcheo}
                                             className="px-4 py-2.5 bg-purple-500/20 text-purple-400 font-medium rounded-xl hover:bg-purple-500/30 transition-colors flex items-center gap-2"
                                         >
-                                            <FiZap /> Buscar Matcheo
+                                            <FiZap /> {usuariosSeleccionados.length > 0 ? 'Invitar y Buscar Matcheo' : 'Buscar Matcheo'}
                                         </button>
                                     )}
                                     <button
