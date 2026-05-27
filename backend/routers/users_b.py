@@ -328,7 +328,7 @@ async def habilitar_usuario(token: str = Query(...)):
         {"$set": {"habilitado": True, "habilitacion_token": None}}
     ))
     from fastapi.responses import RedirectResponse
-    return RedirectResponse(url="https://boulevard81.sixtor.site/habilitado")
+    return RedirectResponse(url="https://boulevard81.sixtor.com/habilitado")
 
 @router.get("/jugadores_con_quienes_jugo")
 async def jugadores_con_quienes_jugo(user: Dict[str, Any] = Depends(current_user)):

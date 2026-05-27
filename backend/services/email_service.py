@@ -21,7 +21,7 @@ async def send_notification_email(email: str, nombre: str, mensaje: str) -> bool
     """Envía notificación genérica."""
     try:
         params = {
-            "from": os.getenv("RESEND_EMAIL", "noreply@sixtor.site"),
+            "from": os.getenv("RESEND_EMAIL", "noreply@sixtor.com"),
             "to": [email],
             "subject": "Notificación - Boulevard 81",
             "html": f"""
