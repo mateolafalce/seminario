@@ -7,6 +7,6 @@ export default defineConfig({
   server: {
     port: 8080,
     host: true,
-    allowedHosts: ['boulevard81.sixtor.site'],   
+    allowedHosts: ['boulevard81.sixtor.com'],   
   },
 })
